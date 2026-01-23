@@ -1,0 +1,17 @@
+# Ignore python Cache files
+__pycache__/
+
+# Ignore virtual environment folders
+venv/
+env/
+
+# Ignore any data file that isn't in specific data folder
+*.csv
+*.xlsx
+!data/dummy_sales_data.csv
+!data/mock_bill_of_materials.csv
+!data/mock_inventory.csv
+
+# Ignore DS_Store files
+.DS_Store
+
