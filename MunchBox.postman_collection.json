@@ -1,0 +1,1175 @@
+{
+	"info": {
+		"_postman_id": "aa43831b-56aa-442c-a0d3-46ad7a59df7c",
+		"name": "MunchBox",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48218863",
+		"_collection_link": "https://ronnapee-bunnag-1380465.postman.co/workspace/MuIScX's-Workspace~48e9cdc8-36de-44cb-8445-993a445b6f4a/collection/48218863-aa43831b-56aa-442c-a0d3-46ad7a59df7c?action=share&source=collection_link&creator=48218863"
+	},
+	"item": [
+		{
+			"name": "Login",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\"email\": \"ron@gmail.com\",\r\n    \"password\": \"1234\"\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/login",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Getlistofstaff",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/staff/list",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"staff",
+						"list"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create staff",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Johnson\",\r\n    \"role\" : 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/staff/update",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"staff",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Edit staff",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"staff_id\" : 1 ,\r\n    \"role\": 0\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/staff/update",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"staff",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete staff",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"staff_id\" : 22 \r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/staff/delete",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"staff",
+						"delete"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetlistIngredient",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"category\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/ingredient/list",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"ingredient",
+						"list"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "createIngredient",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n    \"name\": \"Fresh Tomato\",\r\n    \"unit\": \"kg\",\r\n    \"category\": 4\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/ingredient/create",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"ingredient",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "updateIngredient",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{\r\n    \"ingredient_id\": 28,\r\n    \"new_stock\": 20,\r\n    \"staff_id\": 1\r\n}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/ingredient/update-stock",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"ingredient",
+						"update-stock"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Ingredient log",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{\r\n    \"ingredient_id\": 28\r\n\r\n}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/ingredient/log",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"ingredient",
+						"log"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getStatus",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{\r\n    \r\n\r\n}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/ingredient/status",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"ingredient",
+						"status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetMenu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{\r\n\r\n}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/menu/list",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"menu",
+						"list"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "add_menu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{ \"name\": \"Pork kapaw\", \"price\": 55, \"type\": 1 }\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/menu/create",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"menu",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "UpdateMenu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{ \"menu_id\": 23, \"price\": 60 ,\"name\" : \"Peka\", \"type\" : 1}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/menu/update",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"menu",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "DeleteMenu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n\r\n{\r\n    \"menu_id\": 24\r\n}\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/menu/delete",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"menu",
+						"delete"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "AddRecipe",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{ \"menu_id\": 1, \"ingredient_id\": 28, \"amount\": 0.15 }\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/recipe/add",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"recipe",
+						"add"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "edit_ingredient_on_menu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n    \"menu_id\": 1,\r\n    \"ingredient_id\": 5,\r\n    \"amount\": 0.50\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/recipe/edit",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"recipe",
+						"edit"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete ingredient in recipe",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"menu_id\": 1,\r\n    \"ingredient_id\": 5\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/recipe/delete",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"recipe",
+						"delete"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "RecordSale",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"items\": [\r\n        {\r\n            \"menu_id\": 1,\r\n            \"amount\": 2\r\n        },\r\n        {\r\n            \"menu_id\": 3,\r\n            \"amount\": 1\r\n        }\r\n    ]\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/sale/record",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"sale",
+						"record"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ReportSale",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"items\": [\r\n        {\r\n            \"menu_id\": 1,\r\n            \"amount\": 2\r\n        },\r\n        {\r\n            \"menu_id\": 3,\r\n            \"amount\": 1\r\n        }\r\n    ]\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/sale/record",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"sale",
+						"record"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ReportOrders",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/report/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"report",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Share_menu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/share/menu",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"share",
+						"menu"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Share_menu catagorey",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/report/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"report",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Menu_trend",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/report/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"report",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Ingredient_trend",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/report/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"report",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "munchbox_menu",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/report/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"report",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "predict_report",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/predict/report",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"predict",
+						"report"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "predict_trend_report",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/predict/report",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"predict",
+						"report"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Register",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3MTQ5NTEyMSwianRpIjoiNjkyMWI4ZjYtMTRjNi00NDU2LWIwMjktODgwOWQ3YTFiMTVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IntcInVzZXJJZFwiOiAxLCBcInVzZXJuYW1lXCI6IFwia2trXCIsIFwicmVzdGF1cmFudElkXCI6IDEsIFwicGVybWlzc2lvblwiOiAxfSIsIm5iZiI6MTc3MTQ5NTEyMSwiY3NyZiI6ImU1MzcwZjdlLWIzZmMtNDgyYi1hNDAxLWQ2ZjBmNmY4MGIwMCIsImV4cCI6MTc3MTUzODMyMX0.--8mA70L6UOjnyJjuudrf9as4MoGrpQ7F9d8Byr6kx0",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "\r\n{\r\n\"menu_id\": 1\r\n\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/api/predict/report",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"predict",
+						"report"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
