@@ -11,7 +11,7 @@ from services import Service,Callback
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "b4c6022b4baed3f901fed7343576428e16bfa17d"
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=12)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=744)
 jwt = JWTManager(app)
 
 
