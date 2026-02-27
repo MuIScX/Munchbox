@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+/* globals.css */
+
+/* Custom Scrollbar for specific elements */
+/* app/globals.css */
+
+/* 1. Target the entire scrollbar area */
+::-webkit-scrollbar {
+  width: 8px;               /* Vertical scrollbar width */
+  height: 8px;              /* Horizontal scrollbar height */
+}
+
+/* 2. Target the 'track' (the background of the scrollbar) */
+::-webkit-scrollbar-track {
+  background: #111424;      /* Matches your MunchBox sidebar/dark theme */
+}
+
+/* 3. Target the 'thumb' (the part you click and drag) */
+::-webkit-scrollbar-thumb {
+  background: #334155;      /* A subtle slate color */
+  border-radius: 100px;     /* Makes it look pill-shaped */
+  border: 2px solid #111424; /* Creates a 'padding' effect around the thumb */
+}
+
+/* 4. Thumb hover state */
+::-webkit-scrollbar-thumb:hover {
+  background: #f97316;      /* MunchBox Orange on hover */
+}
+
+/* 5. Support for Firefox (Standard Properties) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #111424; /* Thumb color, Track color */
+}
+
+/* ===== Staff Page Scrollbar Only ===== */
+
+.staff-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.staff-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9; /* slate-100 */
+}
+
+.staff-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 20px;
+}
+
+.staff-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f97316; /* orange-500 */
+}
+
+/* Firefox */
+.staff-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}

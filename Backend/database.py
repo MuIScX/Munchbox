@@ -10,36 +10,64 @@ db_config = {
 }
 
 class Database:
+   import pymysql
+
+db_config = {
+    'host': '127.0.0.1',    
+    'port': 3306,
+    'user': 'root',
+    'password': 'Music468@',
+    'database': 'munchbox',
+}
+
+class Database:
     def __init__(self, config):
+        self.config = config # Store config for reconnecting
+        self.connect()
+
+    def connect(self):
         try:
-            self.connection = pymysql.connect(**config)
+            self.connection = pymysql.connect(**self.config)
             self.cursor = self.connection.cursor()
             print("Database Connected")
         except pymysql.MySQLError as e:
             print(f"Error connecting to MySQL: {e}")
             self.connection = None
             self.cursor = None
-    # Close connection to database
+
+    def reconnect(self):
+        """Attempts to close and reopen the connection."""
+        print("Attempting to reconnect to the database...")
+        self.close()
+        self.connect()
+
     def close(self):
         if self.connection:
-            self.cursor.close()
-            self.connection.close()
+            try:
+                self.cursor.close()
+                self.connection.close()
+            except:
+                pass # Already closed
             print("Database Connection Closed")
 
-    # Query function
     def query(self, query, params=None):
-        self.cursor.execute(query, params)
+        """Safe wrapper for SELECT statements."""
+        try:
+            self.cursor.execute(query, params)
+        except (pymysql.err.InterfaceError, pymysql.err.OperationalError, AttributeError):
+            self.reconnect() 
+            self.cursor.execute(query, params)
         return self.cursor.fetchall()
 
-    # Execute function
     def execute(self, query, params=None):
-        """
-        For:    
-            1. UPDATE
-        """
-        self.cursor.execute(query, params)
-        self.connection.commit()
-
+        """Safe wrapper for INSERT, UPDATE, DELETE statements."""
+        try:
+            self.cursor.execute(query, params)
+            self.connection.commit()
+        except (pymysql.err.InterfaceError, pymysql.err.OperationalError, AttributeError):
+            self.reconnect()
+            self.cursor.execute(query, params)
+            self.connection.commit()
 ## ------------------------------------------------------- ##
 # Data access
     
@@ -563,7 +591,7 @@ class Database:
             return False
 
         currentStock = float(row[0][0])
-
+        new_stock = int(new_stock)
         # 2️⃣ Prevent invalid stock
         if new_stock < 0:
             return False
@@ -733,7 +761,9 @@ class Database:
                 Ingredient.name,
                 Ingredient_History.amount,
                 Ingredient_History.staff_id,
-                Staff.name
+                Staff.name,
+                Ingredient.stock_left,
+                Ingredient.unit
             FROM Ingredient_History
             JOIN Staff ON Ingredient_History.staff_id = Staff.id
             JOIN Ingredient ON Ingredient_History.ingredient_id = Ingredient.id
@@ -760,7 +790,9 @@ class Database:
                 "ingredient_name": row[3],
                 "amount": row[4],
                 "staff_id": row[5],
-                "staff_name": row[6]
+                "staff_name": row[6],
+                "stock_left": row[7],
+                "unit": row[8]
             })
         return result
 
@@ -955,14 +987,19 @@ class Database:
         return {"id": result[0][0] ,"username": result[0][1],"restaurant_id": result[0][2],"permission": result[0][3]}
     
     def Q_password(self, email):
-
         query = """
-          SELECT  password
+        SELECT password
         FROM User
         WHERE email = %s
         """
-        password = self.query(query, (email,))
-        return password[0][0]
+        result = self.query(query, (email,))
+        
+        try:
+            # result[0] is the first row, [0] is the first column
+            return result[0][0]
+        except (IndexError, TypeError):
+            # Return None or handle the missing user case
+            return None
     
     def E_Register(self, username, restaurant_id, email, password):
         query = """
