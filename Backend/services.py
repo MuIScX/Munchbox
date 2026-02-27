@@ -22,11 +22,14 @@ class Service:
         if not password:
             return Callback("Missing argument: password", [])
         
-        if password == db.Q_password(email):
+        real_password = db.Q_password(email)
+        if real_password == None:
+            return Callback("Usergmail Not exist", [] )
+        if password == real_password:
             data =  db.Q_Login(email)
             return Callback("success", data )
         else:
-            return Callback("Failed to login", [] )
+            return Callback("Wrongpassword", [] )
         
     def register(username, restaurant_id, email, password):
         
@@ -271,7 +274,7 @@ class Service:
 
     def delete_menu(menu_id):
 
-        if not menu_id:
+        if menu_id is None:
             return Callback("Missing argument: menu_id", [])
 
         result = db.E_DeleteMenu(menu_id)

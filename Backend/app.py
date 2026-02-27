@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import json
 from flask_jwt_extended import (
     JWTManager,
@@ -9,15 +10,17 @@ from flask_jwt_extended import (
 from datetime import timedelta
 from services import Service,Callback
 
+
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "b4c6022b4baed3f901fed7343576428e16bfa17d"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=744)
 jwt = JWTManager(app)
-
+CORS(app)
 
 @app.post("/api/login")
 def login():
     post = request.json
+    print(post)
     email = post["email"]
     password = post["password"]
     text = ""
@@ -27,15 +30,17 @@ def login():
         result = Service.login(email,password)
         text = result.Message
         data = result.Data
-        print(data)
-        user_identity = {
-            "userId": data["id"],
-            "username": data["username"],
-            "restaurantId": data["restaurant_id"],
-            "permission": data["permission"]
-        }
-        token = create_access_token(identity=json.dumps(user_identity))
-        return jsonify({"message": text, "token": token}), 200
+        if data:
+            print(data)
+            user_identity = {
+                "userId": data["id"],
+                "username": data["username"],
+                "restaurantId": data["restaurant_id"],
+                "permission": data["permission"]
+            }
+            token = create_access_token(identity=json.dumps(user_identity))
+            return jsonify({"message": text, "token": token}), 200
+        return jsonify({"message": text}), 401
     return jsonify({"message": text}), 401
 
 @app.post("/api/register")
@@ -147,6 +152,7 @@ def update_stock():
     restaurantId = identity["restaurantId"]
     
     post = request.get_json(force=True)
+    print(post)
     result = Service.update_ingredient_stock(
         restaurant_id=restaurantId,
         ingredient_id=post.get("ingredient_id"),
