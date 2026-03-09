@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import { IngredientAPI, StaffAPI } from "@/lib/api"; 
+import { IngredientAPI, StaffAPI } from "../../lib/api"; 
 import { Search, Calendar, User, Loader2 } from 'lucide-react';
 
 export default function InventoryLog() {

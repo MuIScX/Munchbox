@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Minus, Plus, Check, X, Trash2 } from 'lucide-react';
-import { CATEGORY_MAP } from "@/lib/schema"; 
+import { CATEGORY_MAP } from "../../lib/schema"; 
 
 // FIXED: Changed 'onDelete' to 'onDeleteClick' to match your Home page prop
 export default function IngredientRow({ row, onUpdateStock, onDeleteClick }) {

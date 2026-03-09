@@ -1,7 +1,6 @@
 import { getCookie,setCookie } from "cookies-next";
 
-const BASE_URL = "https://0rq0s26b-5000.asse.devtunnels.ms/api";
-
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 async function request(endpoint, method = "POST", body = null, retries = 3) {
   const token = getCookie("token");
 
@@ -43,10 +42,14 @@ async function request(endpoint, method = "POST", body = null, retries = 3) {
     }
 
     // If no retries left or it's a permanent error, throw the final error
-    throw new Error(error.data?.message || "Something went wrong");
-  }
+    throw new Error(error.data?.detail || error.data?.message || "Something went wrong");  }
 }
 
+export const RestaurantAPI = {
+  get: () => request("/restaurant/get", "POST"),
+  create: (payload) => request("/restaurant/create", "POST", payload),
+  update: (payload) => request("/restaurant/update", "PUT", payload),
+}
 export const AuthAPI = {
   login: async (email, password) => {
     console.log(email)
@@ -70,6 +73,8 @@ export const AuthAPI = {
   logout: () => {
     deleteCookie("token")
   },
+  me: () => request("/user/me", "GET"),
+
 }
 
 

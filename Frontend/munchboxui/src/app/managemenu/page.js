@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import AddMenuModal from "../components/AddMenuModal";
 import DeleteMenuModal from "../components/DeleteMenuModal";
 import MenuRow from "../components/MenuRow";
-import { MenuAPI } from "@/lib/api";
+import { MenuAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 

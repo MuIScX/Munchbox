@@ -6,7 +6,7 @@ import StaffRow from "../components/StaffRow";
 import AddStaffModal from "../components/AddStaffModal"; 
 import EditStaffModal from "../components/EditStaffModal";
 import DeleteStaffModal from "../components/DeleteStaffModal"; 
-import { StaffAPI } from "@/lib/api";
+import { StaffAPI } from "../../lib/api";
 import { Search, Plus, Loader2 } from "lucide-react";
 
 export default function ManageStaffPage() {
