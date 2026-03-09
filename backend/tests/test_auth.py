@@ -8,13 +8,19 @@ class TestAuth:
             "username": "newuser",
             "email": "newuser@test.com",
             "password": "password123",
+            "restaurant_id": 1,
         })
         assert res.status_code in (200, 201)
         data = res.json()
         assert data.get("message") == "success"
 
     def test_register_duplicate_email(self, client):
-        payload = {"username": "dup", "email": "dup@test.com", "password": "pass"}
+        payload = {
+            "username": "dup",
+            "email": "dup@test.com",
+            "password": "pass",
+            "restaurant_id": 1,
+        }
         client.post("/api/register", json=payload)
         res = client.post("/api/register", json=payload)
         assert res.status_code in (400, 409, 422)
@@ -28,6 +34,7 @@ class TestAuth:
             "username": "loginuser",
             "email": "login@test.com",
             "password": "mypassword",
+            "restaurant_id": 1,
         })
         res = client.post("/api/login", json={
             "email": "login@test.com",
@@ -42,6 +49,7 @@ class TestAuth:
             "username": "loginuser2",
             "email": "login2@test.com",
             "password": "correctpass",
+            "restaurant_id": 1,
         })
         res = client.post("/api/login", json={
             "email": "login2@test.com",
@@ -64,7 +72,7 @@ class TestAuth:
         res = client.get("/api/user/me", headers=auth_headers)
         assert res.status_code == 200
         data = res.json()
-        assert data["message"] == "success"
+        assert data.get("message") == "success"
         assert "Data" in data
 
     def test_get_me_no_token(self, client):
