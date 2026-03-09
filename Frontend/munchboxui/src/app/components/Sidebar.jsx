@@ -29,7 +29,7 @@ export default function Sidebar() {
       title: 'QUICK ACCESS',
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: Home, color: 'text-orange-500' },
-        { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
+        { name: 'View Reports', path: '/reports/', icon: FileChartColumn, color: 'text-emerald-500' },
         { name: 'Manage Inventory', path: '/manageinventory/', icon: Package, color: 'text-blue-500' },
       ],
     },
@@ -40,7 +40,7 @@ export default function Sidebar() {
         { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500' },
         { name: 'Manage Menu', path: '/managemenu', icon: CookingPot, color: 'text-purple-500' },
         { name: 'Manage Inventory', path: '/manageinventory', icon: Package, color: 'text-blue-500' },
-        { name: 'View Reports', path: '/service-reports', icon: FileChartColumn, color: 'text-emerald-500' },
+        { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
         { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
       ],
     },

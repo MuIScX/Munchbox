@@ -129,6 +129,22 @@ def get_ingredients():
     )
 
     return jsonify({"message": result.Message, "Data": result.Data}), 200
+@app.post("/api/recipe/detail")
+@jwt_required()
+def get_recipe_detail():
+    # ดึง restaurantId จาก JWT Token
+    identity = get_jwt_identity()
+    identity = json.loads(identity)
+    restaurantId = identity["restaurantId"]
+    
+    # ดึง menu_id จาก Body ที่ Frontend ส่งมา
+    post = request.get_json(force=True)
+    menu_id = post.get("menu_id")
+    
+    # เรียกใช้ Service ที่เราเพิ่งสร้าง
+    result = Service.get_recipe_by_menu(restaurantId, menu_id)
+    
+    return jsonify({"message": result.Message, "Data": result.Data}), 200
 
 @app.post("/api/ingredient/create")
 @jwt_required()
@@ -232,6 +248,28 @@ def delete_menu():
     result = Service.delete_menu(menu_id=post.get("menu_id"))
     return jsonify({"message": result.Message, "Data": result.Data}), 200
 
+@app.delete("/api/ingredient/delete")
+@jwt_required()
+def delete_ingredient():
+    post = request.get_json(force=True)
+    result = Service.delete_ingredient(ingredient_id=post.get("ingredient_id"))
+    return jsonify({"message": result.Message, "Data": result.Data}), 200
+
+@app.post("/api/menu/detail")
+@jwt_required()
+def get_menu_detail():
+    identity = json.loads(get_jwt_identity())
+    restaurantId = identity["restaurantId"]
+
+    post = request.get_json(force=True)
+    menu_id = post.get("menu_id")
+
+    result = Service.get_menu_by_id(restaurantId, menu_id)
+
+    return jsonify({
+        "message": result.Message,
+        "Data": result.Data
+    }), 200
 
 
 
@@ -322,7 +360,11 @@ def get_total_orders():
     restaurantId = identity["restaurantId"]
     
     post = request.get_json(force=True)
+    
     result = Service.get_total_orders_by_menu(restaurantId, post.get("menu_id"))
+    print("result")
+
+    print(result.Data)
     return jsonify({"message": result.Message, "Data": result.Data}), 200
 
 @app.post("/api/report/share/menu")

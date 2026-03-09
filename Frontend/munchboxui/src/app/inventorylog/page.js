@@ -136,19 +136,14 @@ export default function InventoryLog() {
                     filteredLogs.map((log, index) => {
                       // Determine Stock In vs Stock Out based on change value or action text
                       const changeAmount = parseFloat(log.amount || 0);
-                      let newTotal = 0
                       let isStockIn = true
                       
                       if(log.action_type == 2){
                             isStockIn = false;
-                            newTotal = log.stock_left - changeAmount
                       }
                       else{
                         isStockIn = true;
-                        newTotal = log.stock_left + changeAmount
                       }
-    
-                      const stockBefore = log.stock_left || 0;
 
                      
                       
@@ -166,7 +161,7 @@ export default function InventoryLog() {
                             {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
                           </td>
                           <td className="px-6 py-4 text-slate-500 text-sm italic">
-                            {log.ingredient_name} stock {isStockIn ? 'in' : 'out'}: {isStockIn ? '+' : '-'}{log.amount} {log.unit} (New total: {newTotal} {log.unit})
+                            {log.ingredient_name} stock {isStockIn ? 'in' : 'out'}: {isStockIn ? '+' : '-'}{log.amount} {log.unit} (New total: {log.new_current} {log.unit})
                           </td>
                         </tr>
                       );

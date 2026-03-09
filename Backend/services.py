@@ -113,6 +113,7 @@ class Service:
             return Callback("Delete failed", [])
 
         return Callback("success", [])
+    
 
     
 # --------------------------
@@ -189,7 +190,18 @@ class Service:
             return Callback("Stock update failed", [])
 
         return Callback("success", [])
+    
+    def delete_ingredient(ingredient_id):
 
+        if not ingredient_id:
+            return Callback("Missing argument: ingredient_id", [])
+
+        result = db.E_DeleteIngredient(ingredient_id)
+
+        if not result:
+            return Callback("Delete failed", [])
+
+        return Callback("success", [])
 
     def get_ingredient_status(restaurant_id, ingredient_id=None):
 
@@ -270,8 +282,15 @@ class Service:
         if not result:
             return Callback("Failed to add menu", [])
 
-        return Callback("success", [])
-
+        return Callback("success", result)
+    def get_recipe_by_menu(restaurant_id, menu_id):
+        try:
+            db = Database(db_config) # หรือตัวแปร db ของคุณ
+            result = db.Q_GetRecipeByMenuId(restaurant_id, menu_id)
+            return Callback("success", result)
+        except Exception as e:
+            return Callback(str(e), None)
+        
     def delete_menu(menu_id):
 
         if menu_id is None:
@@ -306,6 +325,21 @@ class Service:
             return Callback("Update failed", [])
         
         return Callback("success", [])
+    
+    def get_menu_by_id(restaurant_id, menu_id):
+
+        if not restaurant_id:
+            return Callback("Missing argument: restaurant_id", [])
+
+        if not menu_id:
+            return Callback("Missing argument: menu_id", [])
+
+        data = db.Q_GetMenuDetails(restaurant_id, menu_id)
+
+        if not data:
+            return Callback("Menu not found", [])
+
+        return Callback("success", data[0])
 
 
 # --------------------------
