@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pymysql
+pyjwt
+pydantic
+pydantic-settings
+alembic

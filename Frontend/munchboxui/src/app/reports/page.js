@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar"; 
-import { ReportAPI, MenuAPI } from "@/lib/api"; 
+import { ReportAPI, MenuAPI } from "../../lib/api"; 
 import { Loader2 } from "lucide-react";
 
 // Import your newly extracted components

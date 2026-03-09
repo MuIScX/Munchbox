@@ -5,9 +5,9 @@ import AddIngredientModal from "../components/AddIngredientModal";
 import StaffGateModal from "../components/StaffGateModal";
 import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal"; // <-- Make sure this is imported!
-import { IngredientAPI, StaffAPI } from "@/lib/api"; 
+import { IngredientAPI, StaffAPI } from "../../lib/api"; 
 import { Search, Plus, Loader2 } from 'lucide-react';
-import { CATEGORY_MAP } from "@/lib/schema"; 
+import { CATEGORY_MAP } from "../../lib/schema"; 
 
 export default function Home() {
   // --- STATE ---

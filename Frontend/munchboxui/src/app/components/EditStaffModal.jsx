@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
-import { StaffAPI } from "@/lib/api"; 
+import { StaffAPI } from "../../lib/api"; 
 
 const ROLE_MAP = {
   1: "Staff",

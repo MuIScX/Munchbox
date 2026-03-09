@@ -1,0 +1,65 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: munchbox-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - munchbox-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${DOCKER_HUB_USERNAME}/munchbox-backend:latest
+    container_name: munchbox-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: production
+    networks:
+      - munchbox-net
+
+  frontend:
+    image: ${DOCKER_HUB_USERNAME}/munchbox-frontend:latest
+    container_name: munchbox-frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    networks:
+      - munchbox-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: munchbox-nginx
+    restart: always
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - munchbox-net
+
+volumes:
+  mysql_data:
+
+networks:
+  munchbox-net:
+    driver: bridge

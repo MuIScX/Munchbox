@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Plus, Search, Trash2 } from "lucide-react";
-import { MenuAPI, IngredientAPI } from "@/lib/api"; 
+import { MenuAPI, IngredientAPI } from "../../lib/api"; 
 
 export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);

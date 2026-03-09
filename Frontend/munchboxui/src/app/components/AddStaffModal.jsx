@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
-import { StaffAPI } from "@/lib/api"; 
+import { StaffAPI } from "../../lib/api"; 
 
-// If you have this in @/lib/schema, import it instead!
+// If you have this in ../../lib/schema, import it instead!
 const ROLE_MAP = {
   1: "Staff",
   2: "Manager",
