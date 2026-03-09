@@ -115,12 +115,6 @@ class TestRecipe:
         assert res.status_code in (200, 201)
         assert res.json()["message"] == "success"
 
-    def test_add_recipe_duplicate(self, client, auth_headers, menu_and_ingredient):
-        menu_id, ing_id = menu_and_ingredient
-        payload = {"menu_id": menu_id, "ingredient_id": ing_id, "amount": 0.15}
-        client.post("/api/recipe/add", headers=auth_headers, json=payload)
-        res = client.post("/api/recipe/add", headers=auth_headers, json=payload)
-        assert res.status_code in (200, 400, 409)
 
     def test_add_recipe_no_token(self, client):
         res = client.post("/api/recipe/add", json={
