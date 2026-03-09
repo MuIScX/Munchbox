@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from unittest.mock import patch
 import os
 
 # ── Set test environment before importing app ──
@@ -23,29 +22,22 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
-    """Create all tables once for the test session."""
+    """Create all tables once, drop after session."""
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture
-def db():
-    """Fresh DB session per test, rolled back after."""
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
-    yield session
-    session.close()
-    transaction.rollback()
-    connection.close()
-
-
-@pytest.fixture
-def client(db):
-    """TestClient with DB override."""
+@pytest.fixture(scope="session")
+def client():
+    """Single TestClient for entire session."""
     def override_get_db():
-        yield db
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
@@ -54,9 +46,9 @@ def client(db):
 
 
 # ── Auth helpers ──
-@pytest.fixture
+@pytest.fixture(scope="session")
 def auth_headers(client):
-    """Register + login and return Bearer headers."""
+    """Register + login once for entire session."""
     client.post("/api/register", json={
         "username": "testuser",
         "email": "test@munchbox.com",
@@ -67,10 +59,11 @@ def auth_headers(client):
         "password": "testpass123",
     })
     token = res.json().get("token") or res.json().get("access_token")
+    assert token is not None, f"Login failed: {res.json()}"
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def admin_headers(client):
     """Admin user headers (permission=1)."""
     client.post("/api/register", json={
@@ -84,4 +77,5 @@ def admin_headers(client):
         "password": "adminpass123",
     })
     token = res.json().get("token") or res.json().get("access_token")
+    assert token is not None, f"Admin login failed: {res.json()}"
     return {"Authorization": f"Bearer {token}"}
