@@ -1,32 +1,50 @@
-import { getCookie, setCookie, deleteCookie } from "cookies-next"
+import { getCookie,setCookie } from "cookies-next";
 
-const BASE_URL = "https://0rq0s26b-5000.asse.devtunnels.ms/api" 
+const BASE_URL = "https://0rq0s26b-5000.asse.devtunnels.ms/api";
 
-
-async function request(endpoint, method = "POST", body = null) {
-  const token = getCookie("token")
+async function request(endpoint, method = "POST", body = null, retries = 3) {
+  const token = getCookie("token");
 
   const headers = {
     "Content-Type": "application/json",
-  }
+  };
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null,
-  })
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null,
+    });
 
-  const data = await response.json()
+    const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.message || "Something went wrong")
+    if (!response.ok) {
+      // If we have retries left, throw to trigger the catch block
+      throw { data, status: response.status };
+    }
+
+    return data;
+  } catch (error) {
+    // Check if we should retry: 
+    // We retry if we have attempts left AND it's not a 4xx client error (like 401 or 404)
+    const isClientError = error.status >= 400 && error.status < 500;
+    
+    if (retries > 0 && !isClientError) {
+      console.warn(`Retrying... attempts left: ${retries}`);
+      
+      // Optional: Wait 1 second before retrying
+      await new Promise(res => setTimeout(res, 1000));
+      
+      return request(endpoint, method, body, retries - 1);
+    }
+
+    // If no retries left or it's a permanent error, throw the final error
+    throw new Error(error.data?.message || "Something went wrong");
   }
-
-  return data
 }
 
 export const AuthAPI = {
@@ -97,6 +115,19 @@ export const MenuAPI = {
 
   delete: (menu_id) =>
     request("/menu/delete", "DELETE", { menu_id }),
+
+  getById: (restaurant_id, menu_id) =>
+    request("/menu/detail", "POST", { menu_id }),
+
+  addIngredientToRecipe: (payload) =>
+    request("/recipe/add", "POST", payload),
+}
+
+export const RecipeAPI = {
+  // ... ฟังก์ชัน add, edit, delete เดิมของคุณ ...
+  
+  getDetail: (menu_id) => 
+    request("/recipe/detail", "POST", { menu_id }),
 }
 export const ReportAPI = {
   revenue: (menu_id) =>

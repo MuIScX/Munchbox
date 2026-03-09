@@ -60,19 +60,24 @@ class Database:
         return self.cursor.fetchall()
 
     def execute(self, query, params=None):
-        """Safe wrapper for INSERT, UPDATE, DELETE statements."""
+        """Safe wrapper for INSERT, UPDATE, DELETE statements. Returns lastrowid."""
         try:
             self.cursor.execute(query, params)
             self.connection.commit()
+            # 🔥 ส่งคืน ID ของแถวที่เพิ่งถูก Insert (ถ้าเป็น UPDATE/DELETE จะคืนค่า 0)
+            return self.cursor.lastrowid
+            
         except (pymysql.err.InterfaceError, pymysql.err.OperationalError, AttributeError):
             self.reconnect()
             self.cursor.execute(query, params)
             self.connection.commit()
+            # 🔥 ส่งคืน ID ในกรณีที่ต้อง Reconnect ด้วย
+            return self.cursor.lastrowid
 ## ------------------------------------------------------- ##
 # Data access
     
     def Q_AllStaffNameAndRole(self,resturant_id):
-        query = 'SELECT id,name,role FROM staff WHERE restaurant_id = %s '
+        query = 'SELECT id,name,role FROM staff WHERE restaurant_id = %s AND is_active = 1'
         param = (resturant_id,)
         rows = self.query(query,param)
         result = []
@@ -149,6 +154,7 @@ class Database:
                 ON p.ingredient_id = latest.ingredient_id
                 AND p.timestamp = latest.latest_time
             WHERE p.restaurant_id = %s
+            AND i.is_active = 1
         """
 
         params = (restaurant_id, restaurant_id)
@@ -213,11 +219,13 @@ class Database:
         """
         query = """
         SELECT 
-            ingredient_id, 
-            prediction_type, 
-            amount_need
-        FROM Predict
+            p.ingredient_id, 
+            p.prediction_type, 
+            p.amount_need
+        FROM Predict p
+        JOIN Ingredient i ON p.ingredient_id = i.id
         WHERE restaurant_id = %s
+        AND i.is_active = 1
         """
         params = [restaurant_id]
         
@@ -265,6 +273,7 @@ class Database:
             ON Predict.ingredient_id = latest.ingredient_id
             AND Predict.timestamp = latest.latest_time
         WHERE Ingredient.restaurant_id = %s
+        AND Ingredient.is_active = 1
         """
         params = [restaurant_id]
 
@@ -292,7 +301,7 @@ class Database:
             FROM Ingredient i
         """
 
-        conditions = ["i.restaurant_id = %s"]
+        conditions = ["i.restaurant_id = %s", "i.is_active = 1"]
         params = [restaurant_id]
 
         if menu_id is not None:
@@ -340,6 +349,7 @@ class Database:
 
             ) latest ON p.timestamp = latest.max_ts
             WHERE p.ingredient_id = %s AND restaurant_id = %s
+            AND i.is_active = 1
             ORDER BY p.timestamp ASC;
         """
 
@@ -428,6 +438,7 @@ class Database:
         LEFT JOIN Recipe ON Menu.id = Recipe.menu_id
         LEFT JOIN Ingredient ON Recipe.ingredient_id = Ingredient.id
         WHERE Menu.restaurant_id = %s
+        AND Menu.is_active = 1
         """
         params = [restaurant_id]
 
@@ -474,6 +485,7 @@ class Database:
             JOIN ingredient 
                 ON recipe.ingredient_id = ingredient.id
             WHERE menu.restaurant_id = %s
+            AND menu.is_active = 1
             GROUP BY menu.id
         """
         rows = self.query(query, (restaurant_id,))
@@ -486,14 +498,49 @@ class Database:
         return result
 
     def E_AddNewMenu(self, restaurant_id, menu_name, price, type):
-
         query = """
             INSERT INTO menu (name, price, type, restaurant_id)
             VALUES (%s, %s, %s, %s)
         """
-        self.execute(query, (menu_name, price, type, restaurant_id))
-        return True
-
+        # result ตอนนี้จะมีค่าเป็นตัวเลข ID ที่เพิ่งถูกสร้างขึ้นมาครับ
+        result = self.execute(query, (menu_name, price, type, restaurant_id))
+        
+        # คืนค่าเป็น Dictionary เพื่อให้สอดคล้องกับที่ Frontend รอรับ
+        if result:
+            return {"menu_id": result}
+        return None
+    
+    def Q_GetRecipeByMenuId(self, restaurant_id, menu_id):
+        """
+        Get all ingredients and their amounts for a specific menu.
+        Returns: JSON [{ingredient_id, ingredient_name, amount, unit}]
+        """
+        query = """
+            SELECT 
+                i.id,
+                i.name,
+                r.amount,
+                i.unit
+            FROM Recipe r
+            JOIN Ingredient i ON r.ingredient_id = i.id
+            WHERE r.menu_id = %s 
+            AND i.restaurant_id = %s
+            AND i.is_active = 1
+        """
+        
+        params = (menu_id, restaurant_id)
+        rows = self.query(query, params)
+        
+        result = []
+        for row in rows:
+            result.append({
+                "ingredient_id": row[0],
+                "ingredient_name": row[1],
+                "amount": float(row[2]) if row[2] is not None else 0.0,
+                "unit": row[3] if row[3] is not None else ""
+            })
+            
+        return result
     def E_DeleteMenu(self, menu_id):
         query = """
         UPDATE Menu
@@ -508,7 +555,7 @@ class Database:
     def E_AddIngredientToMenu(self, restaurant_id, menu_id, ingredient_id, amount):
 
         self.execute(
-            "SELECT 1 FROM menu WHERE id=%s AND restaurant_id=%s",
+            "SELECT 1 FROM menu WHERE id=%s AND restaurant_id=%s AND is_active = 1",
             (menu_id, restaurant_id)
         )
 
@@ -534,6 +581,18 @@ class Database:
 
         self.execute(query, param)
         
+        return True
+
+    def E_DeleteIngredient(self, ingredient_id):
+        
+        query = """
+        UPDATE Ingredient 
+        SET is_active = 0
+        WHERE id = %s
+        """
+        param = (ingredient_id,)
+        self.execute(query, param)
+
         return True
 
     def E_EditIngredientOnMenu(self, menu_id, ingredient_id, amount):
@@ -583,7 +642,9 @@ class Database:
         check_query = """
             SELECT stock_left
             FROM Ingredient
-            WHERE id = %s AND restaurant_id = %s
+            WHERE id = %s 
+            AND restaurant_id = %s
+            AND is_active = 1
         """
         row = self.query(check_query, (ingredient_id, restaurant_id))
 
@@ -625,15 +686,16 @@ class Database:
             # Insert history
             insert_query = """
                 INSERT INTO Ingredient_History
-                (timestamp, action_type, amount, ingredient_id, staff_id, restaurant_id)
-                VALUES (NOW(), %s, %s, %s, %s, %s)
+                (timestamp, action_type, amount, ingredient_id, staff_id, restaurant_id,new_current)
+                VALUES (NOW(), %s, %s, %s, %s, %s, %s)
             """
             self.execute(insert_query, (
                 actionType,
                 amountChange,
                 ingredient_id,
                 staff_id,
-                restaurant_id
+                restaurant_id,
+                new_stock
             ))
 
             self.connection.commit()
@@ -647,11 +709,13 @@ class Database:
 
         query = """
             SELECT 
-                ingredient_id,
-                amount_need
-            FROM Predict
-            WHERE ingredient_id = %s
-            AND restaurant_id = %s
+                p.ingredient_id,
+                p.amount_need
+            FROM Predict p
+            JOIN Ingredient i ON p.ingredient_id = i.id
+            WHERE p.ingredient_id = %s
+            AND p.restaurant_id = %s
+            AND i.is_active = 1
         """
         param = (ingredient_id, restaurant_id)
         rows = self.query(query, param)
@@ -677,7 +741,7 @@ class Database:
         return True
     
     def Q_GetPredictedStatus(self, restaurant_id, ingredient_id=None):
-        condition = []
+        condition = ["p.restaurant_id = %s", "i.is_active = 1"]
         params = [restaurant_id, restaurant_id]
 
         base_query = """
@@ -704,15 +768,13 @@ class Database:
                 ON p.ingredient_id = latest.ingredient_id
                 AND p.restaurant_id = latest.restaurant_id
                 AND p.timestamp = latest.latest_time
-            WHERE p.restaurant_id = %s
         """
 
         if ingredient_id is not None:
             condition.append("p.ingredient_id = %s")
             params.append(ingredient_id)
 
-        if condition:
-            base_query += " AND " + " AND ".join(condition)
+        base_query += " WHERE " + " AND ".join(condition)
 
         rows = self.query(base_query, tuple(params))
         result = []
@@ -737,6 +799,7 @@ class Database:
             FROM ingredient
             WHERE id = %s
             AND restaurant_id = %s
+            AND is_active = 1
         """
 
         param = (ingredient_id, restaurant_id)
@@ -762,8 +825,8 @@ class Database:
                 Ingredient_History.amount,
                 Ingredient_History.staff_id,
                 Staff.name,
-                Ingredient.stock_left,
-                Ingredient.unit
+                Ingredient.unit,
+                Ingredient_History.new_current
             FROM Ingredient_History
             JOIN Staff ON Ingredient_History.staff_id = Staff.id
             JOIN Ingredient ON Ingredient_History.ingredient_id = Ingredient.id
@@ -791,8 +854,8 @@ class Database:
                 "amount": row[4],
                 "staff_id": row[5],
                 "staff_name": row[6],
-                "stock_left": row[7],
-                "unit": row[8]
+                "unit": row[7],
+                "new_current": row[8]
             })
         return result
 
@@ -805,6 +868,7 @@ class Database:
             FROM Sale_data s
             JOIN Menu m ON s.menu_id = m.id
             WHERE s.restaurant_id = %s
+            
         """
 
         params = [restaurant_id]
@@ -830,10 +894,12 @@ class Database:
     def Q_GetTotalOrdersByMenu(self, restaurant_id, menu_id=None):
         query = """
             SELECT 
-                menu_id,
-                SUM(amount) AS totalOrders
-            FROM Sale_data
-            WHERE restaurant_id = %s
+                s.menu_id,
+                SUM(s.amount) AS totalOrders
+            FROM Sale_data s
+            JOIN Menu m ON s.menu_id = m.id
+            WHERE s.restaurant_id = %s
+            
         """
 
         params = [restaurant_id]
@@ -845,7 +911,7 @@ class Database:
         query += " GROUP BY menu_id"
 
         rows = self.query(query, tuple(params))
-
+        print(rows)
         result = []
         for row in rows:
             result.append({
@@ -856,11 +922,12 @@ class Database:
         return result
 
     def Q_GetShareByMenu(self, restaurant_id):
-        query = """
+        query = query = """
             SELECT 
                 m.id,
                 m.name,
                 IFNULL(SUM(s.amount), 0) AS totalOrders,
+                IFNULL(SUM(s.amount * m.price), 0) AS revenue,
                 (
                     IFNULL(SUM(s.amount), 0) /
                     (
@@ -874,7 +941,7 @@ class Database:
                 ON m.id = s.menu_id 
                 AND s.restaurant_id = %s
             WHERE m.restaurant_id = %s
-            GROUP BY m.id, m.name
+            GROUP BY m.id, m.name, m.price
         """
 
         rows = self.query(query, (restaurant_id, restaurant_id, restaurant_id))
@@ -885,7 +952,9 @@ class Database:
                 "menu_id": row[0],
                 "menu_name": row[1],
                 "total_orders": int(row[2]),
-                "share_percent": round(float(row[3]), 2)
+                "revenue": int(row[3]),
+
+                "share_percent": round(float(row[4]), 2)
             })
 
         return result
@@ -942,8 +1011,11 @@ class Database:
 
         # check menu belongs to restaurant
         check_query = """
-            SELECT id FROM Menu
-            WHERE id = %s AND restaurant_id = %s
+            SELECT id 
+            FROM Menu
+            WHERE id = %s 
+            AND restaurant_id = %s
+            AND is_active = 1
         """
         if not self.query(check_query, (menu_id, restaurant_id)):
             return False
@@ -963,6 +1035,7 @@ class Database:
             SELECT id, name
             FROM Menu
             WHERE restaurant_id = %s
+            AND is_active = 1
         """
 
         rows = self.query(query, (restaurant_id,))

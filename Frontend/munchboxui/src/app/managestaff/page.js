@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
+import StaffRow from "../components/StaffRow"; 
+import AddStaffModal from "../components/AddStaffModal"; 
+import EditStaffModal from "../components/EditStaffModal";
+import DeleteStaffModal from "../components/DeleteStaffModal"; 
 import { StaffAPI } from "@/lib/api";
-import { Search } from "lucide-react";
+import { Search, Plus, Loader2 } from "lucide-react";
 
 export default function ManageStaffPage() {
+  // --- STATE ---
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Modal States
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); 
+  const [staffToEdit, setStaffToEdit] = useState(null); 
+  const [staffToDelete, setStaffToDelete] = useState(null); 
 
+  // --- API CALLS ---
   const fetchStaff = async () => {
     try {
       setLoading(true);
@@ -27,37 +38,83 @@ export default function ManageStaffPage() {
     fetchStaff();
   }, []);
 
+  const confirmDelete = async () => {
+    if (!staffToDelete) return;
+    
+    const staffId = staffToDelete.staff_id || staffToDelete.id;
+
+    try {
+      await StaffAPI.delete(staffId);
+      // Remove the deleted staff member from the table instantly
+      setStaff((prev) => prev.filter((s) => (s.staff_id || s.id) !== staffId));
+      setStaffToDelete(null); 
+    } catch (err) {
+      alert(err.message || "Failed to delete staff member.");
+    }
+  };
+
+  // --- FILTERING ---
+  const filteredStaff = useMemo(() => {
+    return staff.filter((s) =>
+      (s.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [staff, searchQuery]);
+
+  // --- RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Sidebar */}
+      
+      {/* --- MODALS --- */}
+      <AddStaffModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSuccess={fetchStaff} 
+      />
+
+      <EditStaffModal 
+        isOpen={!!staffToEdit} 
+        onClose={() => setStaffToEdit(null)} 
+        onSuccess={fetchStaff} 
+        staffMember={staffToEdit}
+      />
+
+      <DeleteStaffModal 
+        isOpen={!!staffToDelete} 
+        onClose={() => setStaffToDelete(null)} 
+        onConfirm={confirmDelete}
+        staffName={staffToDelete?.name || "Unknown Staff"}
+      />
+
+      {/* --- LAYOUT --- */}
       <Sidebar />
 
-      {/* Main */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Scrollable Content Area */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-8 overflow-y-auto custom-scrollbar">
 
           {/* Header */}
-          <div className="flex justify-between items-center mb-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h1 className="text-2xl font-bold italic text-slate-800">
               Manage Staff
             </h1>
 
-            <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold transition-transform active:scale-95 shadow-md">
-              + Add New Staff
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-md"
+            >
+              <Plus size={20} /> Add New Staff
             </button>
           </div>
 
-          {/* Summary */}
-          <div className="bg-[#cfe3f1] w-72 rounded-2xl p-4 mb-6">
-            <p className="text-[#2c6b8a] text-sm">Total Staff</p>
-            <h2 className="text-3xl font-bold text-black">
+          {/* Summary Card */}
+          <div className="bg-[#cfe3f1] w-72 rounded-2xl p-5 mb-8 shadow-sm">
+            <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Staff</p>
+            <h2 className="text-4xl font-bold text-slate-800">
               {staff.length}
             </h2>
           </div>
 
-          {/* Search */}
-          <div className="flex flex-wrap gap-4 mb-6">
+          {/* Search Bar */}
+          <div className="flex flex-wrap gap-4 mb-8">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
@@ -70,74 +127,48 @@ export default function ManageStaffPage() {
             </div>
           </div>
 
-          {/* Table Card */}
+          {/* Data Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold italic text-slate-800">
-                Manage Staff Accounts
+                Staff Directory
               </h2>
-              {loading && (
-                <span className="text-orange-500 text-sm">Loading...</span>
-              )}
             </div>
 
-            {/* Table Scroll Container */}
-            <div className="max-h-[450px] overflow-y-auto staff-scrollbar">
+            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="sticky top-0 bg-slate-50 z-10">
+                <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Staff Name</th>
                     <th className="px-6 py-4 font-semibold">Role</th>
                     <th className="px-6 py-4 font-semibold text-center">
-                      Info
+                      Actions
                     </th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {!loading &&
-                  staff.filter((s) =>
-                    (s.name || "")
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  ).length > 0 ? (
-                    staff
-                      .filter((s) =>
-                        (s.name || "")
-                          .toLowerCase()
-                          .includes(searchQuery.toLowerCase())
-                      )
-                      .map((member) => (
-                        <tr
-                          key={member.id}
-                          className="hover:bg-slate-50/50 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-slate-700 font-medium">
-                            {member.name}
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-500">
-                            {member.role}
-                          </td>
-
-                          <td className="px-6 py-4 text-center">
-                            <button className="text-blue-500 hover:underline">
-                              Edit profile
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                  {loading ? (
+                    <tr>
+                      <td colSpan={3} className="py-12 text-center">
+                        <Loader2 className="animate-spin text-orange-500 mx-auto" size={28} />
+                      </td>
+                    </tr>
+                  ) : filteredStaff.length > 0 ? (
+                    filteredStaff.map((member) => (
+                      <StaffRow 
+                        key={member.staff_id || member.id} 
+                        member={member} 
+                        onEditClick={setStaffToEdit} 
+                        onDeleteClick={setStaffToDelete} 
+                      />
+                    ))
                   ) : (
-                    !loading && (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="text-center py-10 text-slate-400 italic"
-                        >
-                          No staff found
-                        </td>
-                      </tr>
-                    )
+                    <tr>
+                      <td colSpan={3} className="text-center py-12 text-slate-400 italic">
+                        {searchQuery ? "No staff found matching your search." : "No staff members available."}
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
