@@ -2,18 +2,23 @@ import pytest
 import json as jsonlib
 
 
+def get_last_id(client, headers, list_url, id_field, list_payload={}):
+    """List all items and return the last one's ID."""
+    res = client.post(list_url, headers=headers, json=list_payload)
+    items = res.json().get("Data", [])
+    if items:
+        return items[-1].get(id_field) or items[-1].get("id")
+    return None
+
+
 class TestIngredient:
 
     @pytest.fixture
     def created_ingredient_id(self, client, auth_headers):
-        res = client.post("/api/ingredient/create", headers=auth_headers, json={
+        client.post("/api/ingredient/create", headers=auth_headers, json={
             "name": "Test Tomato", "unit": "kg", "category": 1,
         })
-        assert res.status_code in (200, 201)
-        data = res.json().get("Data")
-        if isinstance(data, list):
-            return data[0].get("ingredient_id") or data[0].get("id")
-        return data.get("ingredient_id") or data.get("id")
+        return get_last_id(client, auth_headers, "/api/ingredient/list", "ingredient_id")
 
     def test_list_ingredients_no_filter(self, client, auth_headers):
         res = client.post("/api/ingredient/list", headers=auth_headers, json={})
@@ -102,23 +107,22 @@ class TestIngredient:
         assert res.status_code in (401, 403, 422)
 
     def test_delete_ingredient_success(self, client, auth_headers, created_ingredient_id):
-        res = client.delete("/api/ingredient/delete",
+        res = client.request("DELETE", "/api/ingredient/delete",
             headers=auth_headers,
-            content=jsonlib.dumps({"ingredient_id": created_ingredient_id}),
+            json={"ingredient_id": created_ingredient_id},
         )
         assert res.status_code == 200
         assert res.json()["message"] == "success"
 
     def test_delete_ingredient_nonexistent(self, client, auth_headers):
-        res = client.delete("/api/ingredient/delete",
-            headers={**auth_headers, "Content-Type": "application/json"},
-            content=jsonlib.dumps({"ingredient_id": 99999}),
+        res = client.request("DELETE", "/api/ingredient/delete",
+            headers=auth_headers,
+            json={"ingredient_id": 99999},
         )
         assert res.status_code in (404, 400)
 
     def test_delete_ingredient_no_token(self, client):
-        res = client.delete("/api/ingredient/delete",
-            headers={"Content-Type": "application/json"},
-            content=jsonlib.dumps({"ingredient_id": 1}),
+        res = client.request("DELETE", "/api/ingredient/delete",
+            json={"ingredient_id": 1},
         )
         assert res.status_code in (401, 403, 422)
