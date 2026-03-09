@@ -172,12 +172,27 @@ jobs:
             # Login to Docker Hub
             echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
 
+            # Ensure mysql is running
+            docker compose -f docker-compose.prod.yml up -d mysql
+            echo "Waiting for MySQL to be healthy..."
+            sleep 15
+
             # Pull latest images
             docker pull $DOCKER_HUB_USERNAME/munchbox-backend:latest
             docker pull $DOCKER_HUB_USERNAME/munchbox-frontend:latest
 
-            # Restart only backend and frontend (no downtime for mysql)
+            # Restart backend, frontend, nginx
             docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend frontend nginx
+            echo "Waiting for backend to start..."
+            sleep 10
+
+            # Run DB migrations / create tables
+            docker exec munchbox-backend python -c "
+            from app.db import engine, Base
+            from app.models import *
+            Base.metadata.create_all(bind=engine)
+            print('DB tables ensured.')
+            "
 
             # Clean up old images
             docker image prune -f
