@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Sidebar from "../../app/components/Sidebar";
-import { MenuAPI, RecipeAPI } from "../../lib/api"; // <-- Import IngredientAPI เพิ่มเติม
+import Sidebar from "../components/Sidebar";
+import { MenuAPI, RecipeAPI } from "../../../lib/api"; // <-- Import IngredientAPI เพิ่มเติม
 import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2 } from "lucide-react";
 
 // Mapping numeric types to display labels
