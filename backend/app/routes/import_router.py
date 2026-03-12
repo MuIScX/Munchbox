@@ -16,13 +16,13 @@ CATEGORY_TYPE_MAP = {
     "BURGERS": 1,
     "SNACKS": 2,
     "SIDE ITEMS": 2,
-    "FRIED RICES": 3,
+    "FRIED RICES": 1,
     "NON-ALCOHOL": 4,
     "ALCOHOL": 4,
-    "SOUP": 3,
-    "MAIN DISHES": 3,
+    "SOUP": 2,
+    "MAIN DISHES": 1,
     "SALAD": 2,
-    "DESSERT & ICE CREAM": 2,
+    "DESSERT & ICE CREAM": 3,
 }
 
 SKIP_ROWS = {"Sales by Item (Order Channel)", "Dine In,Take Out", "ITEM",
