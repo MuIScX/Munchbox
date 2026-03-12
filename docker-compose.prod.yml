@@ -4,6 +4,7 @@ services:
     container_name: munchbox-mysql
     restart: always
     environment:
+      TZ: Asia/Bangkok
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER} 
@@ -26,6 +27,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
+      TZ: Asia/Bangkok
       DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: production
