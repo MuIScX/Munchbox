@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
-import StaffRow from "../components/StaffRow"; 
-import AddStaffModal from "../components/AddStaffModal"; 
+import StaffRow from "../components/StaffRow";
+import AddStaffModal from "../components/AddStaffModal";
 import EditStaffModal from "../components/EditStaffModal";
-import DeleteStaffModal from "../components/DeleteStaffModal"; 
 import { StaffAPI } from "../../lib/api";
 import { Search, Plus, Loader2 } from "lucide-react";
 
@@ -14,11 +13,10 @@ export default function ManageStaffPage() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Modal States
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); 
-  const [staffToEdit, setStaffToEdit] = useState(null); 
-  const [staffToDelete, setStaffToDelete] = useState(null); 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [staffToEdit, setStaffToEdit] = useState(null);
 
   // --- API CALLS ---
   const fetchStaff = async () => {
@@ -38,21 +36,6 @@ export default function ManageStaffPage() {
     fetchStaff();
   }, []);
 
-  const confirmDelete = async () => {
-    if (!staffToDelete) return;
-    
-    const staffId = staffToDelete.staff_id || staffToDelete.id;
-
-    try {
-      await StaffAPI.delete(staffId);
-      // Remove the deleted staff member from the table instantly
-      setStaff((prev) => prev.filter((s) => (s.staff_id || s.id) !== staffId));
-      setStaffToDelete(null); 
-    } catch (err) {
-      alert(err.message || "Failed to delete staff member.");
-    }
-  };
-
   // --- FILTERING ---
   const filteredStaff = useMemo(() => {
     return staff.filter((s) =>
@@ -63,26 +46,19 @@ export default function ManageStaffPage() {
   // --- RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      
+
       {/* --- MODALS --- */}
-      <AddStaffModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSuccess={fetchStaff} 
+      <AddStaffModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={fetchStaff}
       />
 
-      <EditStaffModal 
-        isOpen={!!staffToEdit} 
-        onClose={() => setStaffToEdit(null)} 
-        onSuccess={fetchStaff} 
+      <EditStaffModal
+        isOpen={!!staffToEdit}
+        onClose={() => setStaffToEdit(null)}
+        onSuccess={fetchStaff}
         staffMember={staffToEdit}
-      />
-
-      <DeleteStaffModal 
-        isOpen={!!staffToDelete} 
-        onClose={() => setStaffToDelete(null)} 
-        onConfirm={confirmDelete}
-        staffName={staffToDelete?.name || "Unknown Staff"}
       />
 
       {/* --- LAYOUT --- */}
@@ -97,7 +73,7 @@ export default function ManageStaffPage() {
               Manage Staff
             </h1>
 
-            <button 
+            <button
               onClick={() => setIsAddModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-md"
             >
@@ -117,9 +93,9 @@ export default function ManageStaffPage() {
           <div className="flex flex-wrap gap-4 mb-8">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search Staff..." 
+              <input
+                type="text"
+                placeholder="Search Staff..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none shadow-sm"
@@ -141,9 +117,7 @@ export default function ManageStaffPage() {
                   <tr className="text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Staff Name</th>
                     <th className="px-6 py-4 font-semibold">Role</th>
-                    <th className="px-6 py-4 font-semibold text-center">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 font-semibold text-center">Actions</th>
                   </tr>
                 </thead>
 
@@ -156,11 +130,10 @@ export default function ManageStaffPage() {
                     </tr>
                   ) : filteredStaff.length > 0 ? (
                     filteredStaff.map((member) => (
-                      <StaffRow 
-                        key={member.staff_id || member.id} 
-                        member={member} 
-                        onEditClick={setStaffToEdit} 
-                        onDeleteClick={setStaffToDelete} 
+                      <StaffRow
+                        key={member.staff_id || member.id}
+                        member={member}
+                        onEditClick={setStaffToEdit}
                       />
                     ))
                   ) : (
