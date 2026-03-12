@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { ReportAPI, MenuAPI } from "../../lib/api";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import KPICards from "../components/reports/KPICards";
 import SalesTrendChart from "../components/reports/SalesTrendChart";
@@ -11,7 +11,7 @@ import CategoryPieChart from "../components/reports/CategoryPieChart";
 import SalesReportTable from "../components/reports/SalesReportTable";
 
 const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'];
-const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink"  };
+const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function getMonthRange(year, month) {
@@ -23,9 +23,10 @@ function getMonthRange(year, month) {
   };
 }
 
-export default function ViewReports() {
-  const now = new Date();
+const now = new Date();
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
+export default function ViewReports() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [shareAllTime, setShareAllTime] = useState(true);
@@ -46,13 +47,22 @@ export default function ViewReports() {
   const shareDateRange = shareAllTime ? { start_date: null, end_date: null } : dateRange;
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
-  const prevMonth = () => {
-    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
-    else setSelectedMonth(m => m - 1);
+  const handleMonthChange = (val) => {
+    if (val === "all") {
+      setShareAllTime(true);
+    } else {
+      setShareAllTime(false);
+      setSelectedMonth(Number(val));
+    }
   };
-  const nextMonth = () => {
-    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
-    else setSelectedMonth(m => m + 1);
+
+  const handleYearChange = (val) => {
+    if (val === "all") {
+      setShareAllTime(true);
+    } else {
+      setShareAllTime(false);
+      setSelectedYear(Number(val));
+    }
   };
 
   // KPI + menu list
@@ -140,34 +150,38 @@ export default function ViewReports() {
             </div>
           )}
 
-          {/* Header + month picker + All Time toggle */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          {/* Header + dropdowns */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-2xl font-bold italic text-slate-900">View Reports</h1>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShareAllTime(a => !a)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition
-                  ${shareAllTime
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-              >
-                All Time
-              </button>
-
-              <div className={`flex items-center gap-1 transition ${shareAllTime ? "opacity-40 pointer-events-none" : ""}`}>
-                <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-gray-100 transition">
-                  <ChevronLeft size={18} />
-                </button>
-                <div className="min-w-[110px] text-center">
-                  <p className="font-semibold text-gray-800">{MONTHS[selectedMonth]} {selectedYear}</p>
-                </div>
-                <button
-                  onClick={nextMonth}
-                  disabled={isCurrentMonth}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Month dropdown */}
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Month</label>
+                <select
+                  value={shareAllTime ? "all" : selectedMonth}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"
                 >
-                  <ChevronRight size={18} />
-                </button>
+                  <option value="all">All Time</option>
+                  {MONTHS.map((m, i) => (
+                    <option key={i} value={i}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Year dropdown */}
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Year</label>
+                <select
+                  value={shareAllTime ? "all" : selectedYear}
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="all">All Time</option>
+                  {YEAR_OPTIONS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -197,7 +211,7 @@ export default function ViewReports() {
             </div>
           </div>
 
-          {/* Sales report table — date controls live inside the component */}
+          {/* Sales report table */}
           <div className="relative">
             {shareLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 rounded-2xl">
@@ -208,12 +222,8 @@ export default function ViewReports() {
               tableData={tableData}
               formatCurrency={formatCurrency}
               shareAllTime={shareAllTime}
-              onToggleAllTime={() => setShareAllTime(a => !a)}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
-              onPrevMonth={prevMonth}
-              onNextMonth={nextMonth}
-              isCurrentMonth={isCurrentMonth}
             />
           </div>
 

@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Minus, Plus, Check, X, Trash2 } from 'lucide-react';
-import { CATEGORY_MAP } from "../../lib/schema"; 
+import { Minus, Plus, Check, X } from 'lucide-react';
+import { CATEGORY_MAP } from "../../lib/schema";
 
-// FIXED: Changed 'onDelete' to 'onDeleteClick' to match your Home page prop
-export default function IngredientRow({ row, onUpdateStock, onDeleteClick }) {
+export default function IngredientRow({ row, onUpdateStock }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(0);
 
@@ -72,13 +71,6 @@ export default function IngredientRow({ row, onUpdateStock, onDeleteClick }) {
           ) : (
             <div className="flex items-center gap-3">
               <button onClick={() => setIsEditing(true)} className="text-blue-500 hover:text-blue-700 font-medium hover:underline transition-all">Edit</button>
-              <button 
-                onClick={() => onDeleteClick(row)} 
-                className="text-slate-400 hover:text-red-500 transition-colors"
-                title="Delete Ingredient"
-              >
-                <Trash2 size={18} />
-              </button>
             </div>
           )}
         </div>
