@@ -1,4 +1,5 @@
 "use client";
+import { Trash2 } from "lucide-react";
 
 const TYPE_MAP = {
   1: "Main",
@@ -6,7 +7,7 @@ const TYPE_MAP = {
   3: "Dessert",
 };
 
-export default function MenuRow({ menu, onViewRecipe }) {
+export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick }) {
   const id = menu.menu_id || menu.id;
   const name = menu.menu_name || menu.name || "Unknown";
   const typeValue = menu.menu_type || menu.type;
@@ -20,12 +21,23 @@ export default function MenuRow({ menu, onViewRecipe }) {
       <td className="px-6 py-4 text-center text-slate-600">{count}</td>
       <td className="px-6 py-4 text-center text-slate-800 font-medium">{price} Baht</td>
       <td className="px-6 py-4 text-center">
-        <button
-          onClick={() => onViewRecipe(id)}
-          className="text-blue-500 hover:underline font-medium text-sm transition-colors"
-        >
-          View Recipe
-        </button>
+        <div className="flex justify-center items-center gap-4">
+          <button
+            onClick={() => onViewRecipe(id)}
+            className="text-blue-500 hover:underline font-medium text-sm transition-colors"
+          >
+            View Recipe
+          </button>
+          {showDelete && (
+            <button
+              onClick={() => onDeleteClick(menu)}
+              className="text-red-400 hover:text-red-600 transition-colors"
+              title="Delete Recipe"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

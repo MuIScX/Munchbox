@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Minus, Plus, Check, X } from 'lucide-react';
+import { Minus, Plus, Check, X, Trash2 } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
-export default function IngredientRow({ row, onUpdateStock }) {
+export default function IngredientRow({ row, onUpdateStock, showDelete, onDeleteClick }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(0);
 
@@ -15,7 +15,7 @@ export default function IngredientRow({ row, onUpdateStock }) {
 
   const changeAmount = Number(editValue) || 0;
   const previewStock = isEditing ? Number((currentStock + changeAmount).toFixed(3)) : currentStock;
-  
+
   let stockColorClass = "text-slate-800";
   if (isEditing) {
     if (changeAmount > 0) stockColorClass = "text-emerald-500";
@@ -53,7 +53,7 @@ export default function IngredientRow({ row, onUpdateStock }) {
             <div className="flex items-center gap-2">
               <div className="flex items-center border-2 border-emerald-500 rounded-full px-2 py-1 gap-2 bg-white">
                 <button onClick={() => setEditValue(v => (Number(v) || 0) - 1)} className="text-red-500"><Minus size={16}/></button>
-                <input 
+                <input
                   type="number"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
@@ -71,6 +71,15 @@ export default function IngredientRow({ row, onUpdateStock }) {
           ) : (
             <div className="flex items-center gap-3">
               <button onClick={() => setIsEditing(true)} className="text-blue-500 hover:text-blue-700 font-medium hover:underline transition-all">Edit</button>
+              {showDelete && (
+                <button
+                  onClick={() => onDeleteClick(row)}
+                  className="text-red-400 hover:text-red-600 transition-colors animate-fade-in"
+                  title="Delete Ingredient"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           )}
         </div>

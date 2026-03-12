@@ -4,26 +4,23 @@ import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
 import StaffGateModal from "../components/StaffGateModal";
 import IngredientRow from "../components/IngredientRow";
+import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import { IngredientAPI, StaffAPI } from "../../lib/api";
-import { Search, Plus, Loader2 } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2 } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
-  // --- STATE ---
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Staff State
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState("");
   const [isStaffGateOpen, setIsStaffGateOpen] = useState(true);
-
-  // Filters & Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [ingredientToDelete, setIngredientToDelete] = useState(null);
+  const [showDelete, setShowDelete] = useState(false);
 
-  // --- API CALLS ---
   const fetchIngredients = async () => {
     try {
       setLoading(true);
@@ -61,9 +58,7 @@ export default function Home() {
       alert("Please select a Staff member from the dropdown before updating stock.");
       return;
     }
-
     const calculatedNewStock = Number((currentStock + changeAmount).toFixed(3));
-
     try {
       await IngredientAPI.updateStock({
         ingredient_id: ingredientId,
@@ -76,7 +71,18 @@ export default function Home() {
     }
   };
 
-  // --- FILTERING ---
+  const confirmDelete = async () => {
+    if (!ingredientToDelete) return;
+    const ingredientId = ingredientToDelete.ingredient_id || ingredientToDelete.id;
+    try {
+      await IngredientAPI.delete(ingredientId);
+      setIngredients(prev => prev.filter(i => (i.ingredient_id || i.id) !== ingredientId));
+      setIngredientToDelete(null);
+    } catch (err) {
+      alert(err.message || "Delete failed");
+    }
+  };
+
   const filteredIngredients = useMemo(() => {
     return ingredients.filter(i => {
       const nameMatch = (i.ingredient_name || i.name || i.item || "").toLowerCase().includes(searchQuery.toLowerCase());
@@ -93,11 +99,9 @@ export default function Home() {
     }).length;
   }, [ingredients]);
 
-  // --- RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
-      {/* --- MODALS --- */}
       <AddIngredientModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -112,7 +116,13 @@ export default function Home() {
         onConfirm={() => setIsStaffGateOpen(false)}
       />
 
-      {/* --- LAYOUT --- */}
+      <DeleteIngredientModal
+        isOpen={!!ingredientToDelete}
+        onClose={() => setIngredientToDelete(null)}
+        onConfirm={confirmDelete}
+        ingredientName={ingredientToDelete?.ingredient_name || ingredientToDelete?.name || ingredientToDelete?.item || "Unknown Item"}
+      />
+
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
@@ -194,7 +204,18 @@ export default function Home() {
                     <th className="px-6 py-4 font-semibold">Status</th>
                     <th className="px-6 py-4 font-semibold text-center">Min Stock</th>
                     <th className="px-6 py-4 font-semibold text-center">Stock</th>
-                    <th className="px-6 py-4 font-semibold text-center">Action</th>
+                    <th className="px-6 py-4 font-semibold text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        Action
+                        <button
+                          onClick={() => setShowDelete(v => !v)}
+                          title={showDelete ? "Hide delete buttons" : "Show delete buttons"}
+                          className={`p-1 rounded transition-colors ${showDelete ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-red-400"}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -210,6 +231,8 @@ export default function Home() {
                         key={row.ingredient_id || row.id}
                         row={row}
                         onUpdateStock={handleUpdateStock}
+                        showDelete={showDelete}
+                        onDeleteClick={setIngredientToDelete}
                       />
                     ))
                   ) : (
