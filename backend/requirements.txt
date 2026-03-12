@@ -6,3 +6,5 @@ pyjwt
 pydantic
 pydantic-settings
 alembic
+openpyxl>=3.1.0
+python-multipart
