@@ -4,16 +4,15 @@ import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
 import StaffGateModal from "../components/StaffGateModal";
 import IngredientRow from "../components/IngredientRow";
-import DeleteIngredientModal from "../components/DeleteIngredientModal"; // <-- Make sure this is imported!
-import { IngredientAPI, StaffAPI } from "../../lib/api"; 
+import { IngredientAPI, StaffAPI } from "../../lib/api";
 import { Search, Plus, Loader2 } from 'lucide-react';
-import { CATEGORY_MAP } from "../../lib/schema"; 
+import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
   // --- STATE ---
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Staff State
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState("");
@@ -23,9 +22,6 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  
-  // Modal state for tracking which ingredient to delete
-  const [ingredientToDelete, setIngredientToDelete] = useState(null);
 
   // --- API CALLS ---
   const fetchIngredients = async () => {
@@ -35,7 +31,7 @@ export default function Home() {
       setIngredients(Array.isArray(response?.Data) ? response.Data : []);
     } catch (error) {
       console.error("Failed to fetch ingredients:", error);
-      setIngredients([]); 
+      setIngredients([]);
     } finally {
       setLoading(false);
     }
@@ -71,27 +67,12 @@ export default function Home() {
     try {
       await IngredientAPI.updateStock({
         ingredient_id: ingredientId,
-        new_stock: calculatedNewStock, 
-        staff_id: selectedStaff        
+        new_stock: calculatedNewStock,
+        staff_id: selectedStaff
       });
-      fetchIngredients(); 
+      fetchIngredients();
     } catch (error) {
       alert(error.message || "Failed to update stock");
-    }
-  };
-
-  // NEW DELETE FUNCTION (Replaces handleDeleteIngredient)
-  const confirmDelete = async () => {
-    if (!ingredientToDelete) return;
-
-    const ingredientId = ingredientToDelete.ingredient_id || ingredientToDelete.id;
-
-    try {
-      await IngredientAPI.delete(ingredientId);
-      setIngredients(prev => prev.filter(i => (i.ingredient_id || i.id) !== ingredientId));
-      setIngredientToDelete(null); 
-    } catch (err) {
-      alert(err.message || "Delete failed");
     }
   };
 
@@ -104,18 +85,26 @@ export default function Home() {
     });
   }, [ingredients, searchQuery, selectedCategory]);
 
+  const understockCount = useMemo(() => {
+    return ingredients.filter(i => {
+      const stock = Number(i.stock_left ?? i.stock ?? 0);
+      const min = i.min_stock || i.minStock || 0;
+      return stock < min;
+    }).length;
+  }, [ingredients]);
+
   // --- RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      
+
       {/* --- MODALS --- */}
-      <AddIngredientModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={fetchIngredients} 
+      <AddIngredientModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchIngredients}
       />
-      
-      <StaffGateModal 
+
+      <StaffGateModal
         isOpen={isStaffGateOpen}
         staffList={staffList}
         selectedStaff={selectedStaff}
@@ -123,23 +112,16 @@ export default function Home() {
         onConfirm={() => setIsStaffGateOpen(false)}
       />
 
-      <DeleteIngredientModal 
-        isOpen={!!ingredientToDelete}
-        onClose={() => setIngredientToDelete(null)}
-        onConfirm={confirmDelete}
-        ingredientName={ingredientToDelete?.ingredient_name || ingredientToDelete?.name || ingredientToDelete?.item || "Unknown Item"}
-      />
-
       {/* --- LAYOUT --- */}
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <div className="p-8 overflow-y-auto custom-scrollbar">
-          
+
           {/* Header */}
           <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h1 className="text-2xl font-bold italic text-slate-800">Manage Inventory</h1>
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-md"
             >
@@ -147,20 +129,32 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Summary Cards */}
+          <div className="flex gap-4 mb-8">
+            <div className="bg-[#cfe3f1] w-60 rounded-2xl p-5 shadow-sm">
+              <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Ingredient</p>
+              <h2 className="text-4xl font-bold text-slate-800">{ingredients.length}</h2>
+            </div>
+            <div className="bg-[#fde9d9] w-60 rounded-2xl p-5 shadow-sm">
+              <p className="text-[#c0580a] text-sm font-semibold mb-1">Understock</p>
+              <h2 className="text-4xl font-bold text-slate-800">{understockCount}</h2>
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="flex flex-wrap gap-4 mb-8">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search Ingredient..." 
+              <input
+                type="text"
+                placeholder="Search Ingredient..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none shadow-sm"
               />
             </div>
-            
-            <select 
+
+            <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm"
@@ -171,7 +165,7 @@ export default function Home() {
               ))}
             </select>
 
-            <select 
+            <select
               value={selectedStaff}
               onChange={(e) => setSelectedStaff(e.target.value)}
               className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm min-w-[150px]"
@@ -189,7 +183,7 @@ export default function Home() {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <h2 className="font-bold italic text-slate-800">Inventory list</h2>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
@@ -212,11 +206,10 @@ export default function Home() {
                     </tr>
                   ) : filteredIngredients.length > 0 ? (
                     filteredIngredients.map((row) => (
-                      <IngredientRow 
-                        key={row.ingredient_id || row.id} 
-                        row={row} 
+                      <IngredientRow
+                        key={row.ingredient_id || row.id}
+                        row={row}
                         onUpdateStock={handleUpdateStock}
-                        onDeleteClick={setIngredientToDelete} // <-- This is where the magic happens now!
                       />
                     ))
                   ) : (
