@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
+import pytz
 
 from app.db import get_db
 from app.core.security import decode_token
@@ -8,6 +9,7 @@ from app.schemas.restaurant import RestaurantCreate, RestaurantUpdate
 from app.models.restaurant import RestaurantInfo
 
 router = APIRouter(prefix="/api/restaurant", tags=["Restaurant"])
+bkk = pytz.timezone("Asia/Bangkok")
 
 
 @router.post("/get")
@@ -43,7 +45,7 @@ def create_restaurant(
         start_date=body.start_date,
         end_date=body.end_date,
         package=body.package,
-        updated_time=datetime.now().time(),  # auto-set on creation
+        updated_time=datetime.now(bkk).time(),  # auto-set on creation
         manager_pin=body.manager_pin,
     )
     db.add(restaurant)
@@ -68,7 +70,7 @@ def update_restaurant(
     if body.package     is not None: restaurant.package     = body.package
     if body.manager_pin is not None: restaurant.manager_pin = body.manager_pin
 
-    restaurant.updated_time = datetime.now().time()  # always auto-set on every update
+    restaurant.updated_time = datetime.now(bkk).time()  # always auto-set on every update
 
     db.commit()
     return {"message": "success", "Data": []}

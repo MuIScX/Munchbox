@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import register_routes
 
+import os
+os.environ["TZ"] = "Asia/Bangkok"
+
+# if on Linux (which Docker is):
+import time
+time.tzset()
+
 app = FastAPI(title="MunchBox API", version="2.0.0")
 
 app.add_middleware(

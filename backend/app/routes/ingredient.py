@@ -13,7 +13,8 @@ from app.models.ingredient import Ingredient, IngredientHistory
 from app.models.menu import Recipe
 from app.models.staff import Staff
 from app.models.predict import Predict
-
+import pytz
+bkk = pytz.timezone("Asia/Bangkok")
 router = APIRouter(prefix="/api/ingredient", tags=["Ingredient"])
 
 
@@ -45,7 +46,7 @@ def add_ingredient(body: IngredientCreate, identity: dict = Depends(decode_token
         unit=body.unit,
         category=body.category,
         stock_left=0,
-        last_update=datetime.utcnow(),
+        last_update=datetime.now(bkk),
     )
     db.add(ingredient)
     db.commit()
@@ -72,9 +73,9 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
     try:
         action_type = 1 if new_stock > current else 2
         ingredient.stock_left = new_stock
-        ingredient.last_update = datetime.utcnow()
+        ingredient.last_update = datetime.now(bkk)
         db.add(IngredientHistory(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(bkk),
             action_type=action_type,
             amount=abs(new_stock - current),
             ingredient_id=body.ingredient_id,
