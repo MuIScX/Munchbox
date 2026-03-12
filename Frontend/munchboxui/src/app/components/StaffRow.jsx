@@ -28,7 +28,7 @@ export default function StaffRow({ member, onDeleteClick, onEditClick }) {
           {/* Wire up the Edit button to pass the whole member object */}
           <button 
             onClick={() => onEditClick(member)}
-            className="text-blue-500 hover:text-blue-700 font-medium text-sm transition-colors flex items-center gap-1"
+            className="text-blue-500 hover:text-blue-700 font-medium text-sm transition-colors flex items-center gap-1 underline"
           >
             Edit profile
           </button>
