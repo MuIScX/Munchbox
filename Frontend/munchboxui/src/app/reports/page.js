@@ -11,7 +11,7 @@ import CategoryPieChart from "../components/reports/CategoryPieChart";
 import SalesReportTable from "../components/reports/SalesReportTable";
 
 const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'];
-const TYPE_MAP = { 1: "Food", 2: "Drinks", 3: "Desserts" };
+const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink"  };
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function getMonthRange(year, month) {
