@@ -8,6 +8,7 @@ from app.routes.report     import router as report_router
 from app.routes.predict    import router as predict_router
 from app.routes.munchbox   import router as munchbox_router
 from app.routes.restaurant import router as restaurant_router
+from app.routes.import_router import router as import_router
 
 
 def register_routes(app: FastAPI):
@@ -21,3 +22,4 @@ def register_routes(app: FastAPI):
     app.include_router(predict_router)
     app.include_router(munchbox_router)
     app.include_router(restaurant_router)
+    app.include_router(import_router)
