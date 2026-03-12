@@ -28,7 +28,7 @@ const [serverError, setServerError] = useState("");
 
 const handleSubmit = async (event) => {
   event.preventDefault();
-
+  console.log("Click")
   setServerError("");
   setemailerrorMessage("");
   setpassworderrorMessage("");
@@ -42,7 +42,8 @@ const handleSubmit = async (event) => {
     setpassworderrorMessage("Please enter password.");
     return;
   }
-
+console.log(emailValue)
+console.log(passwordValue)
   try {
     setLoading(true);
 
