@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import AddMenuModal from "../components/AddMenuModal";
+import DeleteMenuModal from "../components/DeleteMenuModal";
 import MenuRow from "../components/MenuRow";
 import { MenuAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Trash2 } from "lucide-react";
 
 const TYPE_MAP = {
   1: "Main",
@@ -21,9 +22,11 @@ export default function ManageMenuPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [showDelete, setShowDelete] = useState(false);
 
   // Modals State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [menuToDelete, setMenuToDelete] = useState(null);
 
   const fetchMenus = async () => {
     try {
@@ -42,6 +45,18 @@ export default function ManageMenuPage() {
     fetchMenus();
   }, []);
 
+  const confirmDelete = async () => {
+    if (!menuToDelete) return;
+    const menuId = menuToDelete.menu_id || menuToDelete.id;
+    try {
+      await MenuAPI.delete(menuId);
+      setMenus((prev) => prev.filter((m) => (m.menu_id || m.id) !== menuId));
+      setMenuToDelete(null);
+    } catch (err) {
+      alert(err.message || "Delete failed");
+    }
+  };
+
   const filteredMenus = menus.filter((m) => {
     const name = (m.menu_name || m.name || "").toLowerCase();
     const matchesSearch = name.includes(searchQuery.toLowerCase());
@@ -56,17 +71,23 @@ export default function ManageMenuPage() {
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
 
-      {/* Modals */}
       <AddMenuModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={fetchMenus}
       />
 
+      <DeleteMenuModal
+        isOpen={!!menuToDelete}
+        onClose={() => setMenuToDelete(null)}
+        onConfirm={confirmDelete}
+        menuName={menuToDelete?.menu_name || menuToDelete?.name || "Unknown"}
+      />
+
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className="p-6 overflow-y-auto">
 
-          {/* Header Section */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <h1 className="text-2xl font-bold italic text-slate-800">Manage Recipe</h1>
             <button
@@ -128,7 +149,18 @@ export default function ManageMenuPage() {
                     <th className="px-6 py-4 font-semibold">Type</th>
                     <th className="px-6 py-4 font-semibold text-center">Ingredient Count</th>
                     <th className="px-6 py-4 font-semibold text-center">Food Price</th>
-                    <th className="px-6 py-4 font-semibold text-center">Action</th>
+                    <th className="px-6 py-4 font-semibold text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        Action
+                        <button
+                          onClick={() => setShowDelete(v => !v)}
+                          title={showDelete ? "Hide delete buttons" : "Show delete buttons"}
+                          className={`p-1 rounded transition-colors ${showDelete ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-red-400"}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
 
@@ -145,6 +177,8 @@ export default function ManageMenuPage() {
                         key={menu.menu_id || menu.id}
                         menu={menu}
                         onViewRecipe={(id) => router.push(`/managemenu/${id}`)}
+                        showDelete={showDelete}
+                        onDeleteClick={setMenuToDelete}
                       />
                     ))
                   ) : (

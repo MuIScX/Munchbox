@@ -5,20 +5,19 @@ import Sidebar from "../components/Sidebar";
 import StaffRow from "../components/StaffRow";
 import AddStaffModal from "../components/AddStaffModal";
 import EditStaffModal from "../components/EditStaffModal";
+import DeleteStaffModal from "../components/DeleteStaffModal";
 import { StaffAPI } from "../../lib/api";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, Trash2 } from "lucide-react";
 
 export default function ManageStaffPage() {
-  // --- STATE ---
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [staffToEdit, setStaffToEdit] = useState(null);
+  const [staffToDelete, setStaffToDelete] = useState(null);
+  const [showDelete, setShowDelete] = useState(false);
 
-  // --- API CALLS ---
   const fetchStaff = async () => {
     try {
       setLoading(true);
@@ -36,18 +35,27 @@ export default function ManageStaffPage() {
     fetchStaff();
   }, []);
 
-  // --- FILTERING ---
+  const confirmDelete = async () => {
+    if (!staffToDelete) return;
+    const staffId = staffToDelete.staff_id || staffToDelete.id;
+    try {
+      await StaffAPI.delete(staffId);
+      setStaff((prev) => prev.filter((s) => (s.staff_id || s.id) !== staffId));
+      setStaffToDelete(null);
+    } catch (err) {
+      alert(err.message || "Failed to delete staff member.");
+    }
+  };
+
   const filteredStaff = useMemo(() => {
     return staff.filter((s) =>
       (s.name || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [staff, searchQuery]);
 
-  // --- RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
-      {/* --- MODALS --- */}
       <AddStaffModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -61,7 +69,13 @@ export default function ManageStaffPage() {
         staffMember={staffToEdit}
       />
 
-      {/* --- LAYOUT --- */}
+      <DeleteStaffModal
+        isOpen={!!staffToDelete}
+        onClose={() => setStaffToDelete(null)}
+        onConfirm={confirmDelete}
+        staffName={staffToDelete?.name || "Unknown Staff"}
+      />
+
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -69,10 +83,7 @@ export default function ManageStaffPage() {
 
           {/* Header */}
           <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h1 className="text-2xl font-bold italic text-slate-800">
-              Manage Staff
-            </h1>
-
+            <h1 className="text-2xl font-bold italic text-slate-800">Manage Staff</h1>
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-md"
@@ -84,9 +95,7 @@ export default function ManageStaffPage() {
           {/* Summary Card */}
           <div className="bg-[#cfe3f1] w-72 rounded-2xl p-5 mb-8 shadow-sm">
             <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Staff</p>
-            <h2 className="text-4xl font-bold text-slate-800">
-              {staff.length}
-            </h2>
+            <h2 className="text-4xl font-bold text-slate-800">{staff.length}</h2>
           </div>
 
           {/* Search Bar */}
@@ -106,9 +115,7 @@ export default function ManageStaffPage() {
           {/* Data Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-bold italic text-slate-800">
-                Staff Directory
-              </h2>
+              <h2 className="font-bold italic text-slate-800">Staff Directory</h2>
             </div>
 
             <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
@@ -117,7 +124,18 @@ export default function ManageStaffPage() {
                   <tr className="text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Staff Name</th>
                     <th className="px-6 py-4 font-semibold">Role</th>
-                    <th className="px-6 py-4 font-semibold text-center">Actions</th>
+                    <th className="px-6 py-4 font-semibold text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        Actions
+                        <button
+                          onClick={() => setShowDelete(v => !v)}
+                          title={showDelete ? "Hide delete buttons" : "Show delete buttons"}
+                          className={`p-1 rounded transition-colors ${showDelete ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-red-400"}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
 
@@ -134,6 +152,8 @@ export default function ManageStaffPage() {
                         key={member.staff_id || member.id}
                         member={member}
                         onEditClick={setStaffToEdit}
+                        showDelete={showDelete}
+                        onDeleteClick={setStaffToDelete}
                       />
                     ))
                   ) : (

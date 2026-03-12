@@ -1,4 +1,5 @@
 "use client";
+import { Trash2 } from "lucide-react";
 
 const ROLE_MAP = {
   1: "Staff",
@@ -8,7 +9,7 @@ const ROLE_MAP = {
   5: "Cashier"
 };
 
-export default function StaffRow({ member, onEditClick }) {
+export default function StaffRow({ member, onEditClick, showDelete, onDeleteClick }) {
   const name = member.name || "Unknown";
   const roleText = ROLE_MAP[member.role] || "Unknown";
 
@@ -28,6 +29,15 @@ export default function StaffRow({ member, onEditClick }) {
           >
             Edit profile
           </button>
+          {showDelete && (
+            <button
+              onClick={() => onDeleteClick(member)}
+              className="text-red-400 hover:text-red-600 transition-colors"
+              title="Delete Staff"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
         </div>
       </td>
     </tr>

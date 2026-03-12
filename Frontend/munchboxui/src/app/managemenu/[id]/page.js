@@ -203,7 +203,7 @@ export default function RecipeDetailPage() {
                         <select
                           value={addIngForm.ingredient_id}
                           onChange={(e) => setAddIngForm(f => ({ ...f, ingredient_id: e.target.value }))}
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
                         >
                           <option value="">Select ingredient</option>
                           {allIngredients.map((ing) => (
@@ -220,7 +220,7 @@ export default function RecipeDetailPage() {
                           value={addIngForm.amount}
                           onChange={(e) => setAddIngForm(f => ({ ...f, amount: e.target.value }))}
                           placeholder="e.g. 200"
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -286,20 +286,20 @@ export default function RecipeDetailPage() {
               <h2 className="text-lg font-bold italic text-slate-800 mb-5">Edit Recipe</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Recipe Name</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">Recipe Name</label>
                   <input
                     type="text"
                     value={editForm.menu_name}
                     onChange={(e) => setEditForm(f => ({ ...f, menu_name: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">Type</label>
                   <select
                     value={editForm.menu_type}
                     onChange={(e) => setEditForm(f => ({ ...f, menu_type: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
                   >
                     {TYPE_OPTIONS.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -307,12 +307,12 @@ export default function RecipeDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Price (Baht)</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">Price (Baht)</label>
                   <input
                     type="number"
                     value={editForm.menu_price}
                     onChange={(e) => setEditForm(f => ({ ...f, menu_price: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
                   />
                 </div>
               </div>
