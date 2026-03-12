@@ -15,6 +15,7 @@ import {
   Package,
   Lock,
   PlusCircle,
+  KeyRound,
 } from "lucide-react";
 
 const PACKAGE_LABELS = { 1: "Basic", 2: "Pro", 3: "Enterprise" };
@@ -87,7 +88,58 @@ function SelectField({ icon: Icon, label, name, value, onChange, options, color 
   );
 }
 
-function RestaurantForm({ form, onChange, isCreate = false }) {
+// Edit form — only name and manager_pin are editable; package/dates are view-only
+function RestaurantEditForm({ form, onChange, restaurant }) {
+  return (
+    <div className="space-y-5">
+      <InputField
+        icon={Store} label="Restaurant Name" name="name"
+        value={form.name} onChange={onChange}
+        placeholder="e.g. MunchBox HQ" color="text-orange-400" required
+      />
+      {/* Package — view only */}
+      <div>
+        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Package</label>
+        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
+          <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-300" />
+          {PACKAGE_LABELS[restaurant?.package] ?? "Unknown"}
+          <span className="ml-auto text-xs italic text-slate-400">View only</span>
+        </div>
+      </div>
+      {/* Start Date — view only */}
+      <div>
+        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Start Date</label>
+        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300" />
+          {restaurant?.start_date || <span className="italic text-slate-400">Not set</span>}
+          <span className="ml-auto text-xs italic text-slate-400">View only</span>
+        </div>
+      </div>
+      {/* End Date — view only */}
+      <div>
+        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">End Date</label>
+        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-300" />
+          {restaurant?.end_date || <span className="italic text-slate-400">Not set</span>}
+          <span className="ml-auto text-xs italic text-slate-400">View only</span>
+        </div>
+      </div>
+      <div>
+        <InputField
+          icon={Lock} label="Manager PIN" name="manager_pin"
+          value={form.manager_pin} onChange={onChange}
+          placeholder="Optional PIN (numbers only)" type="number"
+          color="text-slate-400"
+        />
+        <p className="text-xs text-slate-400 italic mt-1.5">
+          Used to authorize sensitive actions within the app.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RestaurantCreateForm({ form, onChange }) {
   return (
     <div className="space-y-5">
       <InputField
@@ -135,6 +187,11 @@ export default function SettingsPage() {
   const [toast, setToast] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
+  // PIN popup state
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+
   const fetchRestaurant = async () => {
     try {
       setLoading(true);
@@ -151,12 +208,10 @@ export default function SettingsPage() {
         });
         setMode("view");
       } else {
-        // No restaurant yet
         setRestaurant(null);
         setMode("create");
       }
     } catch {
-      // If 404 or no restaurant, show create form
       setRestaurant(null);
       setMode("create");
     } finally {
@@ -173,6 +228,25 @@ export default function SettingsPage() {
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleEditClick = () => {
+    if (restaurant?.manager_pin) {
+      setIsPinModalOpen(true);
+      setPinInput("");
+      setPinError("");
+    } else {
+      setMode("edit");
+    }
+  };
+
+  const handlePinConfirm = () => {
+    if (String(pinInput) === String(restaurant.manager_pin)) {
+      setIsPinModalOpen(false);
+      setMode("edit");
+    } else {
+      setPinError("Incorrect PIN. Please try again.");
+    }
   };
 
   const handleCreate = async () => {
@@ -256,6 +330,48 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* PIN Modal */}
+          {isPinModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold italic text-slate-800">Manager PIN Required</h2>
+                    <p className="text-xs text-slate-400">Enter your PIN to edit settings.</p>
+                  </div>
+                </div>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={pinInput}
+                  onChange={(e) => { setPinInput(e.target.value); setPinError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && handlePinConfirm()}
+                  placeholder="Enter PIN"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 mb-2"
+                  autoFocus
+                />
+                {pinError && <p className="text-xs text-red-500 mb-3">{pinError}</p>}
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    onClick={() => setIsPinModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePinConfirm}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Page Title */}
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
             <h1 className="text-2xl font-bold italic text-slate-800">Settings</h1>
@@ -282,7 +398,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <RestaurantForm form={form} onChange={handleChange} isCreate />
+                  <RestaurantCreateForm form={form} onChange={handleChange} />
                   <div className="mt-6 flex justify-end">
                     <button
                       onClick={handleCreate}
@@ -304,7 +420,7 @@ export default function SettingsPage() {
               {/* Left: Summary */}
               <div className="lg:col-span-1 space-y-6">
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="h-12 bg-gradient-to-br  relative">
+                  <div className="h-12 bg-gradient-to-br relative">
                     <div className="absolute inset-0 opacity-10"
                       style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }}
                     />
@@ -348,7 +464,7 @@ export default function SettingsPage() {
                     <h2 className="font-bold italic text-slate-800 text-lg">Restaurant Details</h2>
                     {mode === "view" ? (
                       <button
-                        onClick={() => setMode("edit")}
+                        onClick={handleEditClick}
                         className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
@@ -385,7 +501,7 @@ export default function SettingsPage() {
                         <InfoRow icon={Lock} label="Manager PIN" value={restaurant?.manager_pin ? "••••••" : null} color="text-slate-400" />
                       </div>
                     ) : (
-                      <RestaurantForm form={form} onChange={handleChange} />
+                      <RestaurantEditForm form={form} onChange={handleChange} restaurant={restaurant} />
                     )}
                   </div>
                 </div>

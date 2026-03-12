@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -10,9 +9,6 @@ export default function SalesReportTable({
   shareAllTime,
   selectedYear,
   selectedMonth,
-  onPrevMonth,
-  onNextMonth,
-  isCurrentMonth,
 }) {
   const [sortOption, setSortOption] = useState("Top Sell");
 
@@ -46,23 +42,10 @@ export default function SalesReportTable({
           </div>
         </div>
 
-        {/* Right: month picker (no All Time button here) */}
-        <div className={`flex items-center gap-1 transition ${shareAllTime ? "opacity-40 pointer-events-none" : ""}`}>
-          <button onClick={onPrevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
-            <ChevronLeft size={16} />
-          </button>
-          <div className="min-w-[90px] text-center">
-            <p className="text-sm font-semibold text-gray-800">
-              {shareAllTime ? "All Time" : `${MONTHS[selectedMonth]} ${selectedYear}`}
-            </p>
-          </div>
-          <button
-            onClick={onNextMonth}
-            disabled={isCurrentMonth}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronRight size={16} />
-          </button>
+        <div className="min-w-[90px] text-center">
+          <p className="text-sm font-semibold text-gray-800">
+            {shareAllTime ? "All Time" : `${MONTHS[selectedMonth]} ${selectedYear}`}
+          </p>
         </div>
       </div>
 
