@@ -26,59 +26,40 @@ body {
 }
 /* globals.css */
 
-/* Custom Scrollbar for specific elements */
-/* app/globals.css */
-
-/* 1. Target the entire scrollbar area */
+/* ===== Global Scrollbar — light theme ===== */
 ::-webkit-scrollbar {
-  width: 8px;               /* Vertical scrollbar width */
-  height: 8px;              /* Horizontal scrollbar height */
+  width: 6px;
+  height: 6px;
 }
-
-/* 2. Target the 'track' (the background of the scrollbar) */
 ::-webkit-scrollbar-track {
-  background: #111424;      /* Matches your MunchBox sidebar/dark theme */
+  background: #f1f5f9;
 }
-
-/* 3. Target the 'thumb' (the part you click and drag) */
 ::-webkit-scrollbar-thumb {
-  background: #334155;      /* A subtle slate color */
-  border-radius: 100px;     /* Makes it look pill-shaped */
-  border: 2px solid #111424; /* Creates a 'padding' effect around the thumb */
+  background: #cbd5e1;
+  border-radius: 100px;
 }
-
-/* 4. Thumb hover state */
 ::-webkit-scrollbar-thumb:hover {
-  background: #f97316;      /* MunchBox Orange on hover */
+  background: #f97316;
 }
-
-/* 5. Support for Firefox (Standard Properties) */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: #334155 #111424; /* Thumb color, Track color */
-}
-
-/* ===== Staff Page Scrollbar Only ===== */
-
-.staff-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.staff-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9; /* slate-100 */
-}
-
-.staff-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* slate-300 */
-  border-radius: 20px;
-}
-
-.staff-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #f97316; /* orange-500 */
-}
-
-/* Firefox */
-.staff-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
 }
+
+/* ===== .custom-scrollbar — reusable light scrollbar class ===== */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 100px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f97316; }
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+
+/* ===== .staff-scrollbar — kept for compatibility ===== */
+.staff-scrollbar::-webkit-scrollbar { width: 6px; }
+.staff-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.staff-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 100px; }
+.staff-scrollbar::-webkit-scrollbar-thumb:hover { background: #f97316; }
+.staff-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+
+/* ===== .no-scrollbar — hide scrollbar entirely ===== */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
