@@ -46,6 +46,7 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
                 [_PYTHON_PATH, _SCRIPT_PATH,
                  "--ingredient", ingredient.name,
                  "--ingredient_id", str(ingredient.id),
+                 "--restaurant_id", str(restaurant_id),
                  "--sell_price", "100",
                  "--days", str(body.days),
                  "--strategy", body.strategy],
