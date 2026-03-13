@@ -45,6 +45,7 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
             proc = subprocess.run(
                 [_PYTHON_PATH, _SCRIPT_PATH,
                  "--ingredient", ingredient.name,
+                 "--ingredient_id", str(ingredient.id),
                  "--sell_price", "100",
                  "--days", str(body.days),
                  "--strategy", body.strategy],
