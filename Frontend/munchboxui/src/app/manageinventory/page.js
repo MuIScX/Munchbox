@@ -6,7 +6,8 @@ import StaffGateModal from "../components/StaffGateModal";
 import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import { IngredientAPI, StaffAPI } from "../../lib/api";
-import { Search, Plus, Loader2, Trash2 } from 'lucide-react';
+import Toast from "../components/Toast";
+import { Search, Plus, Loader2, Trash2, PackageOpen } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
@@ -20,6 +21,9 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ingredientToDelete, setIngredientToDelete] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, message) => setToast({ type, message });
 
   const fetchIngredients = async () => {
     try {
@@ -55,7 +59,7 @@ export default function Home() {
 
   const handleUpdateStock = async (ingredientId, currentStock, changeAmount) => {
     if (!selectedStaff) {
-      alert("Please select a Staff member from the dropdown before updating stock.");
+      showToast("error", "Please select a staff member before updating stock.");
       return;
     }
     const calculatedNewStock = Number((currentStock + changeAmount).toFixed(3));
@@ -67,7 +71,7 @@ export default function Home() {
       });
       fetchIngredients();
     } catch (error) {
-      alert(error.message || "Failed to update stock");
+      showToast("error", error.message || "Failed to update stock");
     }
   };
 
@@ -78,8 +82,9 @@ export default function Home() {
       await IngredientAPI.delete(ingredientId);
       setIngredients(prev => prev.filter(i => (i.ingredient_id || i.id) !== ingredientId));
       setIngredientToDelete(null);
+      showToast("success", "Ingredient deleted successfully.");
     } catch (err) {
-      alert(err.message || "Delete failed");
+      showToast("error", err.message || "Delete failed");
     }
   };
 
@@ -101,6 +106,8 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
       <AddIngredientModal
         isOpen={isModalOpen}
@@ -237,8 +244,9 @@ export default function Home() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center py-10 text-slate-400 italic">
-                        No data found
+                      <td colSpan={7} className="py-16 text-center">
+                        <PackageOpen className="mx-auto mb-3 text-slate-300" size={36} />
+                        <p className="text-slate-400 italic">No data found</p>
                       </td>
                     </tr>
                   )}

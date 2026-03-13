@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
+import Toast from "../../components/Toast";
 import { MenuAPI, RecipeAPI, IngredientAPI } from "../../../lib/api";
 import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2, Edit3, Plus, Save, X } from "lucide-react";
 
@@ -36,6 +37,8 @@ export default function RecipeDetailPage() {
   const [allIngredients, setAllIngredients] = useState([]);
   const [addIngForm, setAddIngForm] = useState({ ingredient_id: "", amount: "" });
   const [addingIng, setAddingIng] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => setToast({ type, message });
 
   const fetchData = async () => {
     try {
@@ -92,8 +95,9 @@ export default function RecipeDetailPage() {
       });
       await fetchData();
       setIsEditingMenu(false);
+      showToast("success", "Recipe saved successfully.");
     } catch (err) {
-      alert(err.message || "Failed to save recipe");
+      showToast("error", err.message || "Failed to save recipe");
     } finally {
       setSaving(false);
     }
@@ -101,7 +105,7 @@ export default function RecipeDetailPage() {
 
   const handleAddIngredient = async () => {
     if (!addIngForm.ingredient_id || !addIngForm.amount) {
-      alert("Please select an ingredient and enter an amount.");
+      showToast("error", "Please select an ingredient and enter an amount.");
       return;
     }
     try {
@@ -114,8 +118,9 @@ export default function RecipeDetailPage() {
       await fetchData();
       setAddIngForm({ ingredient_id: "", amount: "" });
       setIsAddingIngredient(false);
+      showToast("success", "Ingredient added to recipe.");
     } catch (err) {
-      alert(err.message || "Failed to add ingredient");
+      showToast("error", err.message || "Failed to add ingredient");
     } finally {
       setAddingIng(false);
     }
@@ -123,6 +128,7 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <Sidebar />
 
       <main className="flex-1 p-8 overflow-y-auto">

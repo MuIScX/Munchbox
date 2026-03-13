@@ -13,19 +13,16 @@ const ROLE_MAP = {
 
 export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember }) {
   const [loading, setLoading] = useState(false);
-  
-  const [formData, setFormData] = useState({ 
-    name: "", 
-    role: "1" 
-  });
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({ name: "", role: "1" });
 
-  // Pre-fill the form whenever the modal opens with a new staff member
   useEffect(() => {
     if (staffMember) {
       setFormData({
         name: staffMember.name || "",
-        role: String(staffMember.role || "1") // Convert to string for the <select> element
+        role: String(staffMember.role || "1")
       });
+      setError("");
     }
   }, [staffMember]);
 
@@ -33,22 +30,15 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    
     const staffId = staffMember?.staff_id || staffMember?.id;
-
     try {
-      // Pass the 3 separate arguments matching your api.js: (staff_id, name, role)
-      await StaffAPI.update(
-        staffId,
-        formData.name, 
-        Number(formData.role)
-      );
-      
-      onSuccess(); 
-      onClose();   
-    } catch (error) {
-      alert(error.message || "Failed to update staff member");
+      await StaffAPI.update(staffId, formData.name, Number(formData.role));
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to update staff member");
     } finally {
       setLoading(false);
     }
@@ -94,6 +84,7 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
             </select>
           </div>
 
+          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">
               Cancel

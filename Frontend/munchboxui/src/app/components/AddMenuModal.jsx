@@ -5,6 +5,7 @@ import { MenuAPI, IngredientAPI } from "../../lib/api";
 
 export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const dropdownRef = useRef(null);
 
   // Form States
@@ -112,7 +113,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
       onSuccess(); // รีเฟรชตารางหน้าหลัก
       onClose();   // ปิด Modal
     } catch (error) {
-      alert(error.message || "Failed to add menu and recipe");
+      setError(error.message || "Failed to add menu and recipe");
     } finally {
       setLoading(false);
     }
@@ -223,6 +224,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
           </div>
 
           {/* Actions */}
+          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3 border-t border-slate-100 mt-6">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">Cancel</button>
             <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
