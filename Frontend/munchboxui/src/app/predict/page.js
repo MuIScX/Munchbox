@@ -88,12 +88,20 @@ export default function PredictPage() {
     try {
       setGenerating(true);
       setModalOpen(false);
-      await PredictAPI.generate({
+      const res = await PredictAPI.generate({
         ingredient_id: requestForm.ingredient_id ? parseInt(requestForm.ingredient_id) : null,
         days: requestForm.days,
         strategy: requestForm.strategy,
       });
-      showToast("success", "Prediction generated successfully.");
+      const total = res?.Data?.total_processed ?? 0;
+      const errors = res?.Data?.errors ?? [];
+      if (total > 0) {
+        showToast("success", `Generated ${total} prediction(s) successfully.`);
+      } else if (errors.length > 0) {
+        showToast("error", `Model failed: ${errors[0]?.error || "unknown error"}`);
+      } else {
+        showToast("error", "No predictions generated. Check server logs.");
+      }
       await fetchReport();
     } catch (err) {
       showToast("error", err.message || "Failed to generate prediction.");
