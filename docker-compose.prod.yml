@@ -29,6 +29,8 @@ services:
     environment:
       TZ: Asia/Bangkok
       DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      MUNCHBOX_DB_CONNECTION: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      MUNCHBOX_DEVICE: CLOUD
       JWT_SECRET: ${JWT_SECRET}
       ENVIRONMENT: production
     networks:
