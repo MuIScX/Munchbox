@@ -118,7 +118,7 @@ export default function Sidebar() {
     {
       title: 'ACCOUNT',
       items: [
-        { name: 'Settings', path: '/settings', icon: Settings, color: 'text-slate-500' },
+        { name: 'Settings', path: '/settings', icon: Settings, color: 'text-slate-500', spinActive: true },
         { name: 'FAQ', path: '/faq', icon: HelpCircle, color: 'text-red-500' },
       ],
     },
@@ -175,7 +175,7 @@ export default function Sidebar() {
                           ? (isActive
                               ? <item.iconActive className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
                               : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />)
-                          : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
+                          : <item.icon className={`w-5 h-5 ${item.color} ${item.spinActive && isActive ? 'animate-spin' : ''}`} strokeWidth={2.5} />
                         }
                         <span className="text-[15px]">{item.name}</span>
                       </Link>
