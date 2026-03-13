@@ -27,9 +27,10 @@ import sys      # NEW: To separate logs from the JSON output
 
 
 # --- 1. CONFIGURATION ---
-DB_CONNECTION = os.environ.get(
-    'MUNCHBOX_DB_CONNECTION',
-    'mysql+pymysql://munchbox_dev:password123@127.0.0.1/munchboxDB'
+DB_CONNECTION = (
+    os.environ.get('MUNCHBOX_DB_CONNECTION')
+    or os.environ.get('DATABASE_URL')
+    or 'mysql+pymysql://munchbox_dev:password123@127.0.0.1/munchboxDB'
 )
 DEVICE = os.environ.get('MUNCHBOX_DEVICE', 'LOCAL')
 
