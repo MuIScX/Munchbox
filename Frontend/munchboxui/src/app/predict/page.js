@@ -34,7 +34,7 @@ export default function PredictPage() {
 
   useEffect(() => {
     fetchReport();
-    IngredientAPI.list().then((res) => {
+    IngredientAPI.list({}).then((res) => {
       setIngredientList(Array.isArray(res?.Data) ? res.Data : []);
     }).catch(() => {});
   }, []);
