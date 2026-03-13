@@ -135,9 +135,8 @@ export default function ViewReports() {
     fetch();
   }, [selectedMenu, selectedYear, selectedMonth, shareAllTime]);
 
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
   return (
     <div className="flex h-screen bg-[#f8f9fa] font-sans overflow-hidden">
       <Sidebar />
