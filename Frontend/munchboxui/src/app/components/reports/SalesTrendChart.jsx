@@ -15,7 +15,7 @@ export default function SalesTrendChart({
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
       {trendLoading && !globalLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-2xl">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
         </div>
       )}
 
