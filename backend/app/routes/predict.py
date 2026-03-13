@@ -18,6 +18,8 @@ router = APIRouter(prefix="/api/predict", tags=["Predict"])
 _SCRIPT_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v2.py")
 )
+# Allow using a separate Python env that has PyMC installed
+_PYTHON_PATH = os.environ.get("MUNCHBOX_PYTHON_PATH", sys.executable)
 
 
 @router.post("/generate")
@@ -41,7 +43,7 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
     for ingredient in ingredients:
         try:
             proc = subprocess.run(
-                [sys.executable, _SCRIPT_PATH,
+                [_PYTHON_PATH, _SCRIPT_PATH,
                  "--ingredient", ingredient.name,
                  "--sell_price", "100",
                  "--days", str(body.days),
