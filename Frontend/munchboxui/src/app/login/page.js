@@ -14,28 +14,48 @@ export default function Home() {
   const [serverError, setServerError] = useState("");
   const router = useRouter();
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleEmailChange = (event) => {
-    setemailValue(event.target.value);
-    if (emailerrorMessage) setemailerrorMessage(''); 
+    const val = event.target.value;
+    setemailValue(val);
+    if (!val) {
+      setemailerrorMessage('');
+    } else if (!emailRegex.test(val)) {
+      setemailerrorMessage('Please enter a valid email address.');
+    } else {
+      setemailerrorMessage('');
+    }
   };
 
   const handlePasswordChange = (event) => {
-    setpasswordValue(event.target.value);
-    if (passworderrorMessage) setpassworderrorMessage(''); 
+    const val = event.target.value;
+    if (val.includes(' ')) {
+      setpassworderrorMessage('Password must not contain spaces.');
+      return;
+    }
+    setpasswordValue(val);
+    if (passworderrorMessage) setpassworderrorMessage('');
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setServerError("");
-    setemailerrorMessage("");
-    setpassworderrorMessage("");
 
     if (!emailValue) {
       setemailerrorMessage("Please enter an email address.");
       return;
     }
+    if (!emailRegex.test(emailValue)) {
+      setemailerrorMessage("Please enter a valid email address.");
+      return;
+    }
     if (!passwordValue) {
       setpassworderrorMessage("Please enter password.");
+      return;
+    }
+    if (passwordValue.includes(' ')) {
+      setpassworderrorMessage("Password must not contain spaces.");
       return;
     }
 
