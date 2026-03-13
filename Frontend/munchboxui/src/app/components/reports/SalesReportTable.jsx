@@ -49,9 +49,9 @@ export default function SalesReportTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto custom-scrollbar max-h-[420px]">
         <table className="w-full text-left border-collapse min-w-[600px]">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50 text-slate-600 text-sm italic font-bold">
               <th className="px-6 py-4 rounded-l-xl">Item</th>
               <th className="px-6 py-4">Orders</th>
