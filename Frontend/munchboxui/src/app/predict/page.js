@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
-import { PredictAPI } from "../../lib/api";
+import { PredictAPI, IngredientAPI } from "../../lib/api";
 import { Search, Loader2, TrendingUp, SlidersHorizontal, X, Plus } from "lucide-react";
 
 export default function PredictPage() {
@@ -20,6 +20,7 @@ export default function PredictPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [toast, setToast] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [ingredientList, setIngredientList] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ ingredient_id: "", days: 7, strategy: "2" });
   const [graphFilters, setGraphFilters] = useState({
@@ -31,7 +32,12 @@ export default function PredictPage() {
 
   const showToast = (type, message) => setToast({ type, message });
 
-  useEffect(() => { fetchReport(); }, []);
+  useEffect(() => {
+    fetchReport();
+    IngredientAPI.list({}).then((res) => {
+      setIngredientList(Array.isArray(res?.Data) ? res.Data : []);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handler = (e) => {
@@ -472,8 +478,8 @@ export default function PredictPage() {
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-orange-500 outline-none"
                 >
                   <option value="">All Ingredients</option>
-                  {report.map((r) => (
-                    <option key={r.ingredient_id} value={r.ingredient_id}>{r.ingredient_name}</option>
+                  {ingredientList.map((r) => (
+                    <option key={r.id} value={r.id}>{r.ingredient_name}</option>
                   ))}
                 </select>
               </div>
