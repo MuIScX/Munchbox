@@ -22,65 +22,35 @@ import {
 
 function AnimatedCookingPot({ isActive, className }) {
   return (
-    <>
-      <style>{`
-        @keyframes potLidFloat {
-          0%, 100% { transform: rotate(-22deg); }
-          50%       { transform: rotate(-30deg) translateY(-1px); }
-        }
-        .pot-lid-open {
-          animation: potLidFloat 2s ease-in-out infinite;
-          transform-origin: 20px 12px;
-        }
-        .pot-lid-closed {
-          transform: rotate(0deg);
-          transform-origin: 20px 12px;
-          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes steamUp {
-          0%   { opacity: 0; transform: translateY(0px) scaleX(1); }
-          40%  { opacity: 0.7; }
-          100% { opacity: 0; transform: translateY(-7px) scaleX(1.3); }
-        }
-        .steam-1 { animation: steamUp 1.8s ease-in-out 0.1s infinite; transform-origin: center bottom; }
-        .steam-2 { animation: steamUp 1.8s ease-in-out 0.7s infinite; transform-origin: center bottom; }
-      `}</style>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20" height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ overflow: 'visible' }}
+    >
+      {/* Pot body */}
+      <path d="M4 13h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z" />
 
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="20" height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-        style={{ overflow: 'visible' }}
-      >
-        {/* Steam — visible only when active */}
-        {isActive && (
-          <g>
-            <path className="steam-1" d="M9 11 Q8 8.5 9 6.5" strokeWidth="1.5" opacity="0" />
-            <path className="steam-2" d="M15 11 Q14 8.5 15 6.5" strokeWidth="1.5" opacity="0" />
-          </g>
-        )}
+      {/* Handles */}
+      <path d="M2 15h2" />
+      <path d="M20 15h2" />
 
-        {/* Pot body */}
-        <path d="M4 13h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z" />
-
-        {/* Handles */}
-        <path d="M2 15h2" />
-        <path d="M20 15h2" />
-
-        {/* Lid — animates when active */}
-        <g className={isActive ? 'pot-lid-open' : 'pot-lid-closed'}>
-          <path d="M4 13 Q12 7 20 13" />
-          <line x1="12" y1="8.5" x2="12" y2="6.5" />
-          <circle cx="12" cy="6" r="1.2" fill="currentColor" stroke="none" />
-        </g>
-      </svg>
-    </>
+      {/* Lid — slides up when active */}
+      <g style={{
+        transform: isActive ? 'translateY(-4px)' : 'translateY(0px)',
+        transition: 'transform 0.35s ease',
+      }}>
+        <path d="M4 13 Q12 7 20 13" />
+        <line x1="12" y1="8" x2="12" y2="6" />
+        <circle cx="12" cy="5.5" r="1.2" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
   );
 }
 
