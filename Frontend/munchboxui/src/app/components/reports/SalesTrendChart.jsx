@@ -48,7 +48,11 @@ export default function SalesTrendChart({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis tick={false} axisLine={false} />
-              <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+              <RechartsTooltip
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                labelStyle={{ color: '#000000', fontWeight: 600 }}
+                itemStyle={{ color: '#1e293b' }}
+              />
               <Line 
                 type="monotone" 
                 dataKey="order" 
