@@ -153,7 +153,7 @@ export default function PredictPage() {
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-md disabled:opacity-60"
             >
               {generating ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
-              {generating ? "Generating..." : "+ Request"}
+              {generating ? "Generating..." : " Request"}
             </button>
           </div>
 
