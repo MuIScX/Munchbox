@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Toast from "../../components/Toast";
-import { MenuAPI, RecipeAPI, IngredientAPI } from "../../../lib/api";
-import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2, Edit3, Plus, Save, X } from "lucide-react";
+import EditMenuModal from "../../components/EditRecipeModal";
+import { MenuAPI, RecipeAPI } from "../../../lib/api";
+import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2, Edit3 } from "lucide-react";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -26,14 +27,6 @@ export default function RecipeDetailPage() {
 
   // Edit menu state
   const [isEditingMenu, setIsEditingMenu] = useState(false);
-  const [editForm, setEditForm] = useState({ menu_name: "", menu_type: 1, menu_price: 0 });
-  const [saving, setSaving] = useState(false);
-
-  // Add ingredient state
-  const [isAddingIngredient, setIsAddingIngredient] = useState(false);
-  const [allIngredients, setAllIngredients] = useState([]);
-  const [addIngForm, setAddIngForm] = useState({ ingredient_id: "", amount: "" });
-  const [addingIng, setAddingIng] = useState(false);
   const [toast, setToast] = useState(null);
   const showToast = (type, message) => setToast({ type, message });
 
@@ -48,11 +41,6 @@ export default function RecipeDetailPage() {
       if (menuRes.status === "fulfilled" && menuRes.value?.Data) {
         const m = menuRes.value.Data;
         setMenu(m);
-        setEditForm({
-          menu_name: m.menu_name || m.name || "",
-          menu_type: m.menu_type || m.type || 1,
-          menu_price: m.menu_price || m.price || 0,
-        });
       }
 
       if (recipeRes.status === "fulfilled" && Array.isArray(recipeRes.value?.Data)) {
@@ -65,63 +53,11 @@ export default function RecipeDetailPage() {
     }
   };
 
-  const fetchAllIngredients = async () => {
-    try {
-      const res = await IngredientAPI.list({});
-      setAllIngredients(Array.isArray(res?.Data) ? res.Data : []);
-    } catch {
-      setAllIngredients([]);
-    }
-  };
-
   useEffect(() => {
     if (id) {
       fetchData();
-      fetchAllIngredients();
     }
   }, [id]);
-
-  const handleSaveMenu = async () => {
-    try {
-      setSaving(true);
-      await MenuAPI.update({
-        menu_id: Number(id),
-        menu_name: editForm.menu_name,
-        menu_type: Number(editForm.menu_type),
-        menu_price: Number(editForm.menu_price),
-      });
-      await fetchData();
-      setIsEditingMenu(false);
-      showToast("success", "Recipe saved successfully.");
-    } catch (err) {
-      showToast("error", err.message || "Failed to save recipe");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddIngredient = async () => {
-    if (!addIngForm.ingredient_id || !addIngForm.amount) {
-      showToast("error", "Please select an ingredient and enter an amount.");
-      return;
-    }
-    try {
-      setAddingIng(true);
-      await MenuAPI.addIngredientToRecipe({
-        menu_id: Number(id),
-        ingredient_id: Number(addIngForm.ingredient_id),
-        amount: Number(addIngForm.amount),
-      });
-      await fetchData();
-      setAddIngForm({ ingredient_id: "", amount: "" });
-      setIsAddingIngredient(false);
-      showToast("success", "Ingredient added to recipe.");
-    } catch (err) {
-      showToast("error", err.message || "Failed to add ingredient");
-    } finally {
-      setAddingIng(false);
-    }
-  };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -189,68 +125,7 @@ export default function RecipeDetailPage() {
                       <ListChecks size={20} className="text-orange-500" />
                       <h2 className="text-xl font-bold text-slate-800 italic">Ingredients</h2>
                     </div>
-                    <button
-                      onClick={() => setIsAddingIngredient(true)}
-                      className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                    >
-                      <Plus size={15} />
-                      Add Ingredient
-                    </button>
                   </div>
-
-                  {/* Add Ingredient Form */}
-                  {isAddingIngredient && (
-                    <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-xl flex flex-wrap items-end gap-3">
-                      <div className="flex-1 min-w-[180px]">
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Ingredient</label>
-                        <select
-                          value={addIngForm.ingredient_id}
-                          onChange={(e) => setAddIngForm(f => ({ ...f, ingredient_id: e.target.value }))}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                        >
-                          <option value="">Select ingredient</option>
-                          {allIngredients.map((ing) => (
-                            <option key={ing.ingredient_id || ing.id} value={ing.ingredient_id || ing.id}>
-                              {ing.ingredient_name || ing.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="w-36">
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Amount</label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={addIngForm.amount}
-                            onChange={(e) => setAddIngForm(f => ({ ...f, amount: e.target.value }))}
-                            placeholder="e.g. 200"
-                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                          />
-                          {addIngForm.ingredient_id && (() => {
-                            const ing = allIngredients.find(i => String(i.ingredient_id || i.id) === String(addIngForm.ingredient_id));
-                            return ing?.unit ? <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">{ing.unit}</span> : null;
-                          })()}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleAddIngredient}
-                          disabled={addingIng}
-                          className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-60"
-                        >
-                          {addingIng ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                          Save
-                        </button>
-                        <button
-                          onClick={() => { setIsAddingIngredient(false); setAddIngForm({ ingredient_id: "", amount: "" }); }}
-                          className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition"
-                        >
-                          <X size={14} />
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {ingredients.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -290,59 +165,13 @@ export default function RecipeDetailPage() {
 
         {/* Edit Recipe Modal */}
         {isEditingMenu && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md p-6">
-              <h2 className="text-lg font-bold italic text-slate-800 mb-5">Edit Recipe</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Recipe Name</label>
-                  <input
-                    type="text"
-                    value={editForm.menu_name}
-                    onChange={(e) => setEditForm(f => ({ ...f, menu_name: e.target.value }))}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Type</label>
-                  <select
-                    value={editForm.menu_type}
-                    onChange={(e) => setEditForm(f => ({ ...f, menu_type: e.target.value }))}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                  >
-                    {TYPE_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Price (Baht)</label>
-                  <input
-                    type="number"
-                    value={editForm.menu_price}
-                    onChange={(e) => setEditForm(f => ({ ...f, menu_price: e.target.value }))}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <button
-                  onClick={() => setIsEditingMenu(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveMenu}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition disabled:opacity-60"
-                >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </div>
-          </div>
+          <EditMenuModal 
+            isOpen={isEditingMenu}
+            onClose={() => setIsEditingMenu(false)}
+            onSuccess={fetchData} // Refresh data after update
+            initialMenu={menu}
+            initialIngredients={ingredients}
+          />
         )}
       </main>
     </div>

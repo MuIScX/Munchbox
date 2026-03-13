@@ -124,7 +124,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-full animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold italic text-slate-800">Add New Menu & Recipe</h2>
+          <h2 className="text-xl font-bold italic text-slate-800">Add New Recipe</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors">
             <X size={24} />
           </button>
@@ -143,6 +143,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
                 <option value="1">Main Course</option>
                 <option value="2">Appetizer</option>
                 <option value="3">Dessert</option>
+                <option value="4">Drink</option>
               </select>
             </div>
             <div>
