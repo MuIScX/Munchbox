@@ -26,12 +26,20 @@ class MunchBoxUpdateRequest(BaseModel):
 class PredictionItem(BaseModel):
     ingredient_id: int
     prediction_type: int
-    amount_need: float
+    expected_usage: float
+    upper_bound: Optional[float] = None
+    lower_bound: Optional[float] = None
+    daily_target_average: Optional[float] = None
 
 
 class PredictRecordRequest(BaseModel):
     predict_set_id: int
     predictions: List[PredictionItem]
+
+
+class PredictSetCreateRequest(BaseModel):
+    model: int
+    day_ahead: int
 
 
 class PredictIngredientRequest(BaseModel):
