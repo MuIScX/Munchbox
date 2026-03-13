@@ -7,7 +7,6 @@ import { AuthAPI } from '../../lib/api';
 import {
   Home,
   FileChartColumn,
-  Package,
   UserCircle,
   LineChart,
   Bell,
@@ -19,6 +18,36 @@ import {
   LogOut,
   ChevronUp
 } from 'lucide-react';
+
+function AnimatedBox({ isActive, className }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20" height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ overflow: 'visible' }}
+    >
+      {/* Box body */}
+      <rect x="3" y="12" width="18" height="10" rx="1" />
+
+      {/* Lid — slides up when active */}
+      <g style={{
+        transform: isActive ? 'translateY(-4px)' : 'translateY(0px)',
+        transition: 'transform 0.35s ease',
+      }}>
+        <path d="M2 10 L22 10 L21 12 L3 12 Z" />
+        <line x1="12" y1="10" x2="12" y2="8" />
+        <circle cx="12" cy="7" r="1.2" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+}
 
 function AnimatedCookingPot({ isActive, className }) {
   return (
@@ -132,7 +161,7 @@ export default function Sidebar() {
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: Home, color: 'text-orange-500' },
         { name: 'View Reports', path: '/reports/', icon: FileChartColumn, color: 'text-emerald-500' },
-        { name: 'Manage Inventory', path: '/manageinventory/', icon: Package, color: 'text-blue-500' },
+        { name: 'Manage Inventory', path: '/manageinventory/', icon: null, color: 'text-blue-500', animatedBox: true },
       ],
     },
     {
@@ -141,7 +170,7 @@ export default function Sidebar() {
         { name: 'Manage Staff', path: '/managestaff', icon: UserCircle, color: 'text-orange-500' },
         { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500' },
         { name: 'Manage Recipe', path: '/managemenu', icon: null, color: 'text-purple-500', animatedPot: true },
-        { name: 'Manage Inventory', path: '/manageinventory', icon: Package, color: 'text-blue-500' },
+        { name: 'Manage Inventory', path: '/manageinventory', icon: null, color: 'text-blue-500', animatedBox: true },
         { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
         { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
       ],
@@ -204,6 +233,8 @@ export default function Sidebar() {
                         )}
                         {item.animatedPot
                           ? <AnimatedCookingPot isActive={isActive} className={`w-5 h-5 ${item.color}`} />
+                          : item.animatedBox
+                          ? <AnimatedBox isActive={isActive} className={`w-5 h-5 ${item.color}`} />
                           : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
                         }
                         <span className="text-[15px]">{item.name}</span>
