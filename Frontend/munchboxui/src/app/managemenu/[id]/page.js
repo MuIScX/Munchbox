@@ -13,7 +13,7 @@ const TYPE_OPTIONS = [
   { value: 1, label: "Main Course" },
   { value: 2, label: "Appetizer" },
   { value: 3, label: "Dessert" },
-  { value: 4, label: "4" }
+  { value: 4, label: "Drink" }
 ];
 
 export default function RecipeDetailPage() {
