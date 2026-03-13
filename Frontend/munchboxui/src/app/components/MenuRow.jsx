@@ -5,6 +5,7 @@ const TYPE_MAP = {
   1: "Main",
   2: "Appetizer",
   3: "Dessert",
+  4: "Drink"
 };
 
 export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick }) {
