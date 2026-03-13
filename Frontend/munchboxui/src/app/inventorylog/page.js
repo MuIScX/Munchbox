@@ -115,8 +115,8 @@ export default function InventoryLog() {
 
             <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 text-sm italic sticky top-0 z-10">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-50 text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Date/Time</th>
                     <th className="px-6 py-4 font-semibold">Staff</th>
                     <th className="px-6 py-4 font-semibold">Action</th>
