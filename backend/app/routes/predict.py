@@ -1,3 +1,7 @@
+import os
+import sys
+import json
+import subprocess
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
@@ -5,11 +9,102 @@ from datetime import datetime
 
 from app.db import get_db
 from app.core.security import decode_token
-from app.schemas.report import PredictRecordRequest, PredictIngredientRequest, PredictTrendRequest
+from app.schemas.report import PredictRecordRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest
 from app.models.predict import Predict, PredictSet
 from app.models.ingredient import Ingredient
 
 router = APIRouter(prefix="/api/predict", tags=["Predict"])
+
+_SCRIPT_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v2.py")
+)
+
+
+@router.post("/generate")
+def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """Run Bayesian model for active ingredients and persist results."""
+    restaurant_id = identity["restaurantId"]
+
+    q = db.query(Ingredient).filter(Ingredient.restaurant_id == restaurant_id, Ingredient.is_active == 1)
+    if body.ingredient_id is not None:
+        q = q.filter(Ingredient.id == body.ingredient_id)
+    ingredients = q.all()
+
+    if not ingredients:
+        return {"message": "No active ingredients found", "Data": {"total_processed": 0, "predictions": []}}
+
+    predict_set_id = int(datetime.utcnow().timestamp())
+    now = datetime.utcnow()
+    results = []
+    errors = []
+
+    for ingredient in ingredients:
+        try:
+            proc = subprocess.run(
+                [sys.executable, _SCRIPT_PATH,
+                 "--ingredient", ingredient.name,
+                 "--sell_price", "100",
+                 "--days", str(body.days),
+                 "--strategy", body.strategy],
+                capture_output=True,
+                text=True,
+                timeout=360,
+            )
+            stdout = proc.stdout.strip()
+            if not stdout:
+                errors.append({"ingredient": ingredient.name, "error": "empty output"})
+                continue
+
+            # Script prints logs to stdout before the final JSON — find the last JSON object
+            idx = stdout.rfind("\n{")
+            json_str = stdout[idx:].strip() if idx != -1 else stdout
+            payload = json.loads(json_str)
+
+            if "error" in payload:
+                errors.append({"ingredient": ingredient.name, "error": payload["error"]})
+                continue
+
+            rec = payload["recommendation"]
+            expected_usage = float(rec["optimal_target_qty"])
+            days = len(payload.get("chart_data", {}).get("forecast", []))
+
+            # Derive upper/lower from summed daily forecast bounds
+            forecast = payload.get("chart_data", {}).get("forecast", [])
+            upper_bound = round(sum(d["likely_high_bound_95th"] for d in forecast), 2) if forecast else None
+            lower_bound = round(sum(d["likely_low_bound_5th"] for d in forecast), 2) if forecast else None
+            daily_target_average = round(expected_usage / days, 2) if days > 0 else None
+
+            db.add(Predict(
+                ingredient_id=ingredient.id,
+                prediction_type=int(body.strategy),
+                expected_usage=expected_usage,
+                upper_bound=upper_bound,
+                lower_bound=lower_bound,
+                daily_target_average=daily_target_average,
+                prediction_set=predict_set_id,
+                restaurant_id=restaurant_id,
+                timestamp=now,
+            ))
+            results.append({
+                "ingredient_id": ingredient.id,
+                "ingredient_name": ingredient.name,
+                "expected_usage": expected_usage,
+            })
+        except subprocess.TimeoutExpired:
+            errors.append({"ingredient": ingredient.name, "error": "timeout"})
+        except Exception as e:
+            errors.append({"ingredient": ingredient.name, "error": str(e)})
+
+    db.commit()
+    return {
+        "message": "success",
+        "Data": {
+            "predict_set_id": predict_set_id,
+            "total_processed": len(results),
+            "predictions": results,
+            "errors": errors,
+        },
+    }
 
 
 @router.post("/report")
