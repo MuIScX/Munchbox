@@ -54,7 +54,7 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/munchbox_test
-          SECRET_KEY: test-secret-key
+          JWT_SECRET: test-secret-key
           ENVIRONMENT: test
         run: |
           source venv/bin/activate
