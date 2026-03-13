@@ -98,7 +98,7 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Changes"}
             </button>
           </div>

@@ -37,9 +37,8 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
     <tr className="hover:bg-slate-50/50 transition-colors">
       <td className="px-6 py-4 text-slate-700 font-medium">{name}</td>
       <td className="px-6 py-4 text-slate-500">{CATEGORY_MAP[row.category] || row.category || 'Unknown'}</td>
-      <td className="px-6 py-4 text-slate-500">{row.unit}</td>
-      <td className="px-6 py-4">
-        <span className={`font-medium ${isOk ? 'text-emerald-500' : 'text-red-500'}`}>
+      <td className="px-6 py-4 text-center">
+        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${isOk ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
           {isOk ? 'Ok' : 'Low Stock'}
         </span>
       </td>
@@ -47,6 +46,7 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
       <td className={`px-6 py-4 text-center font-bold transition-colors duration-200 ${stockColorClass}`}>
         {previewStock}
       </td>
+      <td className="px-6 py-4 text-center text-slate-500">{row.unit}</td>
       <td className="px-6 py-4">
         <div className="flex justify-center items-center gap-3">
           {isEditing ? (
