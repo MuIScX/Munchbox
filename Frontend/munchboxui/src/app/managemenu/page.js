@@ -66,7 +66,7 @@ export default function ManageMenuPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const unreadyCount = menus.filter((m) => (m.ingredient_count || m.count || 0) === 0).length;
+  const unreadyCount = menus.filter((m) => (m.readiness ?? 0) === 0).length;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">

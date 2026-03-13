@@ -23,7 +23,7 @@ def _query_menus(db: Session, restaurant_id: int, menu_id: int = None):
             Menu.type,
             func.count(Recipe.ingredient_id).label("ingredient_count"),
             case(
-                (func.sum(case((Ingredient.stock_left <= 0, 1), else_=0)) == 0, 1),
+                (func.sum(case((Ingredient.stock_left < Recipe.amount, 1), else_=0)) == 0, 1),
                 else_=0,
             ).label("readiness"),
             Menu.price,
