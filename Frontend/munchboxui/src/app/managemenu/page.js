@@ -5,9 +5,10 @@ import Sidebar from "../components/Sidebar";
 import AddMenuModal from "../components/AddMenuModal";
 import DeleteMenuModal from "../components/DeleteMenuModal";
 import MenuRow from "../components/MenuRow";
+import Toast from "../components/Toast";
 import { MenuAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Trash2 } from "lucide-react";
+import { Search, Loader2, Trash2, UtensilsCrossed } from "lucide-react";
 
 const TYPE_MAP = {
   1: "Main",
@@ -23,10 +24,13 @@ export default function ManageMenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showDelete, setShowDelete] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // Modals State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [menuToDelete, setMenuToDelete] = useState(null);
+
+  const showToast = (type, message) => setToast({ type, message });
 
   const fetchMenus = async () => {
     try {
@@ -52,8 +56,9 @@ export default function ManageMenuPage() {
       await MenuAPI.delete(menuId);
       setMenus((prev) => prev.filter((m) => (m.menu_id || m.id) !== menuId));
       setMenuToDelete(null);
+      showToast("success", "Recipe deleted successfully.");
     } catch (err) {
-      alert(err.message || "Delete failed");
+      showToast("error", err.message || "Delete failed");
     }
   };
 
@@ -71,6 +76,8 @@ export default function ManageMenuPage() {
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
 
+      <Toast toast={toast} onClose={() => setToast(null)} />
+
       <AddMenuModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -85,10 +92,10 @@ export default function ManageMenuPage() {
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 flex flex-col gap-6 overflow-hidden h-full">
 
           {/* Header */}
-          <div className="flex justify-between items-center mb-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200 shadow-sm shrink-0">
             <h1 className="text-2xl font-bold italic text-slate-800">Manage Recipe</h1>
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -99,7 +106,7 @@ export default function ManageMenuPage() {
           </div>
 
           {/* Summary Boxes */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 shrink-0">
             <div className="bg-[#cfe3f1] flex-1 max-w-[220px] rounded-2xl p-5 shadow-sm">
               <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Recipes</p>
               <h2 className="text-4xl font-bold text-slate-800">{menus.length}</h2>
@@ -111,7 +118,7 @@ export default function ManageMenuPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-4 mb-6 flex-wrap">
+          <div className="flex gap-4 flex-wrap shrink-0">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -136,12 +143,12 @@ export default function ManageMenuPage() {
           </div>
 
           {/* Recipe Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="p-5 border-b border-slate-100 shrink-0">
               <h2 className="font-bold italic text-slate-800">All Recipe</h2>
             </div>
 
-            <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 bg-slate-50 z-10">
                   <tr className="text-slate-500 text-sm italic">
@@ -167,7 +174,7 @@ export default function ManageMenuPage() {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center">
+                      <td colSpan={5} className="py-16 text-center">
                         <Loader2 className="animate-spin mx-auto text-orange-500" size={28} />
                       </td>
                     </tr>
@@ -183,8 +190,9 @@ export default function ManageMenuPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-slate-400 italic">
-                        No recipe found
+                      <td colSpan={5} className="py-16 text-center">
+                        <UtensilsCrossed className="mx-auto mb-3 text-slate-300" size={36} />
+                        <p className="text-slate-400 italic">No recipe found</p>
                       </td>
                     </tr>
                   )}
