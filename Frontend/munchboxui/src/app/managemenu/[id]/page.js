@@ -219,15 +219,21 @@ export default function RecipeDetailPage() {
                           ))}
                         </select>
                       </div>
-                      <div className="w-28">
+                      <div className="w-36">
                         <label className="block text-xs font-medium text-slate-500 mb-1">Amount</label>
-                        <input
-                          type="number"
-                          value={addIngForm.amount}
-                          onChange={(e) => setAddIngForm(f => ({ ...f, amount: e.target.value }))}
-                          placeholder="e.g. 200"
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={addIngForm.amount}
+                            onChange={(e) => setAddIngForm(f => ({ ...f, amount: e.target.value }))}
+                            placeholder="e.g. 200"
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-orange-500 outline-none"
+                          />
+                          {addIngForm.ingredient_id && (() => {
+                            const ing = allIngredients.find(i => String(i.ingredient_id || i.id) === String(addIngForm.ingredient_id));
+                            return ing?.unit ? <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">{ing.unit}</span> : null;
+                          })()}
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <button

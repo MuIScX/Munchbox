@@ -3,6 +3,7 @@ import React from "react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 export default function CategoryPieChart({ data }) {
+  const sorted = [...data].sort((a, b) => b.value - a.value);
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
@@ -37,7 +38,7 @@ export default function CategoryPieChart({ data }) {
       {/* Legend table */}
       {data.length > 0 && (
         <div className="mt-4 space-y-2">
-          {data.map((entry, i) => (
+          {sorted.map((entry, i) => (
             <div key={i} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: entry.color }} />

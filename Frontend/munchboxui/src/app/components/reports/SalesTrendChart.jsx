@@ -3,6 +3,20 @@ import React from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div style={{ background: 'white', borderRadius: 10, padding: '10px 16px', boxShadow: '0 4px 12px rgb(0 0 0 / 0.12)', border: '1px solid #f1f5f9' }}>
+      <p style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
+        {payload[0].value}
+      </p>
+      <p style={{ fontSize: 11, color: '#94a3b8', margin: '3px 0 0 0', fontWeight: 500 }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
 export default function SalesTrendChart({ 
   data, 
   menuList, 
@@ -48,11 +62,7 @@ export default function SalesTrendChart({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis tick={false} axisLine={false} />
-              <RechartsTooltip
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                labelStyle={{ color: '#000000', fontWeight: 600 }}
-                itemStyle={{ color: '#1e293b' }}
-              />
+              <RechartsTooltip content={<CustomTooltip />} />
               <Line 
                 type="monotone" 
                 dataKey="order" 
