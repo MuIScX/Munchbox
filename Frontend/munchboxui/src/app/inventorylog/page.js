@@ -113,7 +113,7 @@ export default function InventoryLog() {
               onChange={(e) => setSelectedAction(e.target.value)}
               className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
             >
-              <option value="All">Type: All</option>
+              <option value="All">Action: All</option>
               <option value="in">Stock In</option>
               <option value="out">Stock Out</option>
             </select>
