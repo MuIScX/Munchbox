@@ -34,16 +34,24 @@ function AnimatedBox({ isActive, className }) {
       style={{ overflow: 'visible' }}
     >
       {/* Box body */}
-      <rect x="3" y="12" width="18" height="10" rx="1" />
+      <rect x="3" y="11" width="18" height="11" rx="1" />
+      {/* Center seam */}
+      <line x1="12" y1="11" x2="12" y2="22" strokeWidth="1.5" />
 
-      {/* Lid — slides up when active */}
+      {/* Left flap — slides left when open */}
       <g style={{
-        transform: isActive ? 'translateY(-4px)' : 'translateY(0px)',
+        transform: isActive ? 'translateX(-4px)' : 'translateX(0px)',
         transition: 'transform 0.35s ease',
       }}>
-        <path d="M2 10 L22 10 L21 12 L3 12 Z" />
-        <line x1="12" y1="10" x2="12" y2="8" />
-        <circle cx="12" cy="7" r="1.2" fill="currentColor" stroke="none" />
+        <path d="M3 11 L12 11 L12 8 L3 8 Z" />
+      </g>
+
+      {/* Right flap — slides right when open */}
+      <g style={{
+        transform: isActive ? 'translateX(4px)' : 'translateX(0px)',
+        transition: 'transform 0.35s ease',
+      }}>
+        <path d="M12 11 L21 11 L21 8 L12 8 Z" />
       </g>
     </svg>
   );
