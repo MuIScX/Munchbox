@@ -126,10 +126,10 @@ export default function Home() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
-        <div className="p-8 overflow-y-auto custom-scrollbar">
+        <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
 
           {/* Header */}
-          <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm shrink-0">
             <h1 className="text-2xl font-bold italic text-slate-800">Manage Inventory</h1>
             <button
               onClick={() => setIsModalOpen(true)}
@@ -140,7 +140,7 @@ export default function Home() {
           </div>
 
           {/* Summary Cards */}
-          <div className="flex gap-4 mb-8">
+          <div className="flex gap-4 shrink-0">
             <div className="bg-[#cfe3f1] w-60 rounded-2xl p-5 shadow-sm">
               <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Ingredient</p>
               <h2 className="text-4xl font-bold text-slate-800">{ingredients.length}</h2>
@@ -152,7 +152,7 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-4 mb-8">
+          <div className="flex flex-wrap gap-4 shrink-0">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -189,22 +189,22 @@ export default function Home() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
               <h2 className="font-bold italic text-slate-800">Inventory list</h2>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 text-sm italic">
-                    <th className="px-6 py-4 font-semibold">Item</th>
-                    <th className="px-6 py-4 font-semibold">Category</th>
-                    <th className="px-6 py-4 font-semibold">Unit</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold text-center">Min Stock</th>
-                    <th className="px-6 py-4 font-semibold text-center">Stock</th>
-                    <th className="px-6 py-4 font-semibold text-center">
+                  <tr className="bg-slate-50/80 text-slate-500 text-sm italic border-b border-slate-200">
+                    <th className="px-6 py-4 font-semibold w-[25%]">Item</th>
+                    <th className="px-6 py-4 font-semibold w-[15%]">Category</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Status</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Min Stock</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Stock</th>
+                    <th className="px-6 py-4 font-semibold w-[10%] text-center">Unit</th>
+                    <th className="px-6 py-4 font-semibold w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button

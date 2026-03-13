@@ -89,7 +89,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               Cancel
             </button>
             <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Staff"}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Save"}
             </button>
           </div>
         </form>
