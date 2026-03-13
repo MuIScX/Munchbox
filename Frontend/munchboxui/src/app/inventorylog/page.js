@@ -60,30 +60,30 @@ export default function InventoryLog() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
-        <div className="p-8 overflow-y-auto custom-scrollbar">
-          
+        <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
+
           {/* Page Title Card */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm shrink-0">
             <h1 className="text-2xl font-bold italic text-slate-800">View Inventory Log</h1>
           </div>
 
           {/* Filters Section */}
-          <div className="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search Ingredient..." 
+              <input
+                type="text"
+                placeholder="Search Ingredient..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
               />
             </div>
-            
+
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="date" 
+              <input
+                type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
@@ -92,7 +92,7 @@ export default function InventoryLog() {
 
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <select 
+              <select
                 value={selectedStaff}
                 onChange={(e) => setSelectedStaff(e.target.value)}
                 className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600 min-w-[180px]"
@@ -108,12 +108,12 @@ export default function InventoryLog() {
           </div>
 
           {/* Log Table Container */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="p-6 border-b border-slate-100 shrink-0">
               <h2 className="font-bold italic text-slate-800 text-lg">Record Inventory log</h2>
             </div>
-            
-            <div className="overflow-x-auto">
+
+            <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-50/80 text-slate-500 text-sm italic sticky top-0 z-10">

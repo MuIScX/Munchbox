@@ -18,6 +18,10 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
 
   useEffect(() => {
     if (isOpen) {
+      setFormData({ name: "", type: "1", price: "" });
+      setSelectedIngredients([]);
+      setSearchTerm("");
+      setIsDropdownOpen(false);
       IngredientAPI.list({}).then(res => {
         if (res?.Data) setAvailableIngredients(res.Data);
       }).catch(err => console.error(err));

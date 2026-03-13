@@ -4,15 +4,14 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AuthAPI } from '../../lib/api';
-import { 
-  Home, 
-  FileChartColumn, 
-  Package, 
-  UserCircle, 
-  LineChart, 
-  CookingPot, 
-  Bell, 
-  Settings, 
+import {
+  Home,
+  FileChartColumn,
+  Package,
+  UserCircle,
+  LineChart,
+  Bell,
+  Settings,
   HelpCircle,
   ClipboardClock,
   Menu,
@@ -20,6 +19,70 @@ import {
   LogOut,
   ChevronUp
 } from 'lucide-react';
+
+function AnimatedCookingPot({ isActive, className }) {
+  return (
+    <>
+      <style>{`
+        @keyframes potLidFloat {
+          0%, 100% { transform: rotate(-22deg); }
+          50%       { transform: rotate(-30deg) translateY(-1px); }
+        }
+        .pot-lid-open {
+          animation: potLidFloat 2s ease-in-out infinite;
+          transform-origin: 20px 12px;
+        }
+        .pot-lid-closed {
+          transform: rotate(0deg);
+          transform-origin: 20px 12px;
+          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes steamUp {
+          0%   { opacity: 0; transform: translateY(0px) scaleX(1); }
+          40%  { opacity: 0.7; }
+          100% { opacity: 0; transform: translateY(-7px) scaleX(1.3); }
+        }
+        .steam-1 { animation: steamUp 1.8s ease-in-out 0.1s infinite; transform-origin: center bottom; }
+        .steam-2 { animation: steamUp 1.8s ease-in-out 0.7s infinite; transform-origin: center bottom; }
+      `}</style>
+
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        style={{ overflow: 'visible' }}
+      >
+        {/* Steam — visible only when active */}
+        {isActive && (
+          <g>
+            <path className="steam-1" d="M9 11 Q8 8.5 9 6.5" strokeWidth="1.5" opacity="0" />
+            <path className="steam-2" d="M15 11 Q14 8.5 15 6.5" strokeWidth="1.5" opacity="0" />
+          </g>
+        )}
+
+        {/* Pot body */}
+        <path d="M4 13h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z" />
+
+        {/* Handles */}
+        <path d="M2 15h2" />
+        <path d="M20 15h2" />
+
+        {/* Lid — animates when active */}
+        <g className={isActive ? 'pot-lid-open' : 'pot-lid-closed'}>
+          <path d="M4 13 Q12 7 20 13" />
+          <line x1="12" y1="8.5" x2="12" y2="6.5" />
+          <circle cx="12" cy="6" r="1.2" fill="currentColor" stroke="none" />
+        </g>
+      </svg>
+    </>
+  );
+}
 
 // --- Hook to fetch user data from AuthAPI ---
 function useCurrentUser() {
@@ -107,7 +170,7 @@ export default function Sidebar() {
       items: [
         { name: 'Manage Staff', path: '/managestaff', icon: UserCircle, color: 'text-orange-500' },
         { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500' },
-        { name: 'Manage Menu', path: '/managemenu', icon: CookingPot, color: 'text-purple-500' },
+        { name: 'Manage Recipe', path: '/managemenu', icon: null, color: 'text-purple-500', animatedPot: true },
         { name: 'Manage Inventory', path: '/manageinventory', icon: Package, color: 'text-blue-500' },
         { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
         { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
@@ -181,7 +244,10 @@ export default function Sidebar() {
                         {isActive && (
                           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500 rounded-r-md" />
                         )}
-                        <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
+                        {item.animatedPot
+                          ? <AnimatedCookingPot isActive={isActive} className={`w-5 h-5 ${item.color}`} />
+                          : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
+                        }
                         <span className="text-[15px]">{item.name}</span>
                       </Link>
                     </li>
