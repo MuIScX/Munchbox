@@ -16,80 +16,12 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronUp
+  ChevronUp,
+  Package,
+  PackageOpen,
+  Utensils,
+  UtensilsCrossed
 } from 'lucide-react';
-
-function AnimatedBox({ isActive, className }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20" height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={{ overflow: 'visible' }}
-    >
-      {/* Box body */}
-      <rect x="3" y="11" width="18" height="11" rx="1" />
-      {/* Center seam */}
-      <line x1="12" y1="11" x2="12" y2="22" strokeWidth="1.5" />
-
-      {/* Left flap — slides left when open */}
-      <g style={{
-        transform: isActive ? 'translateX(-4px)' : 'translateX(0px)',
-        transition: 'transform 0.35s ease',
-      }}>
-        <path d="M3 11 L12 11 L12 8 L3 8 Z" />
-      </g>
-
-      {/* Right flap — slides right when open */}
-      <g style={{
-        transform: isActive ? 'translateX(4px)' : 'translateX(0px)',
-        transition: 'transform 0.35s ease',
-      }}>
-        <path d="M12 11 L21 11 L21 8 L12 8 Z" />
-      </g>
-    </svg>
-  );
-}
-
-function AnimatedCookingPot({ isActive, className }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20" height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={{ overflow: 'visible' }}
-    >
-      {/* Pot body */}
-      <path d="M4 13h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z" />
-
-      {/* Handles */}
-      <path d="M2 15h2" />
-      <path d="M20 15h2" />
-
-      {/* Lid — slides up when active */}
-      <g style={{
-        transform: isActive ? 'translateY(-4px)' : 'translateY(0px)',
-        transition: 'transform 0.35s ease',
-      }}>
-        <path d="M4 13 Q12 7 20 13" />
-        <line x1="12" y1="8" x2="12" y2="6" />
-        <circle cx="12" cy="5.5" r="1.2" fill="currentColor" stroke="none" />
-      </g>
-    </svg>
-  );
-}
 
 function useCurrentUser() {
   const [user, setUser] = useState(null);
@@ -169,7 +101,7 @@ export default function Sidebar() {
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: Home, color: 'text-orange-500' },
         { name: 'View Reports', path: '/reports/', icon: FileChartColumn, color: 'text-emerald-500' },
-        { name: 'Manage Inventory', path: '/manageinventory/', icon: null, color: 'text-blue-500', animatedBox: true },
+        { name: 'Manage Inventory', path: '/manageinventory/', icon: Package, iconActive: PackageOpen, color: 'text-blue-500' },
       ],
     },
     {
@@ -177,8 +109,8 @@ export default function Sidebar() {
       items: [
         { name: 'Manage Staff', path: '/managestaff', icon: UserCircle, color: 'text-orange-500' },
         { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500' },
-        { name: 'Manage Recipe', path: '/managemenu', icon: null, color: 'text-purple-500', animatedPot: true },
-        { name: 'Manage Inventory', path: '/manageinventory', icon: null, color: 'text-blue-500', animatedBox: true },
+        { name: 'Manage Recipe', path: '/managemenu', icon: Utensils, iconActive: UtensilsCrossed, color: 'text-purple-500' },
+        { name: 'Manage Inventory', path: '/manageinventory', icon: Package, iconActive: PackageOpen, color: 'text-blue-500' },
         { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
         { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
       ],
@@ -239,10 +171,10 @@ export default function Sidebar() {
                         {isActive && (
                           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500 rounded-r-md" />
                         )}
-                        {item.animatedPot
-                          ? <AnimatedCookingPot isActive={isActive} className={`w-5 h-5 ${item.color}`} />
-                          : item.animatedBox
-                          ? <AnimatedBox isActive={isActive} className={`w-5 h-5 ${item.color}`} />
+                        {item.iconActive
+                          ? (isActive
+                              ? <item.iconActive className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
+                              : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />)
                           : <item.icon className={`w-5 h-5 ${item.color}`} strokeWidth={2.5} />
                         }
                         <span className="text-[15px]">{item.name}</span>
