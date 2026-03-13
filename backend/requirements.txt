@@ -10,3 +10,8 @@ openpyxl>=3.1.0
 python-multipart
 pytz
 passlib[bcrypt]
+pymc
+pytensor
+pandas
+numpy
+matplotlib

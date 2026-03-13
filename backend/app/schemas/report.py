@@ -42,6 +42,12 @@ class PredictSetCreateRequest(BaseModel):
     day_ahead: int
 
 
+class PredictGenerateRequest(BaseModel):
+    ingredient_id: Optional[int] = None
+    days: int = 7
+    strategy: str = "2"
+
+
 class PredictIngredientRequest(BaseModel):
     ingredient_id: Optional[int] = None
 

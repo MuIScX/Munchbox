@@ -143,6 +143,7 @@ shareMenu: (start_date, end_date) =>
 export const PredictAPI = {
   report: () => request("/predict/report"),
   trend: (ingredient_id) => request("/predict/trend", "POST", { ingredient_id }),
+  generate: (payload) => request("/predict/generate", "POST", payload, 0),
 }
 
 export const ImportAPI = {
