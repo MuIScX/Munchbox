@@ -29,7 +29,7 @@ services:
     environment:
       TZ: Asia/Bangkok
       DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
-      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
       ENVIRONMENT: production
     networks:
       - munchbox-net
