@@ -7,16 +7,13 @@ import Toast from "../../components/Toast";
 import { MenuAPI, RecipeAPI, IngredientAPI } from "../../../lib/api";
 import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2, Edit3, Plus, Save, X } from "lucide-react";
 
-const TYPE_MAP = {
-  1: "Main Course",
-  2: "Appetizer",
-  3: "Dessert",
-};
+const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
 const TYPE_OPTIONS = [
   { value: 1, label: "Main Course" },
   { value: 2, label: "Appetizer" },
   { value: 3, label: "Dessert" },
+  { value: 4, label: "4" }
 ];
 
 export default function RecipeDetailPage() {
