@@ -35,7 +35,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex justify-between items-center p-6 border-b border-slate-100">

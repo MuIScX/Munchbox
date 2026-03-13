@@ -120,7 +120,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm py-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 py-10">
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-full animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
