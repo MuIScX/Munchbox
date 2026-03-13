@@ -135,7 +135,7 @@ console.log(passwordValue)
                   type="password"
                   value={passwordValue}
                   onChange={handlePasswordChange}
-                  placeholder="Enter your Email"
+                  placeholder="Enter your Password"
                   className={`w-full rounded-xl border px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     passworderrorMessage ? "border-red-500" : "border-gray-300"
                   }`}

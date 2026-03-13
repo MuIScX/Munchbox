@@ -197,14 +197,14 @@ export default function Home() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 text-sm italic">
-                    <th className="px-6 py-4 font-semibold">Item</th>
-                    <th className="px-6 py-4 font-semibold">Category</th>
-                    <th className="px-6 py-4 font-semibold">Unit</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold text-center">Min Stock</th>
-                    <th className="px-6 py-4 font-semibold text-center">Stock</th>
-                    <th className="px-6 py-4 font-semibold text-center">
+                  <tr className="bg-slate-50/80 text-slate-500 text-sm italic border-b border-slate-200">
+                    <th className="px-6 py-4 font-semibold w-[25%]">Item</th>
+                    <th className="px-6 py-4 font-semibold w-[15%]">Category</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Status</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Min Stock</th>
+                    <th className="px-6 py-4 font-semibold w-[12%] text-center">Stock</th>
+                    <th className="px-6 py-4 font-semibold w-[10%] text-center">Unit</th>
+                    <th className="px-6 py-4 font-semibold w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button

@@ -101,11 +101,11 @@ export default function ManageMenuPage() {
           {/* Summary Boxes */}
           <div className="flex gap-4 mb-6">
             <div className="bg-[#cfe3f1] w-60 rounded-2xl p-4">
-              <p className="text-[#2c6b8a] text-sm">Total Recipes</p>
+              <p className="text-[#2c6b8a] text-sm font-semibold">Total Recipes</p>
               <h2 className="text-3xl font-bold text-black">{menus.length}</h2>
             </div>
             <div className="bg-[#fde9d9] w-60 rounded-2xl p-4">
-              <p className="text-[#c0580a] text-sm">Unready Recipe</p>
+              <p className="text-[#c0580a] text-sm font-semibold">Unready Recipe</p>
               <h2 className="text-3xl font-bold text-black">{unreadyCount}</h2>
             </div>
           </div>
