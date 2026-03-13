@@ -45,11 +45,12 @@ except Exception as e:
 
 # --- 2. CORE FUNCTIONS ---
 
-def get_data_from_sql(ingredient_name_query, ingredient_id=None):
+def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=None):
     """
     Grabbing the daily usage directly from SQL now.
     ingredient_name_query: the name of the ingredient to search for
     ingredient_id: if provided, use this ID directly (avoids multi-restaurant ambiguity)
+    restaurant_id: if provided, filter Sale_data by restaurant
     """
     print(f"\n[SQL] Searching for '{ingredient_name_query}'...")
 
@@ -88,13 +89,15 @@ def get_data_from_sql(ingredient_name_query, ingredient_id=None):
 
         # B. Calculate Daily Usage (The Heavy Lifting)
         # Joining Sales -> Recipe -> Ingredient to see how much we actually used per day
+        restaurant_filter = f"AND S.restaurant_id = {restaurant_id}" if restaurant_id is not None else ""
         q_usage = f"""
-        SELECT 
+        SELECT
             DATE(S.timestamp) as date,
             SUM(S.amount * R.amount) as daily_usage
         FROM Sale_data S
         JOIN Recipe R ON S.menu_id = R.menu_id
         WHERE R.ingredient_id = {ing_id}
+        {restaurant_filter}
         GROUP BY DATE(S.timestamp)
         ORDER BY date ASC;
         """
@@ -540,6 +543,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Munchbox Bayesian Forecaster")
     parser.add_argument("--ingredient", type=str, required=True, help="Ingredient to forecast")
     parser.add_argument("--ingredient_id", type=int, default=None, help="Ingredient ID (overrides name lookup)")
+    parser.add_argument("--restaurant_id", type=int, default=None, help="Restaurant ID for data isolation")
     parser.add_argument("--strategy", type=str, default="2", help="1: Conservative, 2: Balanced, 3: Aggressive")
     parser.add_argument("--buy_price", type=float, default=None, help="Override DB Cost")
     parser.add_argument("--sell_price", type=float, required=True, help="Revenue per unit")
@@ -555,7 +559,7 @@ if __name__ == "__main__":
     print(f"[SYSTEM] Starting Job for {ingredient_to_forecast}...", file=sys.stderr)
     
     # 2. Fetch data
-    daily_demand, unit, db_cost, db_stock = get_data_from_sql(ingredient_to_forecast, ingredient_id=args.ingredient_id)
+    daily_demand, unit, db_cost, db_stock = get_data_from_sql(ingredient_to_forecast, ingredient_id=args.ingredient_id, restaurant_id=args.restaurant_id)
     
     if daily_demand is not None and not daily_demand.empty:
         # Strategy Setup
