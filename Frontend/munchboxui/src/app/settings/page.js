@@ -101,7 +101,7 @@ function RestaurantEditForm({ form, onChange, restaurant }) {
       <div>
         <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Package</label>
         <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
-          <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-300" />
+          <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           {PACKAGE_LABELS[restaurant?.package] ?? "Unknown"}
           <span className="ml-auto text-xs italic text-slate-400">View only</span>
         </div>
@@ -150,7 +150,7 @@ function RestaurantCreateForm({ form, onChange }) {
       <SelectField
         icon={Package} label="Package" name="package"
         value={form.package} onChange={onChange}
-        options={PACKAGE_OPTIONS} color="text-purple-400" required
+        options={PACKAGE_OPTIONS} color="text-slate-400" required
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <InputField
@@ -440,7 +440,7 @@ export default function SettingsPage() {
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider italic mb-3">Subscription</h3>
                   <InfoRow icon={Calendar} label="Start Date" value={restaurant?.start_date} color="text-emerald-400" />
                   <InfoRow icon={Calendar} label="End Date" value={restaurant?.end_date} color="text-red-400" />
-                  <InfoRow icon={Clock} label="Last Updated" value={restaurant?.updated_time} color="text-blue-400" />
+                  <InfoRow icon={Clock} label="Last Updated" value={restaurant?.updated_time} color="text-slate-400" />
 
                   {daysUntilExpiry !== null && daysUntilExpiry <= 30 && (
                     <div className={`mt-4 flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium ${
@@ -495,7 +495,7 @@ export default function SettingsPage() {
                     {mode === "view" ? (
                       <div>
                         <InfoRow icon={Store} label="Restaurant Name" value={restaurant?.name} color="text-orange-400" />
-                        <InfoRow icon={Package} label="Package" value={PACKAGE_LABELS[restaurant?.package] ?? restaurant?.package} color="text-purple-400" />
+                        <InfoRow icon={Package} label="Package" value={PACKAGE_LABELS[restaurant?.package] ?? restaurant?.package} color="text-slate-400" />
                         <InfoRow icon={Calendar} label="Start Date" value={restaurant?.start_date} color="text-emerald-400" />
                         <InfoRow icon={Calendar} label="End Date" value={restaurant?.end_date} color="text-red-400" />
                         <InfoRow icon={Lock} label="Manager PIN" value={restaurant?.manager_pin ? "••••••" : null} color="text-slate-400" />

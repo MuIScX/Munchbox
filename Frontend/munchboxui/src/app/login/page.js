@@ -67,13 +67,13 @@ export default function Home() {
       <div className="col-span-4 row-span-5">
         <div className="flex flex-col items-center justify-center min-h-screen px-4">
           <div className="w-[330px] max-w-sm text-center">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8">
+            <h1 className="text-3xl font-bold text-slate-800 mb-8">
               Welcome to MunchBox
             </h1>
 
             <form className="space-y-1" onSubmit={handleSubmit}>
               <div className="text-left">
-                <label htmlFor="email" className="block text-xs font-semibold text-gray-400 mb-1">
+                <label htmlFor="email" className="block text-xs font-semibold text-slate-400 mb-1">
                   EMAIL
                 </label>
                 <input
@@ -82,8 +82,8 @@ export default function Home() {
                   value={emailValue}
                   onChange={handleEmailChange}
                   placeholder="Enter your Email"
-                  className={`w-full rounded-xl border px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    emailerrorMessage ? "border-red-500" : "border-gray-300"
+                  className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    emailerrorMessage ? "border-red-500" : "border-slate-300"
                   }`}
                 />
                 <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
@@ -92,7 +92,7 @@ export default function Home() {
               </div>
 
               <div className="text-left">
-                <label htmlFor="password" className="block text-xs font-semibold text-gray-400 mb-1">
+                <label htmlFor="password" className="block text-xs font-semibold text-slate-400 mb-1">
                   PASSWORD
                 </label>
                 <input
@@ -101,8 +101,8 @@ export default function Home() {
                   value={passwordValue}
                   onChange={handlePasswordChange}
                   placeholder="Enter your Password"
-                  className={`w-full rounded-xl border px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    passworderrorMessage ? "border-red-500" : "border-gray-300"
+                  className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    passworderrorMessage ? "border-red-500" : "border-slate-300"
                   }`}
                 />
                 <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
@@ -117,7 +117,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#e08906] text-white rounded-[2vw] font-semibold py-3 hover:bg-orange-400 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-orange-500 text-white rounded-xl font-semibold py-3 hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? "Logging in..." : "Login"}
               </button>

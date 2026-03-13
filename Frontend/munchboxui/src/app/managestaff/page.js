@@ -93,7 +93,7 @@ export default function ManageStaffPage() {
           </div>
 
           {/* Summary Card */}
-          <div className="bg-[#cfe3f1] w-72 rounded-2xl p-5 mb-8 shadow-sm">
+          <div className="bg-[#cfe3f1] flex-1 max-w-[220px] rounded-2xl p-5 mb-8 shadow-sm">
             <p className="text-[#2c6b8a] text-sm font-semibold mb-1">Total Staff</p>
             <h2 className="text-4xl font-bold text-slate-800">{staff.length}</h2>
           </div>
@@ -120,7 +120,7 @@ export default function ManageStaffPage() {
 
             <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 border-b border-slate-100">
+                <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
                   <tr className="text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Staff Name</th>
                     <th className="px-6 py-4 font-semibold">Role</th>
