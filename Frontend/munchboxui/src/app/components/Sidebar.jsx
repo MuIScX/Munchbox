@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AuthAPI } from '../../lib/api';
 import {
   Home,
@@ -58,22 +58,15 @@ function AnimatedCookingPot({ isActive, className }) {
         className={className}
         style={{ overflow: 'visible' }}
       >
-        {/* Steam — visible only when active */}
         {isActive && (
           <g>
             <path className="steam-1" d="M9 11 Q8 8.5 9 6.5" strokeWidth="1.5" opacity="0" />
             <path className="steam-2" d="M15 11 Q14 8.5 15 6.5" strokeWidth="1.5" opacity="0" />
           </g>
         )}
-
-        {/* Pot body */}
         <path d="M4 13h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z" />
-
-        {/* Handles */}
         <path d="M2 15h2" />
         <path d="M20 15h2" />
-
-        {/* Lid — animates when active */}
         <g className={isActive ? 'pot-lid-open' : 'pot-lid-closed'}>
           <path d="M4 13 Q12 7 20 13" />
           <line x1="12" y1="8.5" x2="12" y2="6.5" />
@@ -84,7 +77,6 @@ function AnimatedCookingPot({ isActive, className }) {
   );
 }
 
-// --- Hook to fetch user data from AuthAPI ---
 function useCurrentUser() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -92,32 +84,30 @@ function useCurrentUser() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function fetchUser() {
       try {
         const res = await AuthAPI.me();
-      const data = res.Data ?? res; // ← unwrap the nested Data object
-      if (!cancelled) {
-        setUser({
-          name: data.username ?? 'Unknown',          // was data.name
-          email: data.email ?? '',
-          role: data.permission === 1 ? 'User' : 'Admin', // was data.role
-          avatarUrl: undefined,
-          initials: (data.username ?? 'U')
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2),
-        });
-      }
+        const data = res.Data ?? res;
+        if (!cancelled) {
+          setUser({
+            name: data.username ?? 'Unknown',
+            email: data.email ?? '',
+            role: data.permission === 1 ? 'User' : 'Admin',
+            avatarUrl: undefined,
+            initials: (data.username ?? 'U')
+              .split(' ')
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2),
+          });
+        }
       } catch (err) {
         if (!cancelled) setError('Failed to load user');
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-
     fetchUser();
     return () => { cancelled = true; };
   }, []);
@@ -125,7 +115,6 @@ function useCurrentUser() {
   return { user, loading, error };
 }
 
-// --- Avatar component ---
 function UserAvatar({ user, loading }) {
   if (loading || !user) {
     return <div className="w-10 h-10 rounded-full bg-slate-700 animate-pulse shrink-0" />;
@@ -150,11 +139,15 @@ function UserAvatar({ user, loading }) {
 
 export default function Sidebar() {
   const pathname = usePathname() || '/reports';
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, loading, error } = useCurrentUser();
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
+  const handleLogout = () => {
+    AuthAPI.logout();
+    router.push('/login');
+  };
 
   const navSections = [
     {
@@ -187,40 +180,28 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* --- Mobile Trigger Button --- */}
       <button
-        onClick={toggleSidebar}
+        onClick={() => setIsOpen(!isOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#111424] border border-blue-500/30 rounded-md text-white"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* --- Mobile Backdrop --- */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={toggleSidebar}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsOpen(false)} />
       )}
 
-      {/* --- Sidebar --- */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 w-64 h-screen bg-[#111424]
-          text-slate-300 flex flex-col font-sans border-r border-blue-500/30
-          transition-transform duration-300 ease-in-out overflow-hidden
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static
-        `}
-      >
-        {/* Logo */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-64 h-screen bg-[#111424]
+        text-slate-300 flex flex-col font-sans border-r border-blue-500/30
+        transition-transform duration-300 ease-in-out overflow-hidden
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:static
+      `}>
         <div className="p-6 pt-8 mb-4">
-          <h1 className="text-3xl font-extrabold text-orange-500 tracking-wide">
-            MunchBox
-          </h1>
+          <h1 className="text-3xl font-extrabold text-orange-500 tracking-wide">MunchBox</h1>
         </div>
 
-        {/* Navigation Sections */}
         <nav className="flex-1 overflow-y-auto px-4 space-y-8 no-scrollbar">
           {navSections.map((section, idx) => (
             <div key={idx}>
@@ -258,10 +239,7 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* ─── Bottom Profile Area ─── */}
         <div className="mt-auto border-t border-slate-800">
-
-          {/* Expandable profile menu */}
           {profileOpen && (
             <div className="px-3 py-2 space-y-1 border-b border-slate-800 bg-[#0d1020]">
               <Link
@@ -282,10 +260,7 @@ export default function Sidebar() {
               </Link>
               <button
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                onClick={() => {
-                  // Add your logout logic here, e.g.: AuthAPI.logout()
-                  console.log('Logout clicked');
-                }}
+                onClick={handleLogout}
               >
                 <LogOut className="w-4 h-4" strokeWidth={2} />
                 Sign Out
@@ -293,13 +268,11 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Profile row */}
           <button
             onClick={() => setProfileOpen((prev) => !prev)}
             className="w-full p-4 flex items-center gap-3 hover:bg-[#1e233b]/60 transition-colors group"
           >
             <UserAvatar user={user} loading={loading} />
-
             <div className="flex flex-col flex-1 overflow-hidden text-left">
               {loading ? (
                 <>
@@ -320,7 +293,6 @@ export default function Sidebar() {
                 </>
               )}
             </div>
-
             <ChevronUp
               className={`w-4 h-4 text-slate-500 shrink-0 transition-transform duration-200 group-hover:text-slate-300 ${
                 profileOpen ? 'rotate-180' : 'rotate-0'
