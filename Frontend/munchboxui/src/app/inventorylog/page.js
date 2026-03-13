@@ -13,6 +13,7 @@ export default function InventoryLog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStaff, setSelectedStaff] = useState("All");
+  const [selectedAction, setSelectedAction] = useState("All");
 
   const fetchLogs = async () => {
     try {
@@ -52,7 +53,8 @@ export default function InventoryLog() {
     const matchesSearch = ingredientName.includes(searchQuery.toLowerCase());
     const matchesStaff = selectedStaff === "All" || String(log.staff_id) === String(selectedStaff);
     const matchesDate = !selectedDate || log.timestamp?.includes(selectedDate);
-    return matchesSearch && matchesStaff && matchesDate;
+    const matchesAction = selectedAction === "All" || (selectedAction === "in" ? log.action_type !== 2 : log.action_type === 2);
+    return matchesSearch && matchesStaff && matchesDate && matchesAction;
   });
 
   return (
@@ -105,6 +107,16 @@ export default function InventoryLog() {
                 ))}
               </select>
             </div>
+
+            <select
+              value={selectedAction}
+              onChange={(e) => setSelectedAction(e.target.value)}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
+            >
+              <option value="All">Type: All</option>
+              <option value="in">Stock In</option>
+              <option value="out">Stock Out</option>
+            </select>
           </div>
 
           {/* Log Table Container */}

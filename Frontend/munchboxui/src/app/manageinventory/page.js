@@ -113,6 +113,7 @@ export default function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchIngredients}
+        existingIngredients={ingredients}
       />
 
       <StaffGateModal

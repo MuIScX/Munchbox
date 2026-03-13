@@ -4,20 +4,35 @@ import { X, Loader2 } from 'lucide-react';
 import { IngredientAPI } from "../../lib/api"; 
 import { CATEGORY_MAP } from "../../lib/schema"; 
 
-export default function AddIngredientModal({ isOpen, onClose, onSuccess }) {
+export default function AddIngredientModal({ isOpen, onClose, onSuccess, existingIngredients = [] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({ name: "", category: "1", unit: "" });
 
   if (!isOpen) return null;
 
+  const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setFormData({ ...formData, name: capitalize(val) });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    const trimmedName = formData.name.trim();
+    const isDuplicate = existingIngredients.some(
+      (ing) => (ing.ingredient_name || ing.name || "").toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      setError(`"${trimmedName}" already exists.`);
+      return;
+    }
     setLoading(true);
     try {
       await IngredientAPI.create({
-        name: formData.name,
+        name: trimmedName,
         category: Number(formData.category),
         unit: formData.unit
       });
@@ -43,7 +58,7 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Ingredient Name</label>
-            <input required type="text" placeholder="e.g., Tomato" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
+            <input required type="text" placeholder="e.g., Tomato" value={formData.name} onChange={handleNameChange} className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Category</label>
