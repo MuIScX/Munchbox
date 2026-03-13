@@ -479,7 +479,7 @@ export default function PredictPage() {
                 >
                   <option value="">All Ingredients</option>
                   {ingredientList.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
+                    <option key={r.id} value={r.id}>{r.ingredient_name}</option>
                   ))}
                 </select>
               </div>
