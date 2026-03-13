@@ -102,8 +102,8 @@ def get_ingredient_status(body: IngredientStatusRequest, identity: dict = Depend
         db.query(
             Ingredient.id,
             case(
-                (Ingredient.stock_left < Predict.amount_need, 0),
-                (Ingredient.stock_left < Predict.amount_need * 1.2, 1),
+                (Ingredient.stock_left < Predict.expected_usage , 0),
+                (Ingredient.stock_left < Predict.expected_usage  * 1.2, 1),
                 else_=2,
             ).label("status"),
         )
