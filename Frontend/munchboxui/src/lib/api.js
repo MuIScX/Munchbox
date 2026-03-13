@@ -116,6 +116,8 @@ export const MenuAPI = {
 
 export const RecipeAPI = {
   getDetail: (menu_id) => request("/recipe/detail", "POST", { menu_id }),
+  edit: (payload) => request("/recipe/edit", "PUT", payload),
+  delete: (menu_id, ingredient_id) => request("/recipe/delete", "DELETE", { menu_id, ingredient_id }),
 }
 
 export const ReportAPI = {
