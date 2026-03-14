@@ -16,7 +16,7 @@ from app.models.ingredient import Ingredient
 router = APIRouter(prefix="/api/predict", tags=["Predict"])
 
 _SCRIPT_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v2.py")
+    os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v3-1_sql.py")
 )
 # Allow using a separate Python env that has PyMC installed
 _PYTHON_PATH = os.environ.get("MUNCHBOX_PYTHON_PATH", sys.executable)

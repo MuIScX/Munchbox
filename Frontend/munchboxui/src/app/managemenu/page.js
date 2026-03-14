@@ -150,6 +150,7 @@ export default function ManageMenuPage() {
                   <tr className="text-slate-500 text-sm italic">
                     <th className="px-6 py-4 font-semibold">Recipe</th>
                     <th className="px-6 py-4 font-semibold">Type</th>
+                    <th className="px-6 py-4 font-semibold text-center">Readiness</th>
                     <th className="px-6 py-4 font-semibold text-center">Ingredient Count</th>
                     <th className="px-6 py-4 font-semibold text-center">Food Price</th>
                     <th className="px-6 py-4 font-semibold text-center">
