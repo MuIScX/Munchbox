@@ -46,7 +46,8 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   const filteredIngredients = availableIngredients.filter(ing => 
     (ing.ingredient_name || ing.name).toLowerCase().includes(searchTerm.toLowerCase()) &&
     !selectedIngredients.find(selected => selected.id === (ing.ingredient_id || ing.id)) // Hide already selected
-  );
+  )
+  .slice(0, searchTerm === "" ? 4 : 100);
 
   const handleAddIngredient = (ing) => {
     setSelectedIngredients([...selectedIngredients, { 
