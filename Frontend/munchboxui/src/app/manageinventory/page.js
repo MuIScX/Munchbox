@@ -15,6 +15,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All");
   const [isStaffGateOpen, setIsStaffGateOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,9 +93,13 @@ export default function Home() {
     return ingredients.filter(i => {
       const nameMatch = (i.ingredient_name || i.name || i.item || "").toLowerCase().includes(searchQuery.toLowerCase());
       const categoryMatch = selectedCategory === "All" || String(i.category) === String(selectedCategory);
-      return nameMatch && categoryMatch;
+      const stock = Number(i.stock_left ?? i.stock ?? 0);
+      const min = i.min_stock || i.minStock || 0;
+      const isOk = stock >= min;
+      const statusMatch = selectedStatus === "All" || (selectedStatus === "ok" ? isOk : !isOk);
+      return nameMatch && categoryMatch && statusMatch;
     });
-  }, [ingredients, searchQuery, selectedCategory]);
+  }, [ingredients, searchQuery, selectedCategory, selectedStatus]);
 
   const understockCount = useMemo(() => {
     return ingredients.filter(i => {
@@ -193,6 +198,16 @@ export default function Home() {
                 const id = staff.staff_id || staff.id;
                 return <option key={id} value={id}>Staff: {staff.name || staff.username || `#${id}`}</option>;
               })}
+            </select>
+
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm"
+            >
+              <option value="All">Status: All</option>
+              <option value="ok">Ok</option>
+              <option value="low_stock">Low Stock</option>
             </select>
           </div>
 
