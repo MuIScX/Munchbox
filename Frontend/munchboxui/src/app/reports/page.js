@@ -212,6 +212,8 @@ const formatCurrency = (val) =>
               shareAllTime={shareAllTime}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
+              tableData={tableData}
+              formatCurrency={formatCurrency}
             />
             <div className="relative">
               {shareLoading && (

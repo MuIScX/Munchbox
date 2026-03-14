@@ -29,6 +29,8 @@ export default function SalesTrendChart({
   shareAllTime,
   selectedMonth,
   selectedYear,
+  tableData = [],
+  formatCurrency,
 }) {
   const trendLabel = shareAllTime
     ? "All Time"
@@ -87,44 +89,32 @@ export default function SalesTrendChart({
         )}
       </div>
 
-      {selectedMenu !== "All" && data.length > 0 && (
-        <div className="mt-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              {menuList.find(m => String(m.menu_id || m.id) === String(selectedMenu))?.menu_name || menuList.find(m => String(m.menu_id || m.id) === String(selectedMenu))?.name || "Menu"} — {trendLabel}
-            </span>
+      {selectedMenu !== "All" && (() => {
+        const row = tableData.find(r => String(r.id) === String(selectedMenu));
+        if (!row) return null;
+        return (
+          <div className="mt-5 rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold italic text-slate-500">Item</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Orders</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Revenue</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-slate-50">
+                  <td className="px-4 py-3 text-slate-700 font-medium">{row.item}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{row.orders}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{formatCurrency(row.revenue)}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{row.share.toFixed(1)}%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div className="rounded-xl border border-slate-100 overflow-hidden">
-            <div className="max-h-44 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 sticky top-0">
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Period</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, i) => (
-                    <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-2 text-slate-600 font-medium">{row.name}</td>
-                      <td className="px-4 py-2 text-right font-bold text-slate-800">{row.order}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-slate-200 bg-slate-50 sticky bottom-0">
-                    <td className="px-4 py-2 text-xs font-semibold text-slate-500">Total</td>
-                    <td className="px-4 py-2 text-right text-sm font-bold text-blue-600">
-                      {data.reduce((sum, row) => sum + row.order, 0)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
