@@ -27,12 +27,8 @@ import sys      # NEW: To separate logs from the JSON output
 
 
 # --- 1. CONFIGURATION ---
-DB_CONNECTION = (
-    os.environ.get('MUNCHBOX_DB_CONNECTION')
-    or os.environ.get('DATABASE_URL')
-    or 'mysql+pymysql://munchbox_dev:password123@127.0.0.1/munchboxDB'
-)
-DEVICE = os.environ.get('MUNCHBOX_DEVICE', 'LOCAL')
+DB_CONNECTION = __
+DEVICE = 'LOCAL' # 'LOCAL' for laptops or 'CLOUD' for Cloud Implementation system like Linodes
 
 # Connect to the database
 # If its not able to do so, kill the program so we don't mess up the database 
@@ -45,38 +41,29 @@ except Exception as e:
 
 # --- 2. CORE FUNCTIONS ---
 
-def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=None):
+def get_data_from_sql(ingredient_name_query):
     """
     Grabbing the daily usage directly from SQL now.
     ingredient_name_query: the name of the ingredient to search for
-    ingredient_id: if provided, use this ID directly (avoids multi-restaurant ambiguity)
-    restaurant_id: if provided, filter Sale_data by restaurant
     """
     print(f"\n[SQL] Searching for '{ingredient_name_query}'...")
-
+    
     # A. First, find the Ingredient ID and details
-    if ingredient_id is not None:
-        q_ing = f"""
-    SELECT id, name, unit, stock_left, cost_per_unit
-    FROM Ingredient
-    WHERE id = {ingredient_id}
+    # Using wildcards %% so if I type 'chicken' it finds 'Chicken Breast'
+    q_ing = f"""
+    SELECT id, name, unit, stock_left, cost_per_unit 
+    FROM Ingredient 
+    WHERE name LIKE '%%{ingredient_name_query}%%' 
     LIMIT 1;
     """
-    else:
-        q_ing = f"""
-    SELECT id, name, unit, stock_left, cost_per_unit
-    FROM Ingredient
-    WHERE name LIKE '%%{ingredient_name_query}%%'
-    LIMIT 1;
-    """
-
+    
     try:
         df_ing = pd.read_sql(q_ing, con=db_engine)
-
+        
         if df_ing.empty:
             print(f"❌ Ingredient '{ingredient_name_query}' not found in database.")
             return None, None, 0, 0
-
+            
         # Extract the stuff we need
         ing_id = df_ing.iloc[0]['id']
         ing_name = df_ing.iloc[0]['name']
@@ -89,15 +76,13 @@ def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=N
 
         # B. Calculate Daily Usage (The Heavy Lifting)
         # Joining Sales -> Recipe -> Ingredient to see how much we actually used per day
-        restaurant_filter = f"AND S.restaurant_id = {restaurant_id}" if restaurant_id is not None else ""
         q_usage = f"""
-        SELECT
+        SELECT 
             DATE(S.timestamp) as date,
             SUM(S.amount * R.amount) as daily_usage
         FROM Sale_data S
         JOIN Recipe R ON S.menu_id = R.menu_id
         WHERE R.ingredient_id = {ing_id}
-        {restaurant_filter}
         GROUP BY DATE(S.timestamp)
         ORDER BY date ASC;
         """
@@ -542,8 +527,6 @@ if __name__ == "__main__":
     # 1. Setup Command Line Arguments
     parser = argparse.ArgumentParser(description="Munchbox Bayesian Forecaster")
     parser.add_argument("--ingredient", type=str, required=True, help="Ingredient to forecast")
-    parser.add_argument("--ingredient_id", type=int, default=None, help="Ingredient ID (overrides name lookup)")
-    parser.add_argument("--restaurant_id", type=int, default=None, help="Restaurant ID for data isolation")
     parser.add_argument("--strategy", type=str, default="2", help="1: Conservative, 2: Balanced, 3: Aggressive")
     parser.add_argument("--buy_price", type=float, default=None, help="Override DB Cost")
     parser.add_argument("--sell_price", type=float, required=True, help="Revenue per unit")
@@ -559,7 +542,7 @@ if __name__ == "__main__":
     print(f"[SYSTEM] Starting Job for {ingredient_to_forecast}...", file=sys.stderr)
     
     # 2. Fetch data
-    daily_demand, unit, db_cost, db_stock = get_data_from_sql(ingredient_to_forecast, ingredient_id=args.ingredient_id, restaurant_id=args.restaurant_id)
+    daily_demand, unit, db_cost, db_stock = get_data_from_sql(ingredient_to_forecast)
     
     if daily_demand is not None and not daily_demand.empty:
         # Strategy Setup
