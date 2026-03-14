@@ -20,6 +20,7 @@ export default function ManageMenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showDelete, setShowDelete] = useState(false);
+  const [selectedReadiness, setSelectedReadiness] = useState("All");
   const [toast, setToast] = useState(null);
 
   // Modals State
@@ -63,7 +64,9 @@ export default function ManageMenuPage() {
     const matchesSearch = name.includes(searchQuery.toLowerCase());
     const typeValue = m.menu_type || m.type;
     const matchesCategory = selectedCategory === "All" || String(typeValue) === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const isReady = (m.readiness ?? 0) === 1;
+    const matchesReadiness = selectedReadiness === "All" || (selectedReadiness === "ready" ? isReady : !isReady);
+    return matchesSearch && matchesCategory && matchesReadiness;
   });
 
   const unreadyCount = menus.filter((m) => (m.readiness ?? 0) === 0).length;
@@ -135,6 +138,16 @@ export default function ManageMenuPage() {
               {Object.entries(TYPE_MAP).map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
               ))}
+            </select>
+
+            <select
+              value={selectedReadiness}
+              onChange={(e) => setSelectedReadiness(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm"
+            >
+              <option value="All">Readiness: All</option>
+              <option value="ready">Ready</option>
+              <option value="not_ready">Not Ready</option>
             </select>
           </div>
 
