@@ -56,10 +56,13 @@ export default function RecipeDetailPage() {
     : 0;
 
   const getStatusColor = (ing) => {
-    const ratio = (ing.stock_left || 0) / (ing.amount || 1);
-    if (ratio <= 0) return "bg-red-500";
-    if (ratio < 5) return "bg-amber-500";
-    return "bg-emerald-500";
+    const stock = Number(ing.stock_left) || 0;
+    const req = Number(ing.amount) || 1;
+    const ratio = stock / req;
+
+    if (ratio < 1) return "bg-red-500";     // CRITICAL: Cannot make even 1 portion
+    if (ratio < 5) return "bg-amber-500";   // LOW: Running out soon
+    return "bg-emerald-500";                // SAFE: Good for 5+ portions
   };
   
   const filteredForRestock = ingredients.filter(ing => {
@@ -150,22 +153,40 @@ export default function RecipeDetailPage() {
                     </span>
                   </div>
                   
+                  {/* Ingredient List inside Left Card */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ingredients.map((ing, i) => (
-                      <div key={i} className="flex justify-between items-center bg-slate-50/50 p-5 rounded-2xl border border-slate-100 transition-all hover:border-orange-100">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full shadow-sm ${getStatusColor(ing)}`} />
-                          <div>
-                            <p className="font-bold text-slate-700 text-base leading-none mb-1">{ing.ingredient_name}</p>
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Requirement</p>
+                    {ingredients.map((ing, i) => {
+                      const stock = Number(ing.stock_left) || 0;
+                      const req = Number(ing.amount) || 1;
+                      const isCritical = (stock / req) < 1;
+
+                      return (
+                        <div key={i} className="flex justify-between items-center bg-slate-50/50 p-5 rounded-2xl border border-slate-100 transition-all hover:border-orange-100 group">
+                          <div className="flex items-center gap-3">
+                            {/* Status Dot: Now turns red if stock < requirement */}
+                            <div className={`w-3 h-3 rounded-full shadow-sm ${getStatusColor(ing)}`} />
+                            <div>
+                              <p className="font-bold text-slate-700 text-base leading-none mb-1">
+                                {ing.ingredient_name}
+                              </p>
+                              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                                Requirement
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            {/* Amount: Turns Red and pulses slightly if it's the bottleneck */}
+                            <span className={`text-xl font-black ${isCritical ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
+                              {ing.amount}
+                            </span>
+                            <span className={`text-[10px] ml-1 font-bold lowercase ${isCritical ? 'text-red-500/60' : 'text-slate-400'}`}>
+                              {ing.unit}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="text-xl font-black text-slate-800">{ing.amount}</span>
-                          <span className="text-[10px] text-slate-400 ml-1 font-bold lowercase">{ing.unit}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -256,15 +277,17 @@ export default function RecipeDetailPage() {
                           const req = Number(ing.amount) || 1;
                           const ratio = stock / req;
 
+                          const isCritical = ratio < 1;
+
                           return (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-5 py-4 font-bold text-slate-600 italic">{ing.ingredient_name}</td>
 
                             <td className="px-5 py-4 text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${ratio <= 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
-                                <span className={`text-[9px] font-black uppercase ${ratio <= 0 ? 'text-red-500' : 'text-amber-600'}`}>
-                                  {ratio <= 0 ? 'Out' : 'Low'}
+                                <div className={`w-2 h-2 rounded-full ${isCritical ? 'bg-red-500' : 'bg-amber-500'}`} />
+                                <span className={`text-[9px] font-black uppercase ${isCritical ? 'text-red-500' : 'text-amber-600'}`}>
+                                  {isCritical ? 'Out' : 'Low'}
                                 </span>
                               </div>
                             </td>
