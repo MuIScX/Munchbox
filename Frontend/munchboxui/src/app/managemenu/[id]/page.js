@@ -79,7 +79,10 @@ export default function RecipeDetailPage() {
       <Sidebar />
 
       <main className="flex-1 p-8 overflow-y-auto flex flex-col">
-        <button onClick={() => router.back()} className="flex items-center gap-2 mb-6 text-slate-400 hover:text-orange-500 font-bold transition-colors group shrink-0">
+        <button 
+          onClick={() => router.back()} 
+          className="flex items-center gap-2 mb-6 text-slate-400 hover:text-slate-500 font-bold transition-colors group shrink-0"
+        >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm">Back to Manage Recipe</span>
         </button>
