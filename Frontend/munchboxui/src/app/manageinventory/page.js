@@ -189,6 +189,16 @@ export default function Home() {
             </select>
 
             <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm"
+            >
+              <option value="All">Status: All</option>
+              <option value="ok">Ok</option>
+              <option value="low_stock">Low Stock</option>
+            </select>
+
+            <select
               value={selectedStaff}
               onChange={(e) => setSelectedStaff(e.target.value)}
               className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm min-w-[150px]"
@@ -198,16 +208,6 @@ export default function Home() {
                 const id = staff.staff_id || staff.id;
                 return <option key={id} value={id}>Staff: {staff.name || staff.username || `#${id}`}</option>;
               })}
-            </select>
-
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-orange-500 text-slate-600 shadow-sm"
-            >
-              <option value="All">Status: All</option>
-              <option value="ok">Ok</option>
-              <option value="low_stock">Low Stock</option>
             </select>
           </div>
 
