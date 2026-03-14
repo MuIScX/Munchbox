@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     JWT_EXPIRES_HOURS: int = 744
 
     class Config:
-        env_file = Path(__file__).resolve().parent.parent / ".env"
+        env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+        extra = "ignore"
 
 
 settings = Settings()
