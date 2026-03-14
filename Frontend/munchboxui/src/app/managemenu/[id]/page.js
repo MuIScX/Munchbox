@@ -66,11 +66,19 @@ export default function RecipeDetailPage() {
     const stock = Number(ing.stock_left) || 0;
     const req = Number(ing.amount) || 1;
     
-    // Logic: Show only if stock is less than the requirement (Out)
-    const isOut = stock < req;
+    // Logic: Show if ratio is less than 5 (Low or Out)
+    const ratio = stock / req;
+    const isLowOrOut = ratio < 5;
+    
     const matchesSearch = ing.ingredient_name?.toLowerCase().includes(restockSearch.toLowerCase());
     
-    return isOut && matchesSearch;
+    return isLowOrOut && matchesSearch;
+  })
+  .sort((a, b) => {
+    // Optional: Sort by most critical (lowest ratio) first
+    const ratioA = (Number(a.stock_left) || 0) / (Number(a.amount) || 1);
+    const ratioB = (Number(b.stock_left) || 0) / (Number(b.amount) || 1);
+    return ratioA - ratioB;
   });
 
   return (
@@ -213,7 +221,7 @@ export default function RecipeDetailPage() {
                     <h3 className="text-xl font-black italic text-[#1a2233]">Ingredients Restock</h3>
                     {filteredForRestock.length > 0 && (
                     <span className="text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase">
-                      {filteredForRestock.length} Out
+                      {filteredForRestock.length} Attention Needed
                     </span>
                   )}
                   </div>
