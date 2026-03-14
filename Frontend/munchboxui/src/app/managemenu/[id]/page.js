@@ -225,7 +225,7 @@ export default function RecipeDetailPage() {
                       placeholder="Search Ingredient..." 
                       value={restockSearch}
                       onChange={(e) => setRestockSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/10 transition-all text-slate-600"
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all text-slate-600"
                     />
                   </div>
                 </div>
