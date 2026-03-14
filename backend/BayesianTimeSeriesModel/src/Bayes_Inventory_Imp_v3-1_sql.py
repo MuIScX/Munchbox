@@ -223,98 +223,53 @@ def run_bayesian_forecast(historical, forecast_days):
 # Function for Cloud(LiNodes)
 def run_bayesian_forecast_cloud(historical, forecast_days):
     """
-    Create a Bayesian model to forecast demand based on the historical data and amount of forecast day
-    this also getting the sales trend weekly and monthly
-
-    historical: the historical demand data
-    forecast_days: the amount of days to forecast
+    Lightweight cloud Bayesian model: estimates mean/variance from history
+    using only 2 latent variables (no GaussianRandomWalk) so MCMC runs fast
+    on limited-CPU servers. Weekly seasonality kept via numpy groupby.
     """
-    print(f"\n--- Running Bayesian Forecast for next {forecast_days} day ---")
-    # Prep data for PyMC
-    days_weeks = historical.index
+    print(f"\n--- Running Lightweight Bayesian Forecast for next {forecast_days} days ---")
+
     demand_values = historical.values.astype(np.float64)
+    days_weeks    = historical.index
 
-    # The calibration -> Scale the prior based on the data
-    data_mean = np.mean(demand_values)
-    data_std = np.std(demand_values) + 1e-3 # buffer to avoid zero std
+    data_mean = float(np.mean(demand_values))
+    data_std  = float(np.std(demand_values)) + 1e-3
 
-    # Extract the time features
-    days_index = np.array(days_weeks.dayofweek, dtype=np.int32) # from 0-6 
-    month_index = np.array(days_weeks.month - 1, dtype=np.int32) # from 0-11
+    # Weekly effect via simple numpy mean per day-of-week (no MCMC needed)
+    week_effect = np.zeros(7)
+    for dow in range(7):
+        mask = days_weeks.dayofweek == dow
+        if mask.any():
+            week_effect[dow] = float(np.mean(demand_values[mask])) - data_mean
 
-    # Future times to represent the future dates
-    last_date = days_weeks[-1]
-    
-    # Note: We don't need the full date range object, just the indices for the lookup
-    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=forecast_days, freq='D')
-    future_day_idxs = np.array([d.dayofweek for d in future_dates])
-    future_month_idxs = np.array([d.month - 1 for d in future_dates])
+    future_dates    = pd.date_range(
+        start=days_weeks[-1] + pd.Timedelta(days=1), periods=forecast_days, freq='D'
+    )
+    future_dow_idxs = np.array([d.dayofweek for d in future_dates])
 
-    with pm.Model() as forecast_model:
-        # Trends Component, letting baseline shifts overtime based on the data
-        # We init_dist at data_mean, so this ACTS as the baseline
-        sigma_trend = pm.HalfNormal('sigma_trend', sigma=data_std * 0.1)
-        trend = pm.GaussianRandomWalk('trend', sigma=sigma_trend, shape=len(demand_values),
-                                      init_dist=pm.Normal.dist(data_mean, data_std))
-
-        # Weekly Seasonality Component
-        weekly_seasonality = pm.Normal('weekly_seasonality', mu=0, sigma=data_std, shape=7)
-
-        # Monthly Seasonality Component
-        monthly_seasonality = pm.Normal('monthly_seasonality', mu=0, sigma=data_std, shape=12)
-
-        # Expected Demand
-        # Math Formula => Demand = Trend + Weekly Seasonality + Monthly Seasonality 
-        # (Removed 'baseline' variable as it was undefined and redundant with 'trend')
-        expected_demand = trend + weekly_seasonality[days_index] + monthly_seasonality[month_index]
-
-        # Observed Noise Component
+    # Simple Bayesian model: only mu + sigma as latent variables → very fast MCMC
+    with pm.Model():
+        mu    = pm.Normal('mu',    mu=data_mean, sigma=data_std)
         sigma = pm.HalfNormal('sigma', sigma=data_std)
+        _     = pm.TruncatedNormal('obs', mu=mu, sigma=sigma, lower=0.0, observed=demand_values)
 
-        # Likelihood (How likely is the data given the model from the observations)
-        # Math Formula => Demand = Expected Demand + Noise
-        demand_data = pm.TruncatedNormal('demand_data', mu=expected_demand, sigma=sigma, lower=0.0, observed=demand_values)
-
-        # Inference/Posterior (What is the most likely model given the data)
         print("\n--- Sampling the Posterior... ---")
-        trace = pm.sample(150, tune=100, cores=1, chains=1, target_accept=0.90, progressbar=False)
+        trace = pm.sample(200, tune=100, cores=1, chains=1,
+                          target_accept=0.85, progressbar=False)
 
-        # Posterior Predictive
-        pm.sample_posterior_predictive(trace, extend_inferencedata=True)
-
-    # Forecast (Posterior prediction)
-    # This is extending the trend into the future using the learned drift of the data
+    # Build forecast matrix from posterior draws + weekly seasonality
     print("\n--- Generating Forecasting Scenarios... ---")
-    
     n_draws = 300
-    forecast_matrix = np.zeros((n_draws, forecast_days))
+    mu_samples    = trace.posterior['mu'].values.flatten()
+    sigma_samples = trace.posterior['sigma'].values.flatten()
+    draw_indices  = np.random.choice(len(mu_samples), n_draws)
 
-    # Extract Traces (Flatten chains and draws)
-    # We use YOUR variable names here to keep it consistent
-    
-    # Reshape to (Total_Samples, Time_Steps)
-    trends = trace.posterior['trend'].values.reshape(-1, len(demand_values))
-    week_effs = trace.posterior['weekly_seasonality'].values.reshape(-1, 7)
-    month_effs = trace.posterior['monthly_seasonality'].values.reshape(-1, 12)
-    sigmas = trace.posterior['sigma'].values.flatten()
-    
-    # Randomly Sample and Construct Forecast
-    draw_indices = np.random.choice(len(sigmas), n_draws)
-    
+    forecast_matrix = np.zeros((n_draws, forecast_days))
     for i, idx in enumerate(draw_indices):
-        # Trend: Project the LAST trend point forward (Naive Trend Forecast)
-        base_trend = trends[idx, -1] 
-        
-        # Seasonality: Look up future days/months using YOUR pre-calculated indices
-        future_week_eff = week_effs[idx, future_day_idxs]
-        future_month_eff = month_effs[idx, future_month_idxs]
-        
-        # Noise
-        noise = np.random.normal(0, sigmas[idx], size=forecast_days)
-        
-        # Combine & Rectify (Ensure no negative demand)
-        forecast_matrix[i, :] = np.maximum(0, base_trend + future_week_eff + future_month_eff + noise)
-            
+        base      = mu_samples[idx] + week_effect[future_dow_idxs]
+        noise     = np.random.normal(0, sigma_samples[idx], size=forecast_days)
+        forecast_matrix[i, :] = np.maximum(0, base + noise)
+
     return forecast_matrix, trace
 
 def optimal_quantity_financial(forecast_matrix, buy_price, sell_price, strategy='Balanced'):
