@@ -17,14 +17,23 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-export default function SalesTrendChart({ 
-  data, 
-  menuList, 
-  selectedMenu, 
-  setSelectedMenu, 
-  trendLoading, 
-  globalLoading 
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+export default function SalesTrendChart({
+  data,
+  menuList,
+  selectedMenu,
+  setSelectedMenu,
+  trendLoading,
+  globalLoading,
+  shareAllTime,
+  selectedMonth,
+  selectedYear,
 }) {
+  const trendLabel = shareAllTime
+    ? "All Time"
+    : `${MONTHS[selectedMonth]} ${selectedYear}`;
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
       {trendLoading && !globalLoading && (
@@ -34,7 +43,7 @@ export default function SalesTrendChart({
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-bold italic text-slate-800">Sales Trend (Last 30 days)</h2>
+        <h2 className="text-lg font-bold italic text-slate-800">Sales Trend ({trendLabel})</h2>
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1">
           <span className="text-sm text-slate-500">Menu:</span>
           <select 

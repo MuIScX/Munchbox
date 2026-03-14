@@ -123,12 +123,22 @@ export default function ViewReports() {
         const menuId = selectedMenu === "All" ? null : Number(selectedMenu);
         const trendRange = shareAllTime ? { start_date: null, end_date: null } : dateRange;
         const res = await ReportAPI.trendMenu(menuId, trendRange);
-        if (Array.isArray(res?.Data))
-          setSalesTrendData(res.Data.map(item => ({
-            name: new Date(item.day).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-            order: item.sale_amount || 0,
-          })));
-        else setSalesTrendData([]);
+        if (Array.isArray(res?.Data)) {
+          if (shareAllTime) {
+            const monthMap = {};
+            res.Data.forEach(item => {
+              const d = new Date(item.day);
+              const key = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+              monthMap[key] = (monthMap[key] || 0) + (item.sale_amount || 0);
+            });
+            setSalesTrendData(Object.entries(monthMap).map(([name, order]) => ({ name, order })));
+          } else {
+            setSalesTrendData(res.Data.map(item => ({
+              name: new Date(item.day).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
+              order: item.sale_amount || 0,
+            })));
+          }
+        } else setSalesTrendData([]);
       } catch { setSalesTrendData([]); }
       finally { setTrendLoading(false); }
     };
@@ -199,6 +209,9 @@ const formatCurrency = (val) =>
               setSelectedMenu={setSelectedMenu}
               trendLoading={trendLoading}
               globalLoading={loading}
+              shareAllTime={shareAllTime}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
             />
             <div className="relative">
               {shareLoading && (
