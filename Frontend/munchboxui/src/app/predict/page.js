@@ -15,6 +15,7 @@ export default function PredictPage() {
   const [generating, setGenerating] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [trendData, setTrendData] = useState([]);
+  const [actualData, setActualData] = useState([]);
   const [trendLoading, setTrendLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -24,9 +25,7 @@ export default function PredictPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ ingredient_id: "", days: 7, strategy: "2" });
   const [graphFilters, setGraphFilters] = useState({
-    expectedUsage: true,
     confidenceBand: true,
-    dailyTarget: true,
   });
   const filterRef = useRef(null);
 
@@ -67,19 +66,42 @@ export default function PredictPage() {
   const fetchTrend = async (ingredient_id) => {
     try {
       setTrendLoading(true);
-      const res = await PredictAPI.trend(ingredient_id);
-      const raw = res?.Data?.data || [];
-      setTrendData(
-        raw.map((d) => ({
-          date: (d.timestamp || "").split(" ")[0],
-          expected_usage: d.expected_usage,
+      const [trendRes, actualRes] = await Promise.all([
+        PredictAPI.trend(ingredient_id),
+        PredictAPI.actual(ingredient_id),
+      ]);
+
+      const trendRaw = trendRes?.Data?.data || [];
+      const actualRaw = actualRes?.Data || [];
+
+      // Build a map keyed by date so we can merge both datasets
+      const merged = {};
+
+      trendRaw.forEach((d) => {
+        const date = (d.timestamp || "").split(" ")[0];
+        merged[date] = {
+          ...merged[date],
+          date,
+          predicted_usage: d.daily_target_average ?? null,
           upper_bound: d.upper_bound ?? null,
           lower_bound: d.lower_bound ?? null,
-          daily_target_average: d.daily_target_average ?? null,
-        }))
-      );
+        };
+      });
+
+      actualRaw.forEach((d) => {
+        merged[d.date] = {
+          ...merged[d.date],
+          date: d.date,
+          actual_usage: d.actual_usage ?? null,
+        };
+      });
+
+      const sorted = Object.values(merged).sort((a, b) => a.date.localeCompare(b.date));
+      setTrendData(sorted);
+      setActualData(actualRaw);
     } catch {
       setTrendData([]);
+      setActualData([]);
     } finally {
       setTrendLoading(false);
     }
@@ -134,7 +156,8 @@ export default function PredictPage() {
   }, [trendData]);
 
   const hasBands = graphFilters.confidenceBand && chartData.some((d) => d.band_range != null);
-  const hasTarget = graphFilters.dailyTarget && chartData.some((d) => d.daily_target_average != null);
+  const hasActual = chartData.some((d) => d.actual_usage != null);
+  const hasPredicted = chartData.some((d) => d.predicted_usage != null);
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -222,9 +245,7 @@ export default function PredictPage() {
                 <div className="absolute right-0 top-11 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-20 w-52">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Graph Component Filters</p>
                   {[
-                    { key: "expectedUsage", label: "Expected Usage" },
                     { key: "confidenceBand", label: "Confidence Range" },
-                    { key: "dailyTarget", label: "Daily Target Average" },
                   ].map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2.5 py-1.5 cursor-pointer group">
                       <input
@@ -301,15 +322,17 @@ export default function PredictPage() {
                               const d = payload[0]?.payload;
                               return (
                                 <div style={{ background: "white", borderRadius: 10, padding: "10px 16px", boxShadow: "0 4px 12px rgb(0 0 0/0.12)", border: "1px solid #f1f5f9" }}>
-                                  <p style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-                                    {d?.expected_usage} {selectedIngredient.unit}
-                                  </p>
-                                  {d?.lower_bound != null && (
-                                    <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0 0" }}>
-                                      Range: {d.lower_bound} – {d.upper_bound}
+                                  <p style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", margin: "0 0 4px 0" }}>{label}</p>
+                                  {d?.actual_usage != null && (
+                                    <p style={{ fontSize: 12, color: "#10b981", margin: "2px 0 0 0" }}>
+                                      Actual: <b>{d.actual_usage}</b> {selectedIngredient.unit}
                                     </p>
                                   )}
-                                  <p style={{ fontSize: 11, color: "#94a3b8", margin: "3px 0 0 0" }}>{label}</p>
+                                  {d?.predicted_usage != null && (
+                                    <p style={{ fontSize: 12, color: "#3b82f6", margin: "2px 0 0 0" }}>
+                                      Predicted: <b>{d.predicted_usage}</b> {selectedIngredient.unit}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             }}
@@ -322,13 +345,13 @@ export default function PredictPage() {
                           />
                           {hasBands && <Area type="monotone" dataKey="band_low" stackId="band" stroke="none" fill="transparent" legendType="none" />}
                           {hasBands && <Area type="monotone" dataKey="band_range" stackId="band" stroke="none" fill="#3b82f6" fillOpacity={0.12} legendType="none" />}
-                          {graphFilters.expectedUsage && (
-                            <Line type="monotone" dataKey="expected_usage" stroke="#3b82f6" strokeWidth={2.5}
-                              dot={{ r: 3, fill: "#3b82f6", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 5 }} name="Expected Usage" />
+                          {hasActual && (
+                            <Line type="monotone" dataKey="actual_usage" stroke="#10b981" strokeWidth={2.5}
+                              dot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 5 }} name="Actual Usage" connectNulls={false} />
                           )}
-                          {hasTarget && (
-                            <Line type="monotone" dataKey="daily_target_average" stroke="#ef4444" strokeWidth={1.5}
-                              strokeDasharray="5 3" dot={false} name="Daily Target Avg" />
+                          {hasPredicted && (
+                            <Line type="monotone" dataKey="predicted_usage" stroke="#3b82f6" strokeWidth={2}
+                              strokeDasharray="5 3" dot={{ r: 2, fill: "#3b82f6" }} activeDot={{ r: 4 }} name="Predicted" connectNulls={false} />
                           )}
                         </ComposedChart>
                       </ResponsiveContainer>
@@ -342,22 +365,22 @@ export default function PredictPage() {
 
                   {/* Legend */}
                   <div className="px-6 py-3 border-t border-slate-100 shrink-0 flex flex-wrap gap-x-6 gap-y-1.5">
-                    {graphFilters.expectedUsage && (
+                    {hasActual && (
                       <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <div className="w-5 h-0.5 bg-blue-500 rounded" />
-                        Expected Usage
+                        <div className="w-5 h-0.5 bg-emerald-500 rounded" />
+                        Actual Usage
+                      </div>
+                    )}
+                    {hasPredicted && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <div className="w-5 border-t-2 border-blue-400 border-dashed" />
+                        Predicted
                       </div>
                     )}
                     {hasBands && (
                       <div className="flex items-center gap-1.5 text-xs text-slate-500">
                         <div className="w-5 h-3 bg-blue-100 rounded border border-blue-200" />
                         Confidence Range
-                      </div>
-                    )}
-                    {hasTarget && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <div className="w-5 border-t-2 border-red-400 border-dashed" />
-                        Daily Target Avg
                       </div>
                     )}
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">

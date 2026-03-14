@@ -4,7 +4,7 @@ import json
 import subprocess
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func, case, text
 from datetime import datetime
 
 from app.db import get_db
@@ -225,6 +225,27 @@ def get_predicted_status(body: PredictIngredientRequest, identity: dict = Depend
             "stock_left": float(r[7]), "status": r[8],
         }
         for r in q.all()
+    ]}
+
+
+@router.post("/actual")
+def get_actual_usage(body: PredictIngredientRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """Return daily actual usage for an ingredient derived from sale_data × recipe."""
+    restaurant_id = identity["restaurantId"]
+    rows = db.execute(
+        text("""
+            SELECT DATE(S.timestamp) AS date, SUM(S.amount * R.amount) AS daily_usage
+            FROM sale_data S
+            JOIN recipe R ON S.menu_id = R.menu_id
+            WHERE R.ingredient_id = :ingredient_id
+              AND S.restaurant_id  = :restaurant_id
+            GROUP BY DATE(S.timestamp)
+            ORDER BY date ASC
+        """),
+        {"ingredient_id": body.ingredient_id, "restaurant_id": restaurant_id},
+    ).fetchall()
+    return {"message": "success", "Data": [
+        {"date": str(r[0]), "actual_usage": float(r[1])} for r in rows
     ]}
 
 
