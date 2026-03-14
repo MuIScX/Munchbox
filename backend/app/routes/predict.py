@@ -52,7 +52,7 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
                  "--strategy", body.strategy],
                 capture_output=True,
                 text=True,
-                timeout=360,
+                timeout=600,
             )
             stdout = proc.stdout.strip()
             if not stdout:

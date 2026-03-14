@@ -189,7 +189,7 @@ def run_bayesian_forecast(historical, forecast_days):
     # This is extending the trend into the future using the learned drift of the data
     print("\n--- Generating Forecasting Scenarios... ---")
     
-    n_draws = 1000
+    n_draws = 300
     forecast_matrix = np.zeros((n_draws, forecast_days))
 
     # Extract Traces (Flatten chains and draws)
@@ -277,7 +277,7 @@ def run_bayesian_forecast_cloud(historical, forecast_days):
 
         # Inference/Posterior (What is the most likely model given the data)
         print("\n--- Sampling the Posterior... ---")
-        trace = pm.sample(500, tune=500, cores=1, chains=1, target_accept=0.95, progressbar=True)
+        trace = pm.sample(150, tune=100, cores=1, chains=1, target_accept=0.90, progressbar=False)
 
         # Posterior Predictive
         pm.sample_posterior_predictive(trace, extend_inferencedata=True)
@@ -286,7 +286,7 @@ def run_bayesian_forecast_cloud(historical, forecast_days):
     # This is extending the trend into the future using the learned drift of the data
     print("\n--- Generating Forecasting Scenarios... ---")
     
-    n_draws = 1000
+    n_draws = 300
     forecast_matrix = np.zeros((n_draws, forecast_days))
 
     # Extract Traces (Flatten chains and draws)
