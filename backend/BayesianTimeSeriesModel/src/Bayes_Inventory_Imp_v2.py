@@ -57,15 +57,15 @@ def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=N
     # A. First, find the Ingredient ID and details
     if ingredient_id is not None:
         q_ing = f"""
-    SELECT id, name, unit, stock_left, cost_per_unit
-    FROM Ingredient
+    SELECT id, name, unit, stock_left
+    FROM ingredient
     WHERE id = {ingredient_id}
     LIMIT 1;
     """
     else:
         q_ing = f"""
-    SELECT id, name, unit, stock_left, cost_per_unit
-    FROM Ingredient
+    SELECT id, name, unit, stock_left
+    FROM ingredient
     WHERE name LIKE '%%{ingredient_name_query}%%'
     LIMIT 1;
     """
@@ -81,7 +81,7 @@ def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=N
         ing_id = df_ing.iloc[0]['id']
         ing_name = df_ing.iloc[0]['name']
         ing_unit = df_ing.iloc[0]['unit']
-        ing_cost = float(df_ing.iloc[0]['cost_per_unit'])
+        ing_cost = 0.0  # cost_per_unit not stored in ingredient table; fallback to buy_price arg or 100
         ing_stock = float(df_ing.iloc[0]['stock_left'])
         
         print(f"   > Found: {ing_name} (ID: {ing_id})")
@@ -94,8 +94,8 @@ def get_data_from_sql(ingredient_name_query, ingredient_id=None, restaurant_id=N
         SELECT
             DATE(S.timestamp) as date,
             SUM(S.amount * R.amount) as daily_usage
-        FROM Sale_data S
-        JOIN Recipe R ON S.menu_id = R.menu_id
+        FROM sale_data S
+        JOIN recipe R ON S.menu_id = R.menu_id
         WHERE R.ingredient_id = {ing_id}
         {restaurant_filter}
         GROUP BY DATE(S.timestamp)
