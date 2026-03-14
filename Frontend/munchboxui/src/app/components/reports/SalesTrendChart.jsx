@@ -64,7 +64,7 @@ export default function SalesTrendChart({
       <div className="relative h-64 w-full">
         <span className="absolute top-0 left-0 text-xs font-bold italic text-slate-800">Order</span>
         <span className="absolute bottom-0 right-0 text-xs font-bold italic text-slate-800">Time</span>
-        
+
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
@@ -72,13 +72,13 @@ export default function SalesTrendChart({
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis tick={false} axisLine={false} />
               <RechartsTooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="order" 
-                stroke="#3b82f6" 
-                strokeWidth={4} 
-                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} 
-                activeDot={{ r: 6 }} 
+              <Line
+                type="monotone"
+                dataKey="order"
+                stroke="#3b82f6"
+                strokeWidth={4}
+                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -86,6 +86,45 @@ export default function SalesTrendChart({
           <div className="h-full flex items-center justify-center text-slate-400 italic">No trend data available</div>
         )}
       </div>
+
+      {selectedMenu !== "All" && data.length > 0 && (
+        <div className="mt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-blue-400" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              {menuList.find(m => String(m.menu_id || m.id) === String(selectedMenu))?.menu_name || menuList.find(m => String(m.menu_id || m.id) === String(selectedMenu))?.name || "Menu"} — {trendLabel}
+            </span>
+          </div>
+          <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="max-h-44 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 sticky top-0">
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Period</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Orders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map((row, i) => (
+                    <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-2 text-slate-600 font-medium">{row.name}</td>
+                      <td className="px-4 py-2 text-right font-bold text-slate-800">{row.order}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50 sticky bottom-0">
+                    <td className="px-4 py-2 text-xs font-semibold text-slate-500">Total</td>
+                    <td className="px-4 py-2 text-right text-sm font-bold text-blue-600">
+                      {data.reduce((sum, row) => sum + row.order, 0)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
