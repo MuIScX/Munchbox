@@ -250,7 +250,13 @@ export default function RecipeDetailPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {filteredForRestock.length > 0 ? (
-                        filteredForRestock.map((ing, idx) => (
+                        filteredForRestock.map((ing, idx) => {
+                          // 1. Define the ratio inside the map so the status colors work
+                          const stock = Number(ing.stock_left) || 0;
+                          const req = Number(ing.amount) || 1;
+                          const ratio = stock / req;
+
+                          return (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-5 py-4 font-bold text-slate-600 italic">{ing.ingredient_name}</td>
 
@@ -271,7 +277,8 @@ export default function RecipeDetailPage() {
                               {ing.stock_left} <span className="opacity-50 lowercase">{ing.unit}</span>
                             </td>
                           </tr>
-                        ))
+                        );
+                      }) 
                       ) : (
                         <tr>
                           <td colSpan="2" className="px-5 py-10 text-center text-slate-300 italic">No ingredient need to restock</td>
