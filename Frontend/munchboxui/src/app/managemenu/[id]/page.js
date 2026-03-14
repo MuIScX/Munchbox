@@ -243,6 +243,7 @@ export default function RecipeDetailPage() {
                     <thead className="sticky top-0 bg-slate-100 text-slate-400 font-bold uppercase text-[9px]">
                       <tr>
                         <th className="px-5 py-3">Ingredient</th>
+                        <th className="px-5 py-3 text-center">Status</th>
                         <th className="px-5 py-3 text-center">Requirement</th>
                         <th className="px-5 py-3 text-right">Stock left</th>
                       </tr>
@@ -252,6 +253,15 @@ export default function RecipeDetailPage() {
                         filteredForRestock.map((ing, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-5 py-4 font-bold text-slate-600 italic">{ing.ingredient_name}</td>
+
+                            <td className="px-5 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${ratio <= 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
+                                <span className={`text-[9px] font-black uppercase ${ratio <= 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                                  {ratio <= 0 ? 'Out' : 'Low'}
+                                </span>
+                              </div>
+                            </td>
 
                             <td className="px-5 py-4 text-center font-bold text-slate-500">
                               {ing.amount} <span className="opacity-50 lowercase">{ing.unit}</span>
