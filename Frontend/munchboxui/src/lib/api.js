@@ -1,6 +1,6 @@
 import { getCookie, setCookie, deleteCookie } from "cookies-next";
 
-const BASE_URL =  "https://www.munchbox.live/api";
+const BASE_URL =  process.env.NEXT_PUBLIC_API_URL;
 
 async function request(endpoint, method = "POST", body = null, retries = 3) {
   const token = getCookie("token");
