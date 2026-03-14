@@ -52,11 +52,12 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
                  "--strategy", body.strategy],
                 capture_output=True,
                 text=True,
-                timeout=360,
+                timeout=600,
             )
             stdout = proc.stdout.strip()
             if not stdout:
-                errors.append({"ingredient": ingredient.name, "error": "empty output"})
+                stderr_msg = proc.stderr.strip() if proc.stderr else "no stderr"
+                errors.append({"ingredient": ingredient.name, "error": f"empty output | stderr: {stderr_msg[:300]}"})
                 continue
 
             # Script prints logs to stdout before the final JSON — find the last JSON object
