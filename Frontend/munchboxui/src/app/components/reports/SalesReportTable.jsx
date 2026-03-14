@@ -80,7 +80,7 @@ export default function SalesReportTable({
 
           {sortedTableData.length > 0 && (
             <tfoot>
-              <tr className="bg-slate-50 text-slate-800 text-sm italic font-bold border-t-2 border-slate-100">
+              <tr className="sticky bottom-0 bg-slate-50 text-slate-800 text-sm italic font-bold border-t-2 border-slate-100">
                 <td className="px-6 py-4 rounded-l-xl">Total</td>
                 <td className="px-6 py-4">{sumTableOrders.toLocaleString()}</td>
                 <td className="px-6 py-4">{formatCurrency(sumTableRevenue)}</td>
