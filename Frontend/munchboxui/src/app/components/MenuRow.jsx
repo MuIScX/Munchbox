@@ -12,6 +12,7 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
   const id = menu.menu_id || menu.id;
   const name = menu.menu_name || menu.name || "Unknown";
   const typeValue = menu.menu_type || menu.type;
+  const isReady = (menu.readiness ?? 0) === 1;
   const price = menu.menu_price || menu.price || 0;
   const count = menu.ingredient_count || menu.count || 0;
 
@@ -19,6 +20,12 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
     <tr className="group hover:bg-slate-50/50 transition-colors">
       <td className="px-6 py-4 text-slate-700 font-medium">{name}</td>
       <td className="px-6 py-4 text-slate-500">{TYPE_MAP[typeValue] || typeValue}</td>
+      <td className="px-6 py-4 text-center">
+        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${isReady ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+          {isReady ? 'Ready' : 'Not Ready'}
+        </span>
+      </td>
+
       <td className="px-6 py-4 text-center text-slate-600">{count}</td>
       <td className="px-6 py-4 text-center text-slate-800 font-medium">{price} Baht</td>
       <td className="px-6 py-4 text-center">
