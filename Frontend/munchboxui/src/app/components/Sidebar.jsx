@@ -156,7 +156,7 @@ export default function Sidebar() {
               </h2>
               <ul className="space-y-1">
                 {section.items.map((item) => {
-                  const isActive = pathname === item.path;
+                  const isActive = pathname === item.path || pathname.startsWith(item.path + '/');;
                   return (
                     <li key={item.name}>
                       <Link
