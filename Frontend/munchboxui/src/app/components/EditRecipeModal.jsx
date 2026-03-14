@@ -31,7 +31,8 @@ export default function EditMenuModal({ isOpen, onClose, onSuccess, initialMenu,
         id: ing.ingredient_id || ing.id,
         name: ing.ingredient_name || ing.name,
         unit: ing.unit,
-        amount: ing.amount
+        amount: ing.amount,
+        stock_left: ing.stock_left
       }));
       setSelectedIngredients(formattedIngs);
 
