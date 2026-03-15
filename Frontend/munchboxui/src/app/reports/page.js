@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { ReportAPI, MenuAPI } from "../../lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, BarChart2 } from "lucide-react";
 
 import KPICards from "../components/reports/KPICards";
 import SalesTrendChart from "../components/reports/SalesTrendChart";
@@ -159,47 +159,52 @@ const formatCurrency = (val) =>
             </div>
           )}
 
-          {/* Header + dropdowns */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between flex-wrap gap-4">
-            <h1 className="text-2xl font-bold italic text-slate-900">View Reports</h1>
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Month dropdown */}
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Month</label>
-                <select
-                  value={shareAllTime ? "all" : selectedMonth}
-                  onChange={(e) => handleMonthChange(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="all">All Time</option>
-                  {MONTHS.map((m, i) => (
-                    <option key={i} value={i}>{m}</option>
-                  ))}
-                </select>
+          {/* Header + KPI Panel */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
+            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                    <BarChart2 size={20} className="text-orange-500" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">View Reports</h1>
+                    <p className="text-sm text-slate-400 mt-0.5">Analyze sales trends and revenue data</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div>
+                    <label className="block text-xs text-slate-400 font-medium mb-1">Month</label>
+                    <select
+                      value={shareAllTime ? "all" : selectedMonth}
+                      onChange={(e) => handleMonthChange(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
+                    >
+                      <option value="all">All Time</option>
+                      {MONTHS.map((m, i) => (<option key={i} value={i}>{m}</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 font-medium mb-1">Year</label>
+                    <select
+                      value={shareAllTime ? "all" : selectedYear}
+                      onChange={(e) => handleYearChange(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
+                    >
+                      <option value="all">All Time</option>
+                      {YEAR_OPTIONS.map((y) => (<option key={y} value={y}>{y}</option>))}
+                    </select>
+                  </div>
+                </div>
               </div>
-
-              {/* Year dropdown */}
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Year</label>
-                <select
-                  value={shareAllTime ? "all" : selectedYear}
-                  onChange={(e) => handleYearChange(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="all">All Time</option>
-                  {YEAR_OPTIONS.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
+              <KPICards
+                totalOrders={totalOrders}
+                totalRevenue={totalRevenue}
+                formatCurrency={formatCurrency}
+              />
             </div>
           </div>
-
-          <KPICards
-            totalOrders={totalOrders}
-            totalRevenue={totalRevenue}
-            formatCurrency={formatCurrency}
-          />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <SalesTrendChart

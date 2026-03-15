@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { IngredientAPI, StaffAPI } from "../../lib/api"; 
-import { Search, Calendar, User, Loader2 } from 'lucide-react';
+import { Search, Calendar, User, Loader2, ClipboardList } from 'lucide-react';
 
 export default function InventoryLog() {
   const [logs, setLogs] = useState([]);
@@ -64,124 +64,104 @@ export default function InventoryLog() {
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
 
-          {/* Page Title Card */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm shrink-0">
-            <h1 className="text-2xl font-bold italic text-slate-800">View Inventory Log</h1>
-          </div>
-
-          {/* Filters Section */}
-          <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search Ingredient..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
-              />
+          {/* Header Panel */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
+            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                    <ClipboardList size={20} className="text-orange-500" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Inventory Log</h1>
+                    <p className="text-sm text-slate-400 mt-0.5">Track all stock changes and updates</p>
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-500 font-medium">
+                  {filteredLogs.length} records
+                </div>
+              </div>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input type="text" placeholder="Search ingredient..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none w-52" />
+                </div>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+                </div>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none min-w-[170px]">
+                    <option value="All">Staff: All</option>
+                    {staffList.map((staff) => (<option key={staff.id || staff.staff_id} value={staff.id || staff.staff_id}>{staff.name || staff.username}</option>))}
+                  </select>
+                </div>
+                <select value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)}
+                  className="px-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none">
+                  <option value="All">Action: All</option>
+                  <option value="in">Stock In</option>
+                  <option value="out">Stock Out</option>
+                </select>
+              </div>
             </div>
-
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
-              />
-            </div>
-
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <select
-                value={selectedStaff}
-                onChange={(e) => setSelectedStaff(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600 min-w-[180px]"
-              >
-                <option value="All">Staff : All</option>
-                {staffList.map((staff) => (
-                  <option key={staff.id || staff.staff_id} value={staff.id || staff.staff_id}>
-                    Staff : {staff.name || staff.username}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <select
-              value={selectedAction}
-              onChange={(e) => setSelectedAction(e.target.value)}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-600"
-            >
-              <option value="All">Action: All</option>
-              <option value="in">Stock In</option>
-              <option value="out">Stock Out</option>
-            </select>
           </div>
 
           {/* Log Table Container */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="p-6 border-b border-slate-100 shrink-0">
-              <h2 className="font-bold italic text-slate-800 text-lg">Record Inventory log</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="px-6 py-4 border-b border-slate-100 shrink-0">
+              <h2 className="font-semibold text-slate-700">Stock Records</h2>
+              <p className="text-xs text-slate-400 mt-0.5">{filteredLogs.length} records found</p>
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-slate-50 text-slate-500 text-sm italic">
-                    <th className="px-6 py-4 font-semibold">Date/Time</th>
-                    <th className="px-6 py-4 font-semibold">Staff</th>
-                    <th className="px-6 py-4 font-semibold">Action</th>
-                    <th className="px-6 py-4 font-semibold">Ingredient</th>
-                    <th className="px-6 py-4 font-semibold">Change</th>
-                    <th className="px-6 py-4 font-semibold">Description</th>
+                <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
+                  <tr className="text-xs text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-3.5 font-semibold">Date/Time</th>
+                    <th className="px-6 py-3.5 font-semibold">Staff</th>
+                    <th className="px-6 py-3.5 font-semibold">Action</th>
+                    <th className="px-6 py-3.5 font-semibold">Ingredient</th>
+                    <th className="px-6 py-3.5 font-semibold">Change</th>
+                    <th className="px-6 py-3.5 font-semibold">Description</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr>
-                      <td colSpan={6} className="py-20 text-center">
-                        <Loader2 className="animate-spin text-orange-500 mx-auto" size={32} />
-                      </td>
-                    </tr>
+                    <tr><td colSpan={6} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
                   ) : filteredLogs.length > 0 ? (
                     filteredLogs.map((log, index) => {
-                      // Determine Stock In vs Stock Out based on change value or action text
                       const changeAmount = parseFloat(log.amount || 0);
-                      let isStockIn = true
-                      
-                      if(log.action_type == 2){
-                            isStockIn = false;
-                      }
-                      else{
-                        isStockIn = true;
-                      }
-
-                     
-                      
+                      const isStockIn = log.action_type !== 2;
                       return (
-                        <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 text-slate-600 text-sm whitespace-nowrap">{log.timestamp}</td>
-                          <td className="px-6 py-4 text-slate-700 font-medium">{log.staff_name}</td>
+                        <tr key={index} className="hover:bg-orange-50/40 transition-colors">
+                          <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap">{log.timestamp}</td>
+                          <td className="px-6 py-4 text-slate-800 font-semibold">{log.staff_name}</td>
                           <td className="px-6 py-4">
-                            <span className={`font-bold text-xs ${isStockIn ? 'text-emerald-500' : 'text-red-500'}`}>
-                              {isStockIn ? 'STOCK IN' : 'STOCK OUT'}
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isStockIn ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                              {isStockIn ? 'Stock In' : 'Stock Out'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-slate-700 font-medium">{log.ingredient_name}</td>
-                          <td className={`px-6 py-4 font-bold ${isStockIn ? 'text-emerald-500' : 'text-red-500'}`}>
+                          <td className="px-6 py-4 text-slate-800 font-semibold">{log.ingredient_name}</td>
+                          <td className={`px-6 py-4 font-bold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
                             {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
                           </td>
-                          <td className="px-6 py-4 text-slate-500 text-sm italic">
-                            {log.ingredient_name} stock {isStockIn ? 'in' : 'out'}: {isStockIn ? '+' : '-'}{log.amount} {log.unit} (New total: {log.new_current} {log.unit})
+                          <td className="px-6 py-4 text-slate-400 text-sm">
+                            New total: <span className="font-semibold text-slate-600">{log.new_current} {log.unit}</span>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center py-20 text-slate-400 italic">
-                        No history records found.
+                      <td colSpan={6} className="py-20 text-center">
+                        <ClipboardList className="mx-auto mb-3 text-slate-200" size={40} />
+                        <p className="text-slate-400 font-medium">No records found</p>
                       </td>
                     </tr>
                   )}
