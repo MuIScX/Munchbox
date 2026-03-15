@@ -239,8 +239,8 @@ export default function Home() {
                     <th className="px-6 py-3.5 font-semibold w-[25%]">Item</th>
                     <th className="px-6 py-3.5 font-semibold w-[15%]">Category</th>
                     <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Status</th>
-                    <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Min Stock</th>
                     <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Stock</th>
+                    <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Require Stock</th>
                     <th className="px-6 py-3.5 font-semibold w-[10%] text-center">Unit</th>
                     <th className="px-6 py-3.5 font-semibold w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">

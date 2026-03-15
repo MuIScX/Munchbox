@@ -151,8 +151,13 @@ export default function InventoryLog() {
                           <td className={`px-6 py-4 font-bold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
                             {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
                           </td>
-                          <td className="px-6 py-4 text-slate-400 text-sm">
-                            New total: <span className="font-semibold text-slate-600">{log.new_current} {log.unit}</span>
+                          <td className="px-6 py-4 text-slate-500 text-sm">
+                            {isStockIn ? 'Added' : 'Reduced'}{' '}
+                            <span className={`font-semibold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
+                            </span>
+                            {' '}(New total:{' '}
+                            <span className="font-semibold text-slate-700">{log.new_current} {log.unit}</span>)
                           </td>
                         </tr>
                       );

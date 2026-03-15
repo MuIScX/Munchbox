@@ -42,10 +42,10 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
           {isOk ? 'OK' : 'Low Stock'}
         </span>
       </td>
-      <td className="px-6 py-4 text-center text-slate-600 font-medium">{minVal}</td>
       <td className={`px-6 py-4 text-center transition-colors duration-200 ${stockColorClass}`}>
         {previewStock}
       </td>
+      <td className="px-6 py-4 text-center text-slate-600 font-medium">{minVal}</td>
       <td className="px-6 py-4 text-center text-slate-500 text-sm">{row.unit}</td>
       <td className="px-6 py-4">
         <div className="flex justify-center items-center gap-3">
