@@ -17,14 +17,25 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-export default function SalesTrendChart({ 
-  data, 
-  menuList, 
-  selectedMenu, 
-  setSelectedMenu, 
-  trendLoading, 
-  globalLoading 
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+export default function SalesTrendChart({
+  data,
+  menuList,
+  selectedMenu,
+  setSelectedMenu,
+  trendLoading,
+  globalLoading,
+  shareAllTime,
+  selectedMonth,
+  selectedYear,
+  tableData = [],
+  formatCurrency,
 }) {
+  const trendLabel = shareAllTime
+    ? "All Time"
+    : `${MONTHS[selectedMonth]} ${selectedYear}`;
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
       {trendLoading && !globalLoading && (
@@ -34,7 +45,7 @@ export default function SalesTrendChart({
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-bold italic text-slate-800">Sales Trend (Last 30 days)</h2>
+        <h2 className="text-lg font-bold italic text-slate-800">Sales Trend ({trendLabel})</h2>
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1">
           <span className="text-sm text-slate-500">Menu:</span>
           <select 
@@ -55,7 +66,7 @@ export default function SalesTrendChart({
       <div className="relative h-64 w-full">
         <span className="absolute top-0 left-0 text-xs font-bold italic text-slate-800">Order</span>
         <span className="absolute bottom-0 right-0 text-xs font-bold italic text-slate-800">Time</span>
-        
+
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
@@ -63,13 +74,13 @@ export default function SalesTrendChart({
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis tick={false} axisLine={false} />
               <RechartsTooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="order" 
-                stroke="#3b82f6" 
-                strokeWidth={4} 
-                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} 
-                activeDot={{ r: 6 }} 
+              <Line
+                type="monotone"
+                dataKey="order"
+                stroke="#3b82f6"
+                strokeWidth={4}
+                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -77,6 +88,33 @@ export default function SalesTrendChart({
           <div className="h-full flex items-center justify-center text-slate-400 italic">No trend data available</div>
         )}
       </div>
+
+      {selectedMenu !== "All" && (() => {
+        const row = tableData.find(r => String(r.id) === String(selectedMenu));
+        if (!row) return null;
+        return (
+          <div className="mt-5 rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold italic text-slate-500">Item</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Orders</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Revenue</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-slate-50">
+                  <td className="px-4 py-3 text-slate-700 font-medium">{row.item}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{row.orders}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{formatCurrency(row.revenue)}</td>
+                  <td className="px-4 py-3 text-center font-bold text-blue-500">{row.share.toFixed(1)}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
     </div>
   );
 }

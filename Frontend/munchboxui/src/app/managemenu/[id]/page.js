@@ -56,21 +56,32 @@ export default function RecipeDetailPage() {
     : 0;
 
   const getStatusColor = (ing) => {
-    const ratio = (ing.stock_left || 0) / (ing.amount || 1);
-    if (ratio <= 0) return "bg-red-500";
-    if (ratio < 5) return "bg-amber-500";
-    return "bg-emerald-500";
+    const stock = Number(ing.stock_left) || 0;
+    const req = Number(ing.amount) || 1;
+    const ratio = stock / req;
+
+    if (ratio < 1) return "bg-red-500";     // CRITICAL: Cannot make even 1 portion
+    if (ratio < 5) return "bg-amber-500";   // LOW: Running out soon
+    return "bg-emerald-500";                // SAFE: Good for 5+ portions
   };
   
   const filteredForRestock = ingredients.filter(ing => {
     const stock = Number(ing.stock_left) || 0;
     const req = Number(ing.amount) || 1;
     
-    // Logic: Show only if stock is less than the requirement (Out)
-    const isOut = stock < req;
+    // Logic: Show if ratio is less than 5 (Low or Out)
+    const ratio = stock / req;
+    const isLowOrOut = ratio < 5;
+    
     const matchesSearch = ing.ingredient_name?.toLowerCase().includes(restockSearch.toLowerCase());
     
-    return isOut && matchesSearch;
+    return isLowOrOut && matchesSearch;
+  })
+  .sort((a, b) => {
+    // Optional: Sort by most critical (lowest ratio) first
+    const ratioA = (Number(a.stock_left) || 0) / (Number(a.amount) || 1);
+    const ratioB = (Number(b.stock_left) || 0) / (Number(b.amount) || 1);
+    return ratioA - ratioB;
   });
 
   return (
@@ -84,7 +95,7 @@ export default function RecipeDetailPage() {
           className="flex items-center gap-2 mb-6 text-slate-400 hover:text-slate-500 font-bold transition-colors group shrink-0"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-sm">Back to Manage Recipe</span>
+          <span className="text-base">Back to Manage Recipe</span>
         </button>
 
         {loading ? (
@@ -107,7 +118,7 @@ export default function RecipeDetailPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-3 bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">Active Menu</span>
+                        <span className="text-xs font-bold uppercase tracking-widest opacity-70">Active Menu</span>
                       </div>
                       <h1 className="text-5xl font-black italic tracking-tight mb-2 uppercase">
                         {menu.menu_name || menu.name}
@@ -137,27 +148,45 @@ export default function RecipeDetailPage() {
                     <h2 className="text-2xl font-black text-[#1a2233] italic flex items-center gap-2">
                       <ListChecks size={24} className="text-orange-500" /> Ingredients
                     </h2>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">
                       {ingredients.length} Total Items
                     </span>
                   </div>
                   
+                  {/* Ingredient List inside Left Card */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ingredients.map((ing, i) => (
-                      <div key={i} className="flex justify-between items-center bg-slate-50/50 p-5 rounded-2xl border border-slate-100 transition-all hover:border-orange-100">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full shadow-sm ${getStatusColor(ing)}`} />
-                          <div>
-                            <p className="font-bold text-slate-700 text-base leading-none mb-1">{ing.ingredient_name}</p>
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Requirement</p>
+                    {ingredients.map((ing, i) => {
+                      const stock = Number(ing.stock_left) || 0;
+                      const req = Number(ing.amount) || 1;
+                      const isCritical = (stock / req) < 1;
+
+                      return (
+                        <div key={i} className="flex justify-between items-center bg-slate-50/50 p-5 rounded-2xl border border-slate-100 transition-all hover:border-orange-100 group">
+                          <div className="flex items-center gap-3">
+                            {/* Status Dot: Now turns red if stock < requirement */}
+                            <div className={`w-3 h-3 rounded-full shadow-sm ${getStatusColor(ing)}`} />
+                            <div>
+                              <p className="font-bold text-slate-700 text-base leading-none mb-1">
+                                {ing.ingredient_name}
+                              </p>
+                              <p className="text-xs font-black text-slate-300 uppercase tracking-widest">
+                                Requirement
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            {/* Amount: Turns Red and pulses slightly if it's the bottleneck */}
+                            <span className={`text-xl font-black ${isCritical ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
+                              {ing.amount}
+                            </span>
+                            <span className={`text-xs ml-1 font-bold lowercase ${isCritical ? 'text-red-500/60' : 'text-slate-400'}`}>
+                              {ing.unit}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="text-xl font-black text-slate-800">{ing.amount}</span>
-                          <span className="text-[10px] text-slate-400 ml-1 font-bold lowercase">{ing.unit}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -171,7 +200,7 @@ export default function RecipeDetailPage() {
                 <div className="flex-1 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
                   <div className="flex items-center gap-2 mb-3 text-slate-400">
                     <Info size={14} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stock Legend</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Stock Legend</p>
                   </div>
                   <div className="space-y-2.5">
                     {[
@@ -179,7 +208,7 @@ export default function RecipeDetailPage() {
                       { color: "bg-amber-500", label: "Low (< 5 orders)" },
                       { color: "bg-red-500", label: "Out / Critical" }
                     ].map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3 text-[10px] font-bold text-slate-500">
+                      <div key={idx} className="flex items-center gap-3 text-xs font-bold text-slate-500">
                         <div className={`w-2 h-2 rounded-full ${item.color}`} />
                         <span>{item.label}</span>
                       </div>
@@ -189,17 +218,13 @@ export default function RecipeDetailPage() {
 
                 {/* 2. Service Capacity (Compact Square) */}
                 <div className="w-44 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
-                  <p className="text-slate-400 text-[8px] font-black uppercase tracking-widest mb-3">Service Capacity</p>
-                  
-                  {/* The Ring is now always neutral slate */}
+                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-3">Service Capacity</p>
+
                   <div className="relative w-24 h-24 flex flex-col items-center justify-center rounded-full border-[6px] border-slate-50 ring-1 ring-slate-100">
-                    
-                    {/* Only the Number and Subtext carry the status color */}
                     <span className={`text-3xl font-black italic ${portionsAvailable >= 5 ? 'text-emerald-500' : 'text-red-500'}`}>
                       {portionsAvailable}
                     </span>
-                    
-                    <p className={`text-[7px] font-black text-slate-500 uppercase`}>
+                    <p className="text-[10px] font-black text-slate-500 uppercase">
                       Orders Left
                     </p>
                   </div>
@@ -212,10 +237,10 @@ export default function RecipeDetailPage() {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-black italic text-[#1a2233]">Ingredients Restock</h3>
                     {filteredForRestock.length > 0 && (
-                    <span className="text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase">
-                      {filteredForRestock.length} Out
-                    </span>
-                  )}
+                      <span className="text-xs font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase">
+                        {filteredForRestock.length} Attention Needed
+                      </span>
+                    )}
                   </div>
                   
                   <div className="relative mb-4">
@@ -225,25 +250,43 @@ export default function RecipeDetailPage() {
                       placeholder="Search Ingredient..." 
                       value={restockSearch}
                       onChange={(e) => setRestockSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 transition-all text-slate-600"
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all text-slate-600"
                     />
                   </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto min-h-[300px]">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="sticky top-0 bg-slate-100 text-slate-400 font-bold uppercase text-[9px]">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-slate-100 text-slate-400 font-bold uppercase text-xs">
                       <tr>
                         <th className="px-5 py-3">Ingredient</th>
+                        <th className="px-5 py-3 text-center">Status</th>
                         <th className="px-5 py-3 text-center">Requirement</th>
                         <th className="px-5 py-3 text-right">Stock left</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {filteredForRestock.length > 0 ? (
-                        filteredForRestock.map((ing, idx) => (
+                        filteredForRestock.map((ing, idx) => {
+                          // 1. Define the ratio inside the map so the status colors work
+                          const stock = Number(ing.stock_left) || 0;
+                          const req = Number(ing.amount) || 1;
+                          const ratio = stock / req;
+
+                          const isCritical = ratio < 1;
+
+                          return (
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-5 py-4 font-bold text-slate-600 italic">{ing.ingredient_name}</td>
+
+                            <td className="px-5 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${isCritical ? 'bg-red-500' : 'bg-amber-500'}`} />
+                                <span className={`text-xs font-black uppercase ${isCritical ? 'text-red-500' : 'text-amber-600'}`}>
+                                  {isCritical ? 'Out' : 'Low'}
+                                </span>
+                              </div>
+                            </td>
 
                             <td className="px-5 py-4 text-center font-bold text-slate-500">
                               {ing.amount} <span className="opacity-50 lowercase">{ing.unit}</span>
@@ -253,7 +296,8 @@ export default function RecipeDetailPage() {
                               {ing.stock_left} <span className="opacity-50 lowercase">{ing.unit}</span>
                             </td>
                           </tr>
-                        ))
+                        );
+                      }) 
                       ) : (
                         <tr>
                           <td colSpan="2" className="px-5 py-10 text-center text-slate-300 italic">No ingredient need to restock</td>

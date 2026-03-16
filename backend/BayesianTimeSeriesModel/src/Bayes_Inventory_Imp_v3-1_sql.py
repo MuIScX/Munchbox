@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 
 
 # --- 1. CONFIGURATION ---
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 load_dotenv(dotenv_path)
 DB_CONNECTION = os.getenv('DATABASE_URL')
 DEVICE = 'CLOUD' # 'LOCAL' for laptops or 'CLOUD' for Cloud Implementation system like Linodes
@@ -502,14 +502,17 @@ def chart_data_json(historical_demand, forecast_dist, reorder_period, trace):
             "likely_high_bound_95th": high
         }) # Append to list with the forecast date, median demand, and the 5th and 95th percentile of the forecast distribution in shaded area
 
-    historical_forecast_values = trace.posterior_predictive['demand_data'].mean(dim=['chain', 'draw']).values
+    try:
+        historical_forecast_values = trace.posterior_predictive['demand_data'].mean(dim=['chain', 'draw']).values
+    except Exception:
+        historical_forecast_values = historical_demand.values
 
     historical_list = [] # List to store historical data
     for i, (date, value) in enumerate(historical_demand.items()):
         historical_list.append({
             "date": date.strftime('%Y-%m-%d'),
             "actual_usage": float(value),
-            "model_fit": float(historical_forecast_values[i]) # Orange line to show model fit
+            "model_fit": float(historical_forecast_values[i]) if i < len(historical_forecast_values) else float(value)
         })
         
     return {
@@ -599,8 +602,6 @@ if __name__ == "__main__":
         }
 
         # 8. OUTPUT EXACTLY ONE THING TO STDOUT: THE JSON
-        plot_forecast_results_explained(daily_demand, forecast_dist, optimal_order, ingredient_to_forecast, reorder_period, unit, buy_price)
-        # The backend system will capture this string and parse it
         print(json.dumps(final_payload, indent=2))
 
         with open("forecast_output.json", "w") as f:
