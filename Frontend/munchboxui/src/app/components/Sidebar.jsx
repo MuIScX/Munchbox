@@ -20,7 +20,8 @@ import {
   Package,
   PackageOpen,
   Utensils,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Target,
 } from 'lucide-react';
 
 function useCurrentUser() {
@@ -112,6 +113,7 @@ export default function Sidebar() {
         { name: 'Manage Recipe', path: '/managemenu', icon: Utensils, iconActive: UtensilsCrossed, color: 'text-purple-500' },
         { name: 'Manage Inventory', path: '/manageinventory', icon: Package, iconActive: PackageOpen, color: 'text-blue-500' },
         { name: 'View Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
+        { name: 'Accuracy Report', path: '/accuracy', icon: Target, color: 'text-emerald-500' },
         { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
       ],
     },
