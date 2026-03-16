@@ -33,6 +33,7 @@ export default function ManageMenuPage() {
     try {
       setLoading(true);
       const res = await MenuAPI.list({ restaurant_id: 1 });
+      console.log(res.Data)
       setMenus(Array.isArray(res?.Data) ? res.Data : []);
     } catch (err) {
       console.error(err.message);
@@ -68,8 +69,7 @@ export default function ManageMenuPage() {
     const matchesReadiness = selectedReadiness === "All" || (selectedReadiness === "ready" ? isReady : !isReady);
     return matchesSearch && matchesCategory && matchesReadiness;
   });
-
-  const unreadyCount = menus.filter((m) => (m.readiness ?? 0) === 0).length;
+const unreadyCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -185,7 +185,7 @@ export default function ManageMenuPage() {
                   <tr className="text-xs text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-3.5 font-semibold">Recipe</th>
                     <th className="px-6 py-3.5 font-semibold">Type</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">Readiness</th>
+                    <th className="px-6 py-3.5 font-semibold text-center">Ready to Serve</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Ingredients</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Price</th>
                     <th className="px-6 py-3.5 font-semibold text-center">
