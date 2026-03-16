@@ -23,7 +23,6 @@ export default function ManageMenuPage() {
   const [selectedReadiness, setSelectedReadiness] = useState("All");
   const [toast, setToast] = useState(null);
 
-  // Modals State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [menuToDelete, setMenuToDelete] = useState(null);
 
@@ -33,7 +32,6 @@ export default function ManageMenuPage() {
     try {
       setLoading(true);
       const res = await MenuAPI.list({ restaurant_id: 1 });
-      console.log(res.Data)
       setMenus(Array.isArray(res?.Data) ? res.Data : []);
     } catch (err) {
       console.error(err.message);
@@ -65,19 +63,21 @@ export default function ManageMenuPage() {
     const matchesSearch = name.includes(searchQuery.toLowerCase());
     const typeValue = m.menu_type || m.type;
     const matchesCategory = selectedCategory === "All" || String(typeValue) === selectedCategory;
-    const isReady = (m.readiness ?? 0) === 1;
+    
+    // Logic check: matches your MenuRow isReady condition
+    const isReady = ((m.readiness ?? 0) === 1) && (m.ingredient_count > 0);
     const matchesReadiness = selectedReadiness === "All" || (selectedReadiness === "ready" ? isReady : !isReady);
+    
     return matchesSearch && matchesCategory && matchesReadiness;
   });
-const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
-
-const readyToServeCount = menus.filter((m) => (m.portions_available ?? 0) >= 1).length;
-const unreadyToServeCount = menus.length - readyToServeCount
+  
+  const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
+  const readyToServeCount = menus.filter((m) => (m.portions_available ?? 0) >= 1).length;
+  const unreadyToServeCount = Math.max(0, menus.length - readyToServeCount);
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
-
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       <AddMenuModal
@@ -117,94 +117,115 @@ const unreadyToServeCount = menus.length - readyToServeCount
                   <Plus size={18} /> Add Recipe
                 </button>
               </div>
-              <div className="flex gap-4">
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-4 flex-1">
+
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <UtensilsCrossed size={18} className="text-orange-600" />
                   </div>
                   <div>
                     <p className="text-xs text-orange-600 font-bold uppercase tracking-wide">Total</p>
-                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{menus.length}</p>
+                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{menus.length}</p>
                     <p className="text-xs text-orange-500 font-medium mt-0.5">recipes</p>
                   </div>
                 </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-4 flex-1">
+
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
                     <CheckCircle size={18} className="text-emerald-600" />
                   </div>
                   <div>
                     <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Ready To Serve</p>
-                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{readyToServeCount}</p>
+                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{readyToServeCount}</p>
                     <p className="text-xs text-emerald-500 font-medium mt-0.5">serve</p>
                   </div>
                 </div>
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-4 flex-1">
+
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                    <CheckCircle size={18} className="text-red-600" />
+                    <AlertTriangle size={18} className="text-red-600" />
                   </div>
                   <div>
                     <p className="text-xs text-red-600 font-bold uppercase tracking-wide">Unready To Serve</p>
-                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{unreadyToServeCount}</p>
+                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{unreadyToServeCount}</p>
                     <p className="text-xs text-red-500 font-medium mt-0.5">can't serve</p>
                   </div>
                 </div>
-                <div className={`rounded-xl border p-4 flex items-center gap-4 flex-1 bg-amber-50 border-amber-100`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-100 bg-slate-200}`}>
+
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                     <AlertTriangle size={18} className="text-amber-600" />
                   </div>
                   <div>
-                    <p className={`text-xs font-bold uppercase tracking-wide text-amber-600 text-slate-500}`}>Incomplete</p>
-                    <p className={`text-3xl font-bold mt-0.5 text-black text-slate-800`}>{incompleteCount}</p>
-                    <p className={`text-xs text-amber-500 font-medium mt-0.5"}`}>missing recipe</p>
+                    <p className="text-xs text-amber-600 font-bold uppercase tracking-wide">Incomplete</p>
+                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{incompleteCount}</p>
+                    <p className="text-xs text-amber-500 font-medium mt-0.5">missing recipe</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-3 flex-wrap shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-              <input
-                type="text"
-                placeholder="Search recipe..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none shadow-sm w-56"
-              />
-            </div>
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 shadow-sm">
-              <option value="All">Type: All</option>
-              {Object.entries(TYPE_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
-            </select>
-            <select value={selectedReadiness} onChange={(e) => setSelectedReadiness(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 shadow-sm">
-              <option value="All">Readiness: All</option>
-              <option value="ready">Ready</option>
-              <option value="not_ready">Not Ready</option>
-            </select>
-          </div>
-
-          {/* Recipe Table */}
+          {/* Recipe Table Container */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="font-semibold text-slate-700">Recipe List</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{filteredMenus.length} recipes found</p>
+            
+            {/* NEW CONSOLIDATED HEADER */}
+            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
+              <div className="shrink-0">
+                <h2 className="font-bold text-slate-800 text-lg italic">Recipe List</h2>
+                <p className="text-xs text-slate-400">{filteredMenus.length} recipes found</p>
+              </div>
+
+              {/* Vertical Divider */}
+              <div className="w-px h-8 mx-4 bg-slate-100" />
+
+              {/* Search and Filters Group */}
+              <div className="flex gap-3 items-center">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Search recipe..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-48 transition-all"
+                  />
+                </div>
+                
+                <select 
+                  value={selectedCategory} 
+                  onChange={(e) => setSelectedCategory(e.target.value)} 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer"
+                >
+                  <option value="All">Type: All</option>
+                  {Object.entries(TYPE_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
+                </select>
+
+                <select 
+                  value={selectedReadiness} 
+                  onChange={(e) => setSelectedReadiness(e.target.value)} 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer"
+                >
+                  <option value="All">Readiness: All</option>
+                  <option value="ready">Ready</option>
+                  <option value="not_ready">Not Ready</option>
+                </select>
+              </div>
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
-                  <tr className="text-xs text-slate-500 uppercase tracking-wider">
-                    <th className="px-6 py-3.5 font-semibold">Recipe</th>
-                    <th className="px-6 py-3.5 font-semibold">Type</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">Ready to Serve</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">Ingredients</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">Price</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">
+                <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
+                  <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
+                    <th className="px-6 py-4">Recipe</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4 text-center">Ready to Serve</th>
+                    <th className="px-6 py-4 text-center">Ingredients</th>
+                    <th className="px-6 py-4 text-center">Price</th>
+                    <th className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
-                        <button onClick={() => setShowDelete(v => !v)} className={`p-1 rounded transition-colors ${showDelete ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-red-400"}`}>
+                        <button onClick={() => setShowDelete(v => !v)} className={`p-1 rounded-md transition-all ${showDelete ? "text-red-500 bg-red-50" : "text-slate-300 hover:text-red-400"}`}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -212,11 +233,11 @@ const unreadyToServeCount = menus.length - readyToServeCount
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="py-16 text-center">
-                        <Loader2 className="animate-spin mx-auto text-orange-500" size={28} />
+                      <td colSpan={6} className="py-20 text-center">
+                        <Loader2 className="animate-spin mx-auto text-orange-500" size={32} />
                       </td>
                     </tr>
                   ) : filteredMenus.length > 0 ? (
@@ -231,9 +252,9 @@ const unreadyToServeCount = menus.length - readyToServeCount
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-16 text-center">
-                        <UtensilsCrossed className="mx-auto mb-3 text-slate-200" size={40} />
-                        <p className="text-slate-400 font-medium">No recipes found</p>
+                      <td colSpan={6} className="py-20 text-center">
+                        <UtensilsCrossed className="mx-auto mb-3 text-slate-200" size={48} />
+                        <p className="text-slate-400 font-medium italic">No recipes match your filters</p>
                       </td>
                     </tr>
                   )}
@@ -241,7 +262,6 @@ const unreadyToServeCount = menus.length - readyToServeCount
               </table>
             </div>
           </div>
-
         </div>
       </main>
     </div>

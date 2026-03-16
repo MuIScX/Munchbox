@@ -28,7 +28,7 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
     <tr className="hover:bg-orange-50/40 transition-colors">
       <td className="px-6 py-4 text-slate-800 font-semibold">{name}</td>
       <td className="px-6 py-4">
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${typeStyle}`}>
+        <span className={`inline-block text-slate-500 text-sm`}>
           {TYPE_MAP[typeValue] || typeValue}
         </span>
       </td>
@@ -37,7 +37,7 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
           {isReady ? 'Ready' : 'Not Ready'}
         </span>
       </td>
-      <td className="px-6 py-4 text-center text-slate-600 font-medium">{count}</td>
+      <td className="px-6 py-4 text-center text-slate-500">{count}</td>
       <td className="px-6 py-4 text-center text-slate-800 font-semibold">฿{price}</td>
       <td className="px-6 py-4 text-center">
         <div className="flex justify-center items-center gap-3">
