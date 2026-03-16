@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
@@ -111,8 +112,8 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-
       <Toast toast={toast} onClose={() => setToast(null)} />
+      <Sidebar />
 
       <AddIngredientModal
         isOpen={isModalOpen}
@@ -133,15 +134,13 @@ export default function Home() {
         isOpen={!!ingredientToDelete}
         onClose={() => setIngredientToDelete(null)}
         onConfirm={confirmDelete}
-        ingredientName={ingredientToDelete?.ingredient_name || ingredientToDelete?.name || ingredientToDelete?.item || "Unknown Item"}
+        ingredientName={ingredientToDelete?.ingredient_name || ingredientToDelete?.name || "Unknown Item"}
       />
-
-      <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
 
-          {/* Header + Summary Panel */}
+          {/* 1. Header + Original Summary Panel */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
@@ -197,73 +196,109 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-              <input
-                type="text"
-                placeholder="Search ingredient..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none shadow-sm w-56"
-              />
-            </div>
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 shadow-sm">
-              <option value="All">Category: All</option>
-              {Object.entries(CATEGORY_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
-            </select>
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 shadow-sm">
-              <option value="All">Status: All</option>
-              <option value="ok">OK</option>
-              <option value="low_stock">Low Stock</option>
-            </select>
-            <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 shadow-sm">
-              <option value="" disabled>Select Staff</option>
-              {staffList.map((staff) => { const id = staff.staff_id || staff.id; return <option key={id} value={id}>Staff: {staff.name || staff.username || `#${id}`}</option>; })}
-            </select>
-          </div>
-
-          {/* Table */}
+          {/* 2. Table Container with Filters moved Aside Title */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="font-semibold text-slate-700">Inventory List</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{filteredIngredients.length} items found</p>
+            
+            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
+              <div className="shrink-0">
+                <h2 className="font-bold text-slate-800 text-lg italic leading-tight">Inventory List</h2>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
+                  {filteredIngredients.length} items found
+                </p>
+              </div>
+
+              {/* Spaced Vertical Divider */}
+              <div className="w-px h-8 bg-slate-200 mx-6 shrink-0" />
+
+              {/* Filters Group moved here */}
+              <div className="flex gap-3 items-center flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Search ingredient..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none w-52 transition-all hover:border-slate-300"
+                  />
+                </div>
+
+                <select 
+                  value={selectedCategory} 
+                  onChange={(e) => setSelectedCategory(e.target.value)} 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300"
+                >
+                  <option value="All">Category: All</option>
+                  {Object.entries(CATEGORY_MAP).map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+
+                <select 
+                  value={selectedStatus} 
+                  onChange={(e) => setSelectedStatus(e.target.value)} 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300"
+                >
+                  <option value="All">Status: All</option>
+                  <option value="ok">OK</option>
+                  <option value="low_stock">Low Stock</option>
+                </select>
+
+                <select 
+                  value={selectedStaff} 
+                  onChange={(e) => setSelectedStaff(e.target.value)} 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300 ml-auto"
+                >
+                  <option value="" disabled>Select Staff</option>
+                  {staffList.map((staff) => {
+                    const id = staff.staff_id || staff.id;
+                    return <option key={id} value={id}>Staff: {staff.name || staff.username || `#${id}`}</option>;
+                  })}
+                </select>
               </div>
             </div>
+
             <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
-                  <tr className="text-xs text-slate-500 uppercase tracking-wider">
-                    <th className="px-6 py-3.5 font-semibold w-[25%]">Item</th>
-                    <th className="px-6 py-3.5 font-semibold w-[15%]">Category</th>
-                    <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Status</th>
-                    <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Stock</th>
-                    <th className="px-6 py-3.5 font-semibold w-[12%] text-center">Require Stock</th>
-                    <th className="px-6 py-3.5 font-semibold w-[10%] text-center">Unit</th>
-                    <th className="px-6 py-3.5 font-semibold w-[14%] text-center">
+                <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
+                  <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
+                    <th className="px-6 py-4 w-[25%]">Item</th>
+                    <th className="px-6 py-4 w-[15%]">Category</th>
+                    <th className="px-6 py-4 w-[12%] text-center">Status</th>
+                    <th className="px-6 py-4 w-[12%] text-center">Stock</th>
+                    <th className="px-6 py-4 w-[12%] text-center">Require Stock</th>
+                    <th className="px-6 py-4 w-[10%] text-center">Unit</th>
+                    <th className="px-6 py-4 w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
-                        <button onClick={() => setShowDelete(v => !v)} className={`p-1 rounded transition-colors ${showDelete ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-red-400"}`}>
+                        <button 
+                          onClick={() => setShowDelete(v => !v)} 
+                          className={`p-1 rounded-md transition-all ${showDelete ? "text-red-500 bg-red-50" : "text-slate-300 hover:text-red-400"}`}
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {loading ? (
-                    <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
+                    <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={32} /></td></tr>
                   ) : filteredIngredients.length > 0 ? (
                     filteredIngredients.map((row) => (
-                      <IngredientRow key={row.ingredient_id || row.id} row={row} onUpdateStock={handleUpdateStock} showDelete={showDelete} onDeleteClick={setIngredientToDelete} />
+                      <IngredientRow 
+                        key={row.ingredient_id || row.id} 
+                        row={row} 
+                        onUpdateStock={handleUpdateStock} 
+                        showDelete={showDelete} 
+                        onDeleteClick={setIngredientToDelete} 
+                      />
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-20 text-center">
-                        <PackageOpen className="mx-auto mb-3 text-slate-200" size={40} />
-                        <p className="text-slate-400 font-medium">No ingredients found</p>
+                      <td colSpan={7} className="py-24 text-center">
+                        <PackageOpen className="mx-auto mb-3 text-slate-200" size={48} />
+                        <p className="text-slate-400 font-medium italic">No ingredients found</p>
                       </td>
                     </tr>
                   )}
