@@ -69,7 +69,10 @@ export default function ManageMenuPage() {
     const matchesReadiness = selectedReadiness === "All" || (selectedReadiness === "ready" ? isReady : !isReady);
     return matchesSearch && matchesCategory && matchesReadiness;
   });
-const unreadyCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
+const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
+
+const readyToServeCount = menus.filter((m) => (m.portions_available ?? 0) >= 1).length;
+const unreadyToServeCount = menus.length - readyToServeCount
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -121,7 +124,7 @@ const unreadyCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length
                   </div>
                   <div>
                     <p className="text-xs text-orange-600 font-bold uppercase tracking-wide">Total</p>
-                    <p className="text-3xl font-bold text-orange-900 mt-0.5">{menus.length}</p>
+                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{menus.length}</p>
                     <p className="text-xs text-orange-500 font-medium mt-0.5">recipes</p>
                   </div>
                 </div>
@@ -130,19 +133,29 @@ const unreadyCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length
                     <CheckCircle size={18} className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Ready</p>
-                    <p className="text-3xl font-bold text-emerald-900 mt-0.5">{menus.length - unreadyCount}</p>
-                    <p className="text-xs text-emerald-500 font-medium mt-0.5">complete</p>
+                    <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Ready To Serve</p>
+                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{readyToServeCount}</p>
+                    <p className="text-xs text-emerald-500 font-medium mt-0.5">serve</p>
                   </div>
                 </div>
-                <div className={`rounded-xl border p-4 flex items-center gap-4 flex-1 ${unreadyCount > 0 ? "bg-amber-50 border-amber-100" : "bg-slate-50 border-slate-100"}`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${unreadyCount > 0 ? "bg-amber-100" : "bg-slate-200"}`}>
-                    <AlertTriangle size={18} className={unreadyCount > 0 ? "text-amber-600" : "text-slate-500"} />
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-4 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                    <CheckCircle size={18} className="text-red-600" />
                   </div>
                   <div>
-                    <p className={`text-xs font-bold uppercase tracking-wide ${unreadyCount > 0 ? "text-amber-600" : "text-slate-500"}`}>Incomplete</p>
-                    <p className={`text-3xl font-bold mt-0.5 ${unreadyCount > 0 ? "text-amber-900" : "text-slate-700"}`}>{unreadyCount}</p>
-                    <p className={`text-xs font-medium mt-0.5 ${unreadyCount > 0 ? "text-amber-500" : "text-slate-400"}`}>missing recipe</p>
+                    <p className="text-xs text-red-600 font-bold uppercase tracking-wide">Unready To Serve</p>
+                    <p className="text-3xl font-bold text-black text-slate-800 mt-0.5">{unreadyToServeCount}</p>
+                    <p className="text-xs text-red-500 font-medium mt-0.5">can't serve</p>
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-4 flex items-center gap-4 flex-1 bg-amber-50 border-amber-100`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-100 bg-slate-200}`}>
+                    <AlertTriangle size={18} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold uppercase tracking-wide text-amber-600 text-slate-500}`}>Incomplete</p>
+                    <p className={`text-3xl font-bold mt-0.5 text-black text-slate-800`}>{incompleteCount}</p>
+                    <p className={`text-xs text-amber-500 font-medium mt-0.5"}`}>missing recipe</p>
                   </div>
                 </div>
               </div>

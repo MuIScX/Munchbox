@@ -152,7 +152,7 @@ export default function InventoryLog() {
                             {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
                           </td>
                           <td className="px-6 py-4 text-slate-500 text-sm">
-                            {isStockIn ? 'Added' : 'Reduced'}{' '}
+                            {log.ingredient_name} {isStockIn ? 'added:' : 'reduced:'}{' '}
                             <span className={`font-semibold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
                               {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
                             </span>

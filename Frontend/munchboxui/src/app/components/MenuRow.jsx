@@ -19,7 +19,7 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
   const id = menu.menu_id || menu.id;
   const name = menu.menu_name || menu.name || "Unknown";
   const typeValue = menu.menu_type || menu.type;
-  const isReady = (menu.readiness ?? 0) === 1;
+  const isReady = ((menu.readiness ?? 0) === 1) && (menu.ingredient_count > 0);
   const price = menu.menu_price || menu.price || 0;
   const count = menu.ingredient_count || menu.count || 0;
   const typeStyle = TYPE_STYLE[typeValue] || "bg-slate-100 text-slate-600";
