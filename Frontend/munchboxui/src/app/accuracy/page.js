@@ -1,4 +1,5 @@
 "use client";
+// Accuracy Report — compares predicted vs actual ingredient usage
 import { useState, useEffect, useMemo } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
