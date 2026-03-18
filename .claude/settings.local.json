@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find /c/Users/MBCOMPUTER/Munchbox/frontend -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx \\\\\\))",
-      "Bash(grep -E \"^/c/Users/MBCOMPUTER/Munchbox/frontend/munchboxui/[^/]+\\\\..*$|src|app|components\")"
-    ]
-  }
-}
