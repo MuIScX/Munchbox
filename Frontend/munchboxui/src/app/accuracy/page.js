@@ -156,7 +156,7 @@ export default function AccuracyPage() {
   const fmtDate = (v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; };
 
   return (
-    <div className="flex h-screen bg-[#f6f7fb] overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Toast toast={toast} onClose={() => setToast(null)} />
       <Sidebar />
 

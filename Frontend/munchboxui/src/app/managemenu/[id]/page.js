@@ -43,7 +43,6 @@ export default function RecipeDetailPage() {
         setIngredients(merged);
       }
     } catch (err) {
-      console.error("Error fetching recipe details:", err);
     } finally {
       setLoading(false);
     }

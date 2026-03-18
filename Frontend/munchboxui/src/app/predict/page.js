@@ -234,7 +234,7 @@ export default function PredictPage() {
     : 0;
 
   return (
-    <div className="flex h-screen bg-[#f6f7fb] overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Toast toast={toast} onClose={() => setToast(null)} />
       <Sidebar />
 

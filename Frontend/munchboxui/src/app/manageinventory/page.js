@@ -32,8 +32,7 @@ export default function Home() {
       setLoading(true);
       const response = await IngredientAPI.list({});
       setIngredients(Array.isArray(response?.Data) ? response.Data : []);
-    } catch (error) {
-      console.error("Failed to fetch ingredients:", error);
+    } catch {
       setIngredients([]);
     } finally {
       setLoading(false);
@@ -49,8 +48,8 @@ export default function Home() {
           setSelectedStaff(response.Data[0].staff_id || response.Data[0].id);
         }
       }
-    } catch (error) {
-      console.error("Failed to fetch staff:", error);
+    } catch {
+      // staff list unavailable
     }
   };
 
@@ -201,7 +200,7 @@ export default function Home() {
             
             <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
               <div className="shrink-0">
-                <h2 className="font-bold text-slate-800 text-lg italic leading-tight">Inventory List</h2>
+                <h2 className="font-bold text-slate-800 text-lg leading-tight">Inventory List</h2>
                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
                   {filteredIngredients.length} items found
                 </p>

@@ -148,7 +148,7 @@ export default function ViewReports() {
 const formatCurrency = (val) =>
   new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
   return (
-    <div className="flex h-screen bg-[#f8f9fa] font-sans overflow-hidden">
+    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="p-8 overflow-y-auto custom-scrollbar space-y-6 relative">

@@ -39,7 +39,7 @@ export default function EditMenuModal({ isOpen, onClose, onSuccess, initialMenu,
       // Load master list of ingredients for the dropdown
       IngredientAPI.list({}).then(res => {
         if (res?.Data) setAvailableIngredients(res.Data);
-      }).catch(err => console.error(err));
+      }).catch(() => {});
     }
   }, [isOpen, initialMenu, initialIngredients]);
 
@@ -148,7 +148,6 @@ export default function EditMenuModal({ isOpen, onClose, onSuccess, initialMenu,
         onSuccess(); // Refresh the parent page
         onClose();   // Close modal
     } catch (err) {
-        console.error("Save Error:", err);
         setError(err.message || "Failed to update recipe");
     } finally {
         setLoading(false);
@@ -156,7 +155,7 @@ export default function EditMenuModal({ isOpen, onClose, onSuccess, initialMenu,
     };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 py-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm py-10">
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-full">
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
           <h2 className="text-xl font-bold italic text-slate-800">Edit Recipe: {formData.name}</h2>

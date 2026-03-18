@@ -33,8 +33,7 @@ export default function ManageMenuPage() {
       setLoading(true);
       const res = await MenuAPI.list({ restaurant_id: 1 });
       setMenus(Array.isArray(res?.Data) ? res.Data : []);
-    } catch (err) {
-      console.error(err.message);
+    } catch {
       setMenus([]);
     } finally {
       setLoading(false);

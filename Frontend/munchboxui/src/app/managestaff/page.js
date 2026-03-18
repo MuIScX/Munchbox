@@ -27,8 +27,7 @@ export default function ManageStaffPage() {
       setLoading(true);
       const res = await StaffAPI.list();
       setStaff(Array.isArray(res?.Data) ? res.Data : []);
-    } catch (err) {
-      console.error(err.message);
+    } catch {
       setStaff([]);
     } finally {
       setLoading(false);

@@ -20,12 +20,11 @@ export default function InventoryLog() {
       setLoading(true);
       // Passing null to get all logs, or a specific ID if you wanted to filter by ingredient
       const response = await IngredientAPI.log(null); 
-      console.log(response.Data)
       if (response && Array.isArray(response.Data)) {
         setLogs(response.Data);
       }
-    } catch (error) {
-      console.error("Failed to fetch logs:", error);
+    } catch {
+      // logs unavailable
     } finally {
       setLoading(false);
     }
@@ -37,8 +36,8 @@ export default function InventoryLog() {
       if (response && Array.isArray(response.Data)) {
         setStaffList(response.Data);
       }
-    } catch (error) {
-      console.error("Failed to fetch staff:", error);
+    } catch {
+      // staff list unavailable
     }
   };
 

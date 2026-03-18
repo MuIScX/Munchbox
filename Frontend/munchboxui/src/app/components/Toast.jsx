@@ -13,7 +13,7 @@ export default function Toast({ toast, onClose }) {
 
   const isSuccess = toast.type === "success";
   return (
-    <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all ${
+    <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-in slide-in-from-top-2 fade-in duration-200 ${
       isSuccess
         ? "bg-emerald-50 border-emerald-200 text-emerald-700"
         : "bg-red-50 border-red-200 text-red-700"

@@ -61,9 +61,8 @@ export default function Home() {
 
     try {
       setLoading(true);
-      const response = await AuthAPI.login(emailValue, passwordValue);
-      console.log("Login success:", response);
-      router.push("/dashboard"); 
+      await AuthAPI.login(emailValue, passwordValue);
+      router.push("/dashboard");
     } catch (error) {
       const msg = error.message || "";
       if (msg.includes("User not found")) {
