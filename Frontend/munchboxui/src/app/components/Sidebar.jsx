@@ -101,8 +101,6 @@ export default function Sidebar() {
       title: 'QUICK ACCESS',
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: Home, color: 'text-orange-500' },
-        { name: 'View Reports', path: '/reports/', icon: FileChartColumn, color: 'text-emerald-500' },
-        { name: 'Manage Inventory', path: '/manageinventory/', icon: Package, iconActive: PackageOpen, color: 'text-blue-500' },
       ],
     },
     {
