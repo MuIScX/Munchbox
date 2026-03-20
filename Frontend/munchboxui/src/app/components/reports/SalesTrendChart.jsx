@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, defs, linearGradient, stop } from "recharts";
 import { Loader2 } from "lucide-react";
 
 function CustomTooltip({ active, payload, label }) {
@@ -69,20 +69,27 @@ export default function SalesTrendChart({
 
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
+              <defs>
+                <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.50} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis tick={false} axisLine={false} />
               <RechartsTooltip content={<CustomTooltip />} />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="order"
                 stroke="#3b82f6"
                 strokeWidth={4}
+                fill="url(#salesGradient)"
                 dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 italic">No trend data available</div>
