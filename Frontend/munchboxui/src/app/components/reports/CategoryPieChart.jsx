@@ -2,13 +2,17 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
+const formatTHB = (val) =>
+  new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(val);
+
 export default function CategoryPieChart({ data }) {
   const sorted = [...data].sort((a, b) => b.value - a.value);
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
-      <h2 className="text-lg font-bold italic text-slate-800 mb-4">Category Breakdown</h2>
+      <h2 className="text-lg font-bold italic text-slate-800 mb-1">Revenue by Category</h2>
+      <p className="text-xs text-slate-400 mb-4">Share of total revenue per menu type</p>
       <div className="flex-1 flex items-center justify-center">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
@@ -27,7 +31,7 @@ export default function CategoryPieChart({ data }) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <RechartsTooltip formatter={(value) => `${value} orders`} />
+              <RechartsTooltip formatter={(value) => formatTHB(value)} />
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -45,7 +49,7 @@ export default function CategoryPieChart({ data }) {
                 <span className="text-slate-600 font-medium">{entry.name}</span>
               </div>
               <div className="flex items-center gap-3 text-slate-500">
-                <span>{entry.value.toLocaleString()} orders</span>
+                <span>{formatTHB(entry.value)}</span>
                 <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full font-semibold">
                   {total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0}%
                 </span>

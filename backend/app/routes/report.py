@@ -108,19 +108,26 @@ def get_share_menu(
 
 @router.post("/share/category")
 def get_share_category(
-    body: ReportMenuRequestWithDate,  # ← NOW HAS BODY
+    body: ReportMenuRequestWithDate,
     identity: dict = Depends(decode_token),
     db: Session = Depends(get_db),
 ):
     q = (
-        db.query(Menu.type, func.sum(SaleData.amount).label("total_order"))
+        db.query(
+            Menu.type,
+            func.sum(SaleData.amount).label("total_order"),
+            func.sum(SaleData.amount * Menu.price).label("revenue"),
+        )
         .join(Menu, SaleData.menu_id == Menu.id)
         .filter(SaleData.restaurant_id == identity["restaurantId"])
         .group_by(Menu.type)
     )
     q = apply_date_filter(q, body)
     rows = q.all()
-    return {"message": "success", "Data": [{"type": r[0], "total_order": int(r[1] or 0)} for r in rows]}
+    return {"message": "success", "Data": [
+        {"type": r[0], "total_order": int(r[1] or 0), "revenue": float(r[2] or 0)}
+        for r in rows
+    ]}
 
 
 @router.post("/trend/menu")

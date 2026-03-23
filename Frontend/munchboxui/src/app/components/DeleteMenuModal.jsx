@@ -19,9 +19,9 @@ export default function DeleteMenuModal({ isOpen, onClose, onConfirm, menuName }
         <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-4">
           <AlertTriangle className="h-7 w-7 text-red-600" />
         </div>
-        <h3 className="text-xl font-bold italic text-slate-800 mb-2">Delete Menu</h3>
+        <h3 className="text-xl font-bold italic text-slate-800 mb-2">Delete Recipe</h3>
         <p className="text-sm text-slate-500 mb-6">
-          Are you sure you want to delete <span className="font-bold text-slate-700">"{menuName}"</span>? 
+          Are you sure you want to delete <span className="font-bold text-slate-700">"{menuName}"</span>?
           This will also remove its recipe.
         </p>
         <div className="flex gap-3">

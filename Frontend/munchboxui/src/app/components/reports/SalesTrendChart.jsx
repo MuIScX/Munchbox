@@ -17,8 +17,6 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
 export default function SalesTrendChart({
   data,
   menuList,
@@ -27,14 +25,14 @@ export default function SalesTrendChart({
   trendLoading,
   globalLoading,
   shareAllTime,
-  selectedMonth,
-  selectedYear,
+  startDate,
+  endDate,
   tableData = [],
   formatCurrency,
 }) {
   const trendLabel = shareAllTime
     ? "All Time"
-    : `${MONTHS[selectedMonth]} ${selectedYear}`;
+    : `${startDate || "—"} to ${endDate || "—"}`;
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
@@ -107,7 +105,7 @@ export default function SalesTrendChart({
                   <th className="text-left px-4 py-2.5 text-xs font-semibold italic text-slate-500">Item</th>
                   <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Orders</th>
                   <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Revenue</th>
-                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Share</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold italic text-slate-500">Revenue Share</th>
                 </tr>
               </thead>
               <tbody>

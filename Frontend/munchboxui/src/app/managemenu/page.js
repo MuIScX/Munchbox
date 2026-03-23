@@ -145,7 +145,7 @@ export default function ManageMenuPage() {
                     <AlertTriangle size={18} className="text-red-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-red-600 font-bold uppercase tracking-wide">Unready To Serve</p>
+                    <p className="text-xs text-red-600 font-bold uppercase tracking-wide">Not Ready to Serve</p>
                     <p className="text-3xl font-bold text-slate-800 mt-0.5">{unreadyToServeCount}</p>
                     <p className="text-xs text-red-500 font-medium mt-0.5">can't serve</p>
                   </div>

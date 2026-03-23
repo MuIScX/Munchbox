@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
-import { Minus, Plus, Check, X, Trash2, Pencil } from 'lucide-react';
+import { Check, X, Trash2, Pencil } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function IngredientRow({ row, onUpdateStock, showDelete, onDeleteClick }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(0);
+  const [editValue, setEditValue] = useState("");
 
   const currentId = row.ingredient_id || row.id;
   const name = row.ingredient_name || row.name || row.item;
@@ -13,24 +13,24 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
   const currentStock = Number(row.stock_left ?? row.stock ?? 0);
   const isOk = currentStock >= minVal;
 
-  const changeAmount = Number(editValue) || 0;
-  const previewStock = isEditing ? Number((currentStock + changeAmount).toFixed(3)) : currentStock;
+  const newStock = editValue === "" ? currentStock : Number(editValue);
+  const hasChanged = isEditing && newStock !== currentStock;
 
   let stockColorClass = "text-slate-800 font-semibold";
-  if (isEditing) {
-    if (changeAmount > 0) stockColorClass = "text-emerald-600 font-semibold";
-    else if (changeAmount < 0) stockColorClass = "text-red-500 font-semibold";
+  if (isEditing && hasChanged) {
+    stockColorClass = newStock >= minVal ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold";
   }
 
   const handleSave = () => {
-    onUpdateStock(currentId, currentStock, changeAmount);
+    if (editValue === "") return;
+    onUpdateStock(currentId, newStock);
     setIsEditing(false);
-    setEditValue(0);
+    setEditValue("");
   };
 
   const handleCancel = () => {
     setIsEditing(false);
-    setEditValue(0);
+    setEditValue("");
   };
 
   return (
@@ -43,7 +43,7 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
         </span>
       </td>
       <td className={`px-6 py-4 text-center transition-colors duration-200 ${stockColorClass}`}>
-        {previewStock}
+        {isEditing && editValue !== "" ? newStock : currentStock}
       </td>
       <td className="px-6 py-4 text-center text-slate-600 font-medium">{minVal}</td>
       <td className="px-6 py-4 text-center text-slate-500 text-sm">{row.unit}</td>
@@ -51,22 +51,25 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
         <div className="flex justify-center items-center gap-3">
           {isEditing ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center border-2 border-orange-400 rounded-xl px-2 py-1 gap-2 bg-white">
-                <button onClick={() => setEditValue(v => (Number(v) || 0) - 1)} className="text-red-400 hover:text-red-600 transition-colors"><Minus size={15}/></button>
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="font-bold text-slate-700 w-12 text-center bg-transparent border-none p-0 outline-none focus:ring-0 [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <button onClick={() => setEditValue(v => (Number(v) || 0) + 1)} className="text-emerald-500 hover:text-emerald-700 transition-colors"><Plus size={15}/></button>
-              </div>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={editValue}
+                placeholder={currentStock}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") handleCancel(); }}
+                autoFocus
+                className="font-bold text-slate-700 w-24 text-center border-2 border-orange-400 rounded-xl px-2 py-1 outline-none focus:ring-0 [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <div className="flex gap-1">
               <button onClick={handleSave} className="p-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors">
                 <Check className="text-emerald-600" size={16} />
               </button>
               <button onClick={handleCancel} className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
                 <X className="text-red-500" size={16} />
               </button>
+            </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">

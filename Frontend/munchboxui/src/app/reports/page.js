@@ -12,23 +12,13 @@ import SalesReportTable from "../components/reports/SalesReportTable";
 
 const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'];
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-function getMonthRange(year, month) {
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0);
-  return {
-    start_date: start.toISOString().split("T")[0],
-    end_date: end.toISOString().split("T")[0],
-  };
-}
 
 const now = new Date();
-const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+const todayStr = now.toISOString().split("T")[0];
 
 export default function ViewReports() {
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [shareAllTime, setShareAllTime] = useState(true);
 
   const [loading, setLoading] = useState(true);
@@ -43,36 +33,33 @@ export default function ViewReports() {
   const [tableData, setTableData] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState("All");
 
-  const dateRange = getMonthRange(selectedYear, selectedMonth);
-  const shareDateRange = shareAllTime ? { start_date: null, end_date: null } : dateRange;
-  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+  const dateRange = shareAllTime
+    ? { start_date: null, end_date: null }
+    : { start_date: startDate || null, end_date: endDate || null };
 
-  const handleMonthChange = (val) => {
-    if (val === "all") {
-      setShareAllTime(true);
-    } else {
-      setShareAllTime(false);
-      setSelectedMonth(Number(val));
-    }
+  const handleStartDateChange = (val) => {
+    setStartDate(val);
+    setShareAllTime(!val && !endDate);
   };
 
-  const handleYearChange = (val) => {
-    if (val === "all") {
-      setShareAllTime(true);
-    } else {
-      setShareAllTime(false);
-      setSelectedYear(Number(val));
-    }
+  const handleEndDateChange = (val) => {
+    setEndDate(val);
+    setShareAllTime(!startDate && !val);
+  };
+
+  const handleClearDates = () => {
+    setStartDate("");
+    setEndDate("");
+    setShareAllTime(true);
   };
 
   // KPI + menu list
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      const kpiRange = shareAllTime ? { start_date: null, end_date: null } : dateRange;
       const results = await Promise.allSettled([
-        ReportAPI.orders(null, kpiRange),
-        ReportAPI.revenue(null, kpiRange),
+        ReportAPI.orders(null, dateRange),
+        ReportAPI.revenue(null, dateRange),
         MenuAPI.list(),
       ]);
       const [ordersRes, revenueRes, menuListRes] = results;
@@ -85,21 +72,21 @@ export default function ViewReports() {
       setLoading(false);
     };
     fetch();
-  }, [selectedYear, selectedMonth, shareAllTime]);
+  }, [startDate, endDate, shareAllTime]);
 
   // Share pie + table
   useEffect(() => {
     const fetch = async () => {
       setShareLoading(true);
       const results = await Promise.allSettled([
-        ReportAPI.shareCategory(shareDateRange.start_date, shareDateRange.end_date),
-        ReportAPI.shareMenu(shareDateRange.start_date, shareDateRange.end_date),
+        ReportAPI.shareCategory(dateRange.start_date, dateRange.end_date),
+        ReportAPI.shareMenu(dateRange.start_date, dateRange.end_date),
       ]);
       const [categoryRes, menuRes] = results;
       if (categoryRes.status === "fulfilled" && Array.isArray(categoryRes.value?.Data))
         setCategoryData(categoryRes.value.Data.map((item, i) => ({
           name: TYPE_MAP[item.type] || `Type ${item.type}`,
-          value: item.total_order || 0,
+          value: item.revenue || 0,
           color: COLORS[i % COLORS.length],
         })));
       if (menuRes.status === "fulfilled" && Array.isArray(menuRes.value?.Data))
@@ -113,7 +100,7 @@ export default function ViewReports() {
       setShareLoading(false);
     };
     fetch();
-  }, [selectedYear, selectedMonth, shareAllTime]);
+  }, [startDate, endDate, shareAllTime]);
 
   // Trend line
   useEffect(() => {
@@ -121,8 +108,7 @@ export default function ViewReports() {
       setTrendLoading(true);
       try {
         const menuId = selectedMenu === "All" ? null : Number(selectedMenu);
-        const trendRange = shareAllTime ? { start_date: null, end_date: null } : dateRange;
-        const res = await ReportAPI.trendMenu(menuId, trendRange);
+        const res = await ReportAPI.trendMenu(menuId, dateRange);
         if (Array.isArray(res?.Data)) {
           if (shareAllTime) {
             const monthMap = {};
@@ -143,7 +129,7 @@ export default function ViewReports() {
       finally { setTrendLoading(false); }
     };
     fetch();
-  }, [selectedMenu, selectedYear, selectedMonth, shareAllTime]);
+  }, [selectedMenu, startDate, endDate, shareAllTime]);
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
@@ -169,33 +155,42 @@ const formatCurrency = (val) =>
                     <BarChart2 size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">View Reports</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Reports</h1>
                     <p className="text-sm text-slate-400 mt-0.5">Analyze sales trends and revenue data</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <div>
-                    <label className="block text-xs text-slate-400 font-medium mb-1">Month</label>
-                    <select
-                      value={shareAllTime ? "all" : selectedMonth}
-                      onChange={(e) => handleMonthChange(e.target.value)}
+                    <label className="block text-xs text-slate-400 font-medium mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      max={endDate || todayStr}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="all">All Time</option>
-                      {MONTHS.map((m, i) => (<option key={i} value={i}>{m}</option>))}
-                    </select>
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 font-medium mb-1">Year</label>
-                    <select
-                      value={shareAllTime ? "all" : selectedYear}
-                      onChange={(e) => handleYearChange(e.target.value)}
+                    <label className="block text-xs text-slate-400 font-medium mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate}
+                      max={todayStr}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="all">All Time</option>
-                      {YEAR_OPTIONS.map((y) => (<option key={y} value={y}>{y}</option>))}
-                    </select>
+                    />
                   </div>
+                  {!shareAllTime && (
+                    <div className="self-end">
+                      <button
+                        onClick={handleClearDates}
+                        className="px-3 py-2 text-xs text-slate-500 hover:text-red-500 border border-slate-200 rounded-xl bg-slate-50 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <KPICards
@@ -215,8 +210,8 @@ const formatCurrency = (val) =>
               trendLoading={trendLoading}
               globalLoading={loading}
               shareAllTime={shareAllTime}
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
+              startDate={startDate}
+              endDate={endDate}
               tableData={tableData}
               formatCurrency={formatCurrency}
             />
@@ -241,8 +236,8 @@ const formatCurrency = (val) =>
               tableData={tableData}
               formatCurrency={formatCurrency}
               shareAllTime={shareAllTime}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
+              startDate={startDate}
+              endDate={endDate}
             />
           </div>
 

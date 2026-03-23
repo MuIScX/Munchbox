@@ -1,14 +1,12 @@
 "use client";
 import React, { useState } from "react";
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
 export default function SalesReportTable({
   tableData,
   formatCurrency,
   shareAllTime,
-  selectedYear,
-  selectedMonth,
+  startDate,
+  endDate,
 }) {
   const [sortOption, setSortOption] = useState("Top Sell");
 
@@ -44,7 +42,7 @@ export default function SalesReportTable({
 
         <div className="min-w-[90px] text-center">
           <p className="text-sm font-semibold text-gray-800">
-            {shareAllTime ? "All Time" : `${MONTHS[selectedMonth]} ${selectedYear}`}
+            {shareAllTime ? "All Time" : `${startDate || "—"} to ${endDate || "—"}`}
           </p>
         </div>
       </div>
@@ -56,7 +54,7 @@ export default function SalesReportTable({
               <th className="px-6 py-4 rounded-l-xl">Item</th>
               <th className="px-6 py-4">Orders</th>
               <th className="px-6 py-4">Revenue</th>
-              <th className="px-6 py-4 rounded-r-xl">Share</th>
+              <th className="px-6 py-4 rounded-r-xl">Revenue Share</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">

@@ -17,7 +17,7 @@ class IngredientCreate(BaseModel):
 class IngredientStockUpdate(BaseModel):
     ingredient_id: int
     new_stock: float
-    staff_id: int
+    staff_id: Optional[int] = None
 
 
 class IngredientStatusRequest(BaseModel):

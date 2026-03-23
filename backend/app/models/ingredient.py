@@ -23,6 +23,6 @@ class IngredientHistory(Base):
     action_type   = Column(Integer, nullable=False)
     amount        = Column(DECIMAL(8, 2), nullable=False)
     ingredient_id = Column(BigInteger, nullable=False)
-    staff_id      = Column(BigInteger, nullable=False)
+    staff_id      = Column(BigInteger, nullable=True)
     restaurant_id = Column(BigInteger, nullable=False)
     new_current   = Column(Integer, nullable=True)

@@ -3,10 +3,9 @@
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
-import StaffGateModal from "../components/StaffGateModal";
 import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
-import { IngredientAPI, StaffAPI } from "../../lib/api";
+import { IngredientAPI } from "../../lib/api";
 import Toast from "../components/Toast";
 import { Search, Plus, Loader2, Trash2, PackageOpen, Package, CheckCircle, AlertTriangle } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
@@ -14,10 +13,7 @@ import { CATEGORY_MAP } from "../../lib/schema";
 export default function Home() {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [staffList, setStaffList] = useState([]);
-  const [selectedStaff, setSelectedStaff] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
-  const [isStaffGateOpen, setIsStaffGateOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -39,36 +35,15 @@ export default function Home() {
     }
   };
 
-  const fetchStaff = async () => {
-    try {
-      const response = await StaffAPI.list();
-      if (response && Array.isArray(response.Data)) {
-        setStaffList(response.Data);
-        if (response.Data.length > 0) {
-          setSelectedStaff(response.Data[0].staff_id || response.Data[0].id);
-        }
-      }
-    } catch {
-      // staff list unavailable
-    }
-  };
-
   useEffect(() => {
     fetchIngredients();
-    fetchStaff();
   }, []);
 
-  const handleUpdateStock = async (ingredientId, currentStock, changeAmount) => {
-    if (!selectedStaff) {
-      showToast("error", "Please select a staff member before updating stock.");
-      return;
-    }
-    const calculatedNewStock = Number((currentStock + changeAmount).toFixed(3));
+  const handleUpdateStock = async (ingredientId, newStock) => {
     try {
       await IngredientAPI.updateStock({
         ingredient_id: ingredientId,
-        new_stock: calculatedNewStock,
-        staff_id: selectedStaff
+        new_stock: Number(newStock),
       });
       fetchIngredients();
     } catch (error) {
@@ -121,14 +96,6 @@ export default function Home() {
         existingIngredients={ingredients}
       />
 
-      <StaffGateModal
-        isOpen={isStaffGateOpen}
-        staffList={staffList}
-        selectedStaff={selectedStaff}
-        onSelect={setSelectedStaff}
-        onConfirm={() => setIsStaffGateOpen(false)}
-      />
-
       <DeleteIngredientModal
         isOpen={!!ingredientToDelete}
         onClose={() => setIngredientToDelete(null)}
@@ -149,8 +116,8 @@ export default function Home() {
                     <PackageOpen size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Manage Inventory</h1>
-                    <p className="text-sm text-slate-400 mt-0.5">Track and update ingredient stock levels</p>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Update Inventory</h1>
+                    <p className="text-sm text-slate-400 mt-0.5">Record current stock levels for each ingredient</p>
                   </div>
                 </div>
                 <button
@@ -233,26 +200,14 @@ export default function Home() {
                   ))}
                 </select>
 
-                <select 
-                  value={selectedStatus} 
-                  onChange={(e) => setSelectedStatus(e.target.value)} 
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300"
                 >
                   <option value="All">Status: All</option>
                   <option value="ok">OK</option>
                   <option value="low_stock">Low Stock</option>
-                </select>
-
-                <select 
-                  value={selectedStaff} 
-                  onChange={(e) => setSelectedStaff(e.target.value)} 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300 ml-auto"
-                >
-                  <option value="" disabled>Select Staff</option>
-                  {staffList.map((staff) => {
-                    const id = staff.staff_id || staff.id;
-                    return <option key={id} value={id}>Staff: {staff.name || staff.username || `#${id}`}</option>;
-                  })}
                 </select>
               </div>
             </div>
