@@ -79,7 +79,7 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
             action_type=action_type,
             amount=abs(new_stock - current),
             ingredient_id=body.ingredient_id,
-            staff_id=body.staff_id,
+            staff_id=body.staff_id or 0,
             restaurant_id=identity["restaurantId"],
             new_current=int(new_stock),
         ))
