@@ -71,7 +71,7 @@ export default function ManageMenuPage() {
   });
   
   const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
-  const readyToServeCount = menus.filter((m) => (m.portions_available ?? 0) >= 1).length;
+const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.ingredient_count > 0)).length;
   const unreadyToServeCount = Math.max(0, menus.length - readyToServeCount);
 
   return (
