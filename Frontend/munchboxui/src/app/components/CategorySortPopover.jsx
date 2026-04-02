@@ -8,11 +8,22 @@ export default function CategorySortPopover({ isOpen, onClose, categoryOrder, on
   const ref = useRef(null);
   const listRef = useRef(null);
   const [order, setOrder] = useState(categoryOrder);
-  const [dragState, setDragState] = useState(null);
-  // dragState: { fromIndex, overIndex, ghostX, ghostY, label }
+  const orderRef = useRef(order);
 
-  useEffect(() => { setOrder(categoryOrder); }, [categoryOrder]);
+  // dragRef holds all mutable drag state — avoids stale closures entirely
+  const dragRef = useRef(null); // { fromIndex, overIndex }
+  const [dragState, setDragState] = useState(null); // { fromIndex, overIndex, ghostX, ghostY }
 
+  useEffect(() => {
+    orderRef.current = order;
+  }, [order]);
+
+  useEffect(() => {
+    setOrder(categoryOrder);
+    orderRef.current = categoryOrder;
+  }, [categoryOrder]);
+
+  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) onClose();
@@ -23,74 +34,85 @@ export default function CategorySortPopover({ isOpen, onClose, categoryOrder, on
 
   const handlePointerDown = useCallback((e, index) => {
     e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
 
-    const startY = e.clientY;
-    const listTop = listRef.current?.getBoundingClientRect().top ?? 0;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    dragRef.current = { fromIndex: index, overIndex: index };
 
     setDragState({
       fromIndex: index,
       overIndex: index,
       ghostX: e.clientX,
       ghostY: e.clientY,
-      label: categoryMap[order[index]],
+      offsetX,
+      offsetY,
+      active: false,
     });
 
+    const startX = e.clientX;
+    const startY = e.clientY;
+
     const onMove = (e) => {
-      const relY = e.clientY - listTop;
-      const over = Math.max(0, Math.min(order.length - 1, Math.floor(relY / ITEM_H)));
-      setDragState(prev => prev ? { ...prev, overIndex: over, ghostX: e.clientX, ghostY: e.clientY } : null);
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const listRect = listRef.current?.getBoundingClientRect();
+      if (!listRect) return;
+      const relY = e.clientY - listRect.top;
+      const over = Math.max(0, Math.min(orderRef.current.length - 1, Math.floor(relY / ITEM_H)));
+      dragRef.current.overIndex = over;
+      setDragState(prev => prev ? {
+        ...prev,
+        overIndex: over,
+        ghostX: e.clientX,
+        ghostY: e.clientY,
+        active: prev.active || Math.sqrt(dx * dx + dy * dy) > 5,
+      } : null);
     };
 
     const onUp = () => {
-      setDragState(prev => {
-        if (prev) {
-          setOrder(old => {
-            const next = [...old];
-            const [moved] = next.splice(prev.fromIndex, 1);
-            next.splice(prev.overIndex, 0, moved);
-            setTimeout(() => onChange(next), 0);
-            return next;
-          });
-        }
-        return null;
-      });
+      const { fromIndex, overIndex } = dragRef.current;
+      if (fromIndex !== overIndex) {
+        const next = [...orderRef.current];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(overIndex, 0, moved);
+        setOrder(next);
+        orderRef.current = next;
+        setTimeout(() => onChange(next), 0);
+      }
+      dragRef.current = null;
+      setDragState(null);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [order, categoryMap, onChange]);
+  }, [onChange]);
 
   if (!isOpen) return null;
 
-  // Calculate visual Y offset for each item during drag
   const getTranslateY = (index) => {
     if (!dragState) return 0;
     const { fromIndex, overIndex } = dragState;
-    if (index === fromIndex) return 0; // ghost handles the dragged item visually
-    if (fromIndex < overIndex) {
-      // dragging downward: items between shift up
-      if (index > fromIndex && index <= overIndex) return -ITEM_H;
-    } else {
-      // dragging upward: items between shift down
-      if (index < fromIndex && index >= overIndex) return ITEM_H;
-    }
+    if (index === fromIndex) return 0;
+    if (fromIndex < overIndex && index > fromIndex && index <= overIndex) return -ITEM_H;
+    if (fromIndex > overIndex && index < fromIndex && index >= overIndex) return ITEM_H;
     return 0;
   };
 
   return (
     <>
-      {/* Floating ghost chip following cursor */}
-      {dragState && (
+      {/* Ghost chip following cursor */}
+      {dragState?.active && (
         <div
           className="fixed z-[100] pointer-events-none"
-          style={{ left: dragState.ghostX - 12, top: dragState.ghostY - ITEM_H / 2 }}
+          style={{ left: dragState.ghostX - dragState.offsetX, top: dragState.ghostY - dragState.offsetY }}
         >
-          <div className="flex items-center gap-2 pl-2 pr-4 py-2.5 bg-white border border-orange-300 rounded-xl shadow-xl text-sm font-semibold text-slate-700 opacity-95 w-44">
+          <div className="flex items-center gap-2 pl-2 pr-4 py-2.5 bg-white border border-orange-300 rounded-xl shadow-xl text-sm font-semibold text-slate-700 w-44">
             <GripVertical size={14} className="text-orange-400 shrink-0" />
-            {dragState.label}
+            {categoryMap[order[dragState.fromIndex]]}
           </div>
         </div>
       )}
@@ -107,38 +129,32 @@ export default function CategorySortPopover({ isOpen, onClose, categoryOrder, on
           </button>
         </div>
 
-        {/* List with fixed height so items can shift via transform */}
         <div
           ref={listRef}
-          className="py-1 select-none relative"
+          className="relative select-none"
           style={{ height: order.length * ITEM_H }}
         >
           {order.map((catId, index) => {
             const isDragging = dragState?.fromIndex === index;
-            const translateY = getTranslateY(index);
             return (
               <div
                 key={catId}
                 style={{
-                  transform: `translateY(${translateY}px)`,
-                  transition: isDragging ? "none" : "transform 150ms ease",
-                  opacity: isDragging ? 0 : 1,
-                  height: ITEM_H,
                   position: "absolute",
                   top: index * ITEM_H,
                   left: 0,
                   right: 0,
+                  height: ITEM_H,
+                  transform: `translateY(${getTranslateY(index)}px)`,
+                  transition: isDragging ? "none" : "transform 150ms ease",
+                  opacity: isDragging && dragState?.active ? 0 : 1,
                 }}
-                className="flex items-center gap-2.5 px-3"
+                onPointerDown={(e) => handlePointerDown(e, index)}
+                className="flex items-center gap-2.5 px-3 cursor-grab active:cursor-grabbing"
               >
-                <div
-                  onPointerDown={(e) => handlePointerDown(e, index)}
-                  className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1"
-                >
-                  <GripVertical size={14} className="text-slate-300 hover:text-slate-400 transition-colors" />
-                </div>
-                <span className="text-[10px] font-black text-slate-300 w-4 shrink-0">{index + 1}</span>
-                <span className="text-sm font-medium text-slate-700">{categoryMap[catId]}</span>
+                  <GripVertical size={14} className="text-slate-300 shrink-0" />
+                  <span className="text-[10px] font-black text-slate-300 w-4 shrink-0">{index + 1}</span>
+                  <span className="text-sm font-medium text-slate-700">{categoryMap[catId]}</span>
               </div>
             );
           })}

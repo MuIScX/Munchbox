@@ -24,7 +24,24 @@ export default function Home() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [ingredientToEdit, setIngredientToEdit] = useState(null);
   const [showSortModal, setShowSortModal] = useState(false);
-  const [categoryOrder, setCategoryOrder] = useState(Object.keys(CATEGORY_MAP));
+  const [categoryOrder, setCategoryOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("inventory_category_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // ensure all current categories are included
+        const allKeys = Object.keys(CATEGORY_MAP);
+        const merged = [...parsed.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !parsed.includes(k))];
+        return merged;
+      }
+    } catch {}
+    return Object.keys(CATEGORY_MAP);
+  });
+
+  const handleCategoryOrderChange = (newOrder) => {
+    setCategoryOrder(newOrder);
+    localStorage.setItem("inventory_category_order", JSON.stringify(newOrder));
+  };
   const [toast, setToast] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
@@ -222,7 +239,7 @@ export default function Home() {
                     isOpen={showSortModal}
                     onClose={() => setShowSortModal(false)}
                     categoryOrder={categoryOrder}
-                    onChange={setCategoryOrder}
+                    onChange={handleCategoryOrderChange}
                     categoryMap={CATEGORY_MAP}
                   />
                 </div>
