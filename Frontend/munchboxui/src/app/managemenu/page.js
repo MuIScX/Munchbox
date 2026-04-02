@@ -7,9 +7,10 @@ import DeleteMenuModal from "../components/DeleteMenuModal";
 import MenuRow from "../components/MenuRow";
 import Toast from "../components/Toast";
 import IngredientFilterPopover from "../components/IngredientFilterPopover";
+import CategorySortPopover from "../components/CategorySortPopover";
 import { MenuAPI, IngredientAPI, RecipeAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal } from "lucide-react";
+import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -28,6 +29,23 @@ export default function ManageMenuPage() {
   const [menuToDelete, setMenuToDelete] = useState(null);
 
   const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const [showSortPopover, setShowSortPopover] = useState(false);
+  const [typeOrder, setTypeOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("recipe_type_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const allKeys = Object.keys(TYPE_MAP);
+        return [...parsed.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !parsed.includes(k))];
+      }
+    } catch {}
+    return Object.keys(TYPE_MAP);
+  });
+
+  const handleTypeOrderChange = (newOrder) => {
+    setTypeOrder(newOrder);
+    localStorage.setItem("recipe_type_order", JSON.stringify(newOrder));
+  };
   const [allIngredients, setAllIngredients] = useState([]);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [recipeMap, setRecipeMap] = useState([]); // [{menu_id, ingredient_id}]
@@ -95,6 +113,10 @@ export default function ManageMenuPage() {
     }
 
     return matchesSearch && matchesCategory && matchesIngredients;
+  }).sort((a, b) => {
+    const ai = typeOrder.indexOf(String(a.menu_type || a.type));
+    const bi = typeOrder.indexOf(String(b.menu_type || b.type));
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 
   return (
@@ -153,7 +175,7 @@ export default function ManageMenuPage() {
 
               <div className="w-px h-8 mx-4 bg-slate-100" />
 
-              <div className="flex gap-3 items-center flex-1">
+              <div className="flex gap-3 items-center flex-1 justify-between">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
@@ -200,6 +222,26 @@ export default function ManageMenuPage() {
                     selected={selectedIngredients}
                     onToggle={handleIngredientToggle}
                     onClear={() => setSelectedIngredients([])}
+                  />
+                </div>
+
+                {/* Sort by type popover */}
+                <div className="relative ml-auto">
+                  <button
+                    onClick={() => setShowSortPopover(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                      showSortPopover ? "bg-orange-500 border-orange-500 text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <ArrowUpDown size={13} /> Sort
+                  </button>
+                  <CategorySortPopover
+                    isOpen={showSortPopover}
+                    onClose={() => setShowSortPopover(false)}
+                    categoryOrder={typeOrder}
+                    onChange={handleTypeOrderChange}
+                    categoryMap={TYPE_MAP}
+                    title="Type Order"
                   />
                 </div>
               </div>

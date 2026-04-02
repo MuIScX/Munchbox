@@ -4,7 +4,7 @@ import { GripVertical, X } from "lucide-react";
 
 const ITEM_H = 44;
 
-export default function CategorySortPopover({ isOpen, onClose, categoryOrder, onChange, categoryMap }) {
+export default function CategorySortPopover({ isOpen, onClose, categoryOrder, onChange, categoryMap, title = "Category Order" }) {
   const ref = useRef(null);
   const listRef = useRef(null);
   const [order, setOrder] = useState(categoryOrder);
@@ -123,7 +123,7 @@ export default function CategorySortPopover({ isOpen, onClose, categoryOrder, on
         className="absolute top-full right-0 mt-2 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl w-52 overflow-hidden"
       >
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-widest text-slate-500">Category Order</span>
+          <span className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</span>
           <button onClick={onClose} className="text-slate-300 hover:text-slate-500 transition-colors">
             <X size={14} />
           </button>
