@@ -64,10 +64,6 @@ export default function ManageMenuPage() {
     return matchesSearch && matchesCategory;
   });
   
-  const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
-const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.ingredient_count > 0)).length;
-  const unreadyToServeCount = Math.max(0, menus.length - readyToServeCount);
-
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
