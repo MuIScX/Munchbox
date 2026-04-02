@@ -25,7 +25,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y \
+    g++ \
+    gcc \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
