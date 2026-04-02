@@ -4,7 +4,7 @@ This program is a Bayesian inference model for demand forecasting using PyMC to 
 demand based on the historical data and amount of forecast day. It also gets the sales trend weekly and monthly.
 
 Created by Ratanapara Choorat, since October 30, 2025
-v3.1 SQL Edition - 04-02-2026
+v3.2 SQL Edition - 04-02-2026
 
 INPUTS (via Command Line / Backend API):
 - ingredient (str):    The name of the ingredient to forecast (e.g., 'Chicken'). Optional if ingredient_id given.
@@ -18,12 +18,12 @@ INPUTS (via Command Line / Backend API):
 - return_chart (flag): If passed, includes chart_data in the JSON output.
 
 Formats:
-python src/Bayes_Inventory_Imp_v3-3_sql.py \
+python src/Bayes_Inventory_Imp_v3-2_sql.py \
     --restaurant_id 1 \
     --ingredient "Chicken" \
     --sell_price 150 \
-    --start_date 01-03-2026 \
-    --end_date 08-03-2026 \
+    --start_date 2026-04-02 \
+    --end_date 2026-04-09 \
     --strategy 2 \
     --return_chart
 
@@ -32,7 +32,7 @@ OUTPUTS (Standardized JSON Payload):
 - urgency_score:  A calculated risk score to flag imminent stockouts.
 - chart_data:     (only if --return_chart is passed)
     - historical_performance: Actual past usage vs. wasted/shortage quantities.
-    - future_view: Predictive upper/lower bounds for the upcoming cycle.
+    - future_view: Predictive upper/lower bounds for the upcoming cycle (anchored to today).
 '''
 
 import os
@@ -57,7 +57,8 @@ dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 load_dotenv(dotenv_path)
 
 DB_CONNECTION = os.getenv('DATABASE_URL')
-DEVICE = 'CLOUD'  # 'LOCAL' or 'CLOUD'
+DEVICE        = 'CLOUD'         # 'LOCAL' or 'CLOUD'
+MAX_FORECAST_DAYS = 90          # Hard cap to prevent accidental huge forecasts
 
 if not DB_CONNECTION:
     print("[System] ERROR: DATABASE_URL not found in .env file!", file=sys.stderr)
@@ -181,13 +182,9 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
     prediction_type: 1 = daily forecast row, 2 = summary recommendation row
     model:           1 = Conservative, 2 = Balanced, 3 = Aggressive
 
-    Note: requires chart_data to be present in final_payload.
-          Call with return_chart=True when save_to_db=True.
-
     Returns:
         predict_set_id (int) on success, None on failure.
     """
-    # chart_data is required for saving daily rows
     if "chart_data" not in final_payload:
         print("[SQL] WARNING: chart_data missing from payload — skipping DB save.", file=sys.stderr)
         return None
@@ -204,15 +201,20 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
             # 1. Insert forecast run header
             result = conn.execute(
                 text("""
-                    INSERT INTO predict_set (timestamp, day_ahead)
-                    VALUES (:timestamp, :day_ahead)
+                    INSERT INTO predict_set (timestamp, model, day_ahead)
+                    VALUES (:timestamp, :model, :day_ahead)
                 """),
-                {"timestamp": now, "day_ahead": len(future_view)}
+                {
+                    "timestamp": now,
+                    "model":     model_int,
+                    "day_ahead": len(future_view)
+                }
             )
             predict_set_id = result.lastrowid
             print(f"[SQL] Created PredictSet ID: {predict_set_id}")
 
             # 2. Insert daily forecast rows (prediction_type = 1)
+            # timestamp here is the forecasted DATE (not run time)
             daily_rows = [
                 {
                     "ingredient_id":        ingredient_id,
@@ -223,7 +225,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
                     "daily_target_average": None,
                     "prediction_set":       predict_set_id,
                     "restaurant_id":        restaurant_id,
-                    "timestamp":            pd.Timestamp(day["date"])
+                    "timestamp":            pd.Timestamp(day["date"])  # future date e.g. 2026-04-03
                 }
                 for day in future_view
             ]
@@ -242,7 +244,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
             )
             print(f"[SQL] Inserted {len(daily_rows)} daily forecast rows.")
 
-            # 3. Insert summary row (prediction_type = 2)
+            # 3. Insert summary row (prediction_type = 2) — timestamp = run time
             daily_target_avg = round(rec["expected_usage"] / len(future_view), 2) if future_view else None
             conn.execute(
                 text("""
@@ -252,7 +254,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
                          prediction_set, restaurant_id, timestamp)
                     VALUES
                         (:ingredient_id, :prediction_type, :expected_usage,
-                         :upper_bound, :lower_bound, :daily_target_average,f
+                         :upper_bound, :lower_bound, :daily_target_average,
                          :prediction_set, :restaurant_id, :timestamp)
                 """),
                 {
@@ -264,7 +266,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
                     "daily_target_average": daily_target_avg,
                     "prediction_set":       predict_set_id,
                     "restaurant_id":        restaurant_id,
-                    "timestamp":            now
+                    "timestamp":            now  # run time
                 }
             )
             print("[SQL] Inserted summary recommendation row.")
@@ -282,17 +284,13 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
 # ============================================================
 
 def run_bayesian_forecast(historical, forecast_days):
-    """
-    LOCAL mode: 4 chains x 2000 samples. Higher accuracy, slower.
-    """
+    """LOCAL mode: 4 chains x 2000 samples. Higher accuracy, slower."""
     print(f"\n--- Running Bayesian Forecast (LOCAL) for next {forecast_days} days ---")
     return _run_model(historical, forecast_days, draws=2000, tune=1000, cores=4, chains=4)
 
 
 def run_bayesian_forecast_cloud(historical, forecast_days):
-    """
-    CLOUD mode: 1 chain x 500 samples. Faster, suitable for Linodes.
-    """
+    """CLOUD mode: 1 chain x 500 samples. Faster, suitable for Linodes."""
     print(f"\n--- Running Bayesian Forecast (CLOUD) for next {forecast_days} days ---")
     return _run_model(historical, forecast_days, draws=500, tune=500, cores=1, chains=1)
 
@@ -333,13 +331,13 @@ def _run_model(historical, forecast_days, draws, tune, cores, chains):
         pm.sample_posterior_predictive(trace, extend_inferencedata=True)
 
     print("\n--- Generating Forecast Scenarios... ---")
-    n_draws      = 1000
+    n_draws         = 1000
     forecast_matrix = np.zeros((n_draws, forecast_days))
 
-    trends      = trace.posterior['trend'].values.reshape(-1, len(demand_values))
-    week_effs   = trace.posterior['weekly_seasonality'].values.reshape(-1, 7)
-    month_effs  = trace.posterior['monthly_seasonality'].values.reshape(-1, 12)
-    sigmas      = trace.posterior['sigma'].values.flatten()
+    trends       = trace.posterior['trend'].values.reshape(-1, len(demand_values))
+    week_effs    = trace.posterior['weekly_seasonality'].values.reshape(-1, 7)
+    month_effs   = trace.posterior['monthly_seasonality'].values.reshape(-1, 12)
+    sigmas       = trace.posterior['sigma'].values.flatten()
     draw_indices = np.random.choice(len(sigmas), n_draws)
 
     for i, idx in enumerate(draw_indices):
@@ -359,8 +357,7 @@ def _run_model(historical, forecast_days, draws, tune, cores, chains):
 def optimal_quantity_financial(forecast_matrix, buy_price, sell_price, strategy='balanced'):
     """
     Newsvendor model to find the optimal order quantity.
-
-    strategy: 'conservative' (minimize waste) | 'balanced' | 'aggressive' (minimize stockouts)
+    strategy: 'conservative' | 'balanced' | 'aggressive'
     """
     print(f"\n--- Optimizing (Buy: {buy_price} THB, Sell: {sell_price} THB, Strategy: {strategy}) ---")
 
@@ -392,8 +389,8 @@ def optimal_quantity_financial(forecast_matrix, buy_price, sell_price, strategy=
     best_index = np.argmin(expected_strategic_loss.mean(axis=0))
     optimal_q  = possible_quantities[best_index]
 
-    real_loss      = ((overage * buy_price) + (underage * sell_price)).mean(axis=0)
-    min_loss_baht  = real_loss[best_index]
+    real_loss     = ((overage * buy_price) + (underage * sell_price)).mean(axis=0)
+    min_loss_baht = real_loss[best_index]
 
     print(f"--- Optimization Done: Recommending {optimal_q} units ---")
     print(f"--- Estimated Financial Risk: {min_loss_baht:.2f} THB ---")
@@ -409,18 +406,25 @@ def chart_data_json(historical_demand, forecast_dist, reorder_period, db_stock):
     """
     Build chart payload for the frontend HCD dashboard.
 
+    future_view dates are anchored to TODAY, not the last sale date.
+    This prevents stale data from old sales pushing forecasts into the past.
+
     Returns:
         {
-            "historical_performance": [...],  # last reorder_period days
-            "future_view": [...]              # next reorder_period days
+            "historical_performance": [...],  # last reorder_period days of actual sales
+            "future_view": [...]              # next reorder_period days from today
         }
     """
-    last_date      = historical_demand.index.max()
+    today       = pd.Timestamp.today().normalize()
+    last_date   = historical_demand.index.max()
+
+    # Always forecast starting from today, even if last sale was months ago
+    anchor_date    = max(last_date, today)
     forecast_dates = pd.to_datetime([
-        last_date + pd.DateOffset(days=i) for i in range(1, reorder_period + 1)
+        anchor_date + pd.DateOffset(days=i) for i in range(1, reorder_period + 1)
     ])
 
-    # Future view
+    # --- Future view ---
     value_days  = np.moveaxis(forecast_dist, -1, 0)
     future_list = [
         {
@@ -432,21 +436,20 @@ def chart_data_json(historical_demand, forecast_dist, reorder_period, db_stock):
         for i, day_vals in enumerate(value_days)
     ]
 
-    # Historical performance (reverse-simulate stock levels)
-    recent_history = historical_demand.iloc[-reorder_period:]
-    rev_demand     = recent_history.values[::-1]
-    dates_rev      = recent_history.index[::-1]
-    hist_stock     = float(db_stock)
+    # --- Historical performance (reverse-simulate stock levels) ---
+    recent_history  = historical_demand.iloc[-reorder_period:]
+    rev_demand      = recent_history.values[::-1]
+    dates_rev       = recent_history.index[::-1]
+    hist_stock      = float(db_stock)
     historical_list = []
 
     for i in range(len(rev_demand)):
-        u             = float(rev_demand[i])
-        waste_shortage = hist_stock - u
+        u = float(rev_demand[i])
         historical_list.append({
-            "date":                 dates_rev[i].strftime('%Y-%m-%d'),
-            "actual_usage":         u,
+            "date":                  dates_rev[i].strftime('%Y-%m-%d'),
+            "actual_usage":          u,
             "current_stock_at_time": round(hist_stock, 2),
-            "waste_shortage_qty":   round(waste_shortage, 2)
+            "waste_shortage_qty":    round(hist_stock - u, 2)
         })
         hist_stock += u
 
@@ -463,9 +466,12 @@ def plot_forecast_results_explained(historical_demand, forecast_dist, optimal_or
     """LOCAL debug only — renders matplotlib dashboard."""
     print("\n--- Generating HCD Dashboard ---")
 
-    last_date      = historical_demand.index.max()
+    today       = pd.Timestamp.today().normalize()
+    last_date   = historical_demand.index.max()
+    anchor_date = max(last_date, today)
+
     forecast_dates = pd.to_datetime([
-        last_date + pd.DateOffset(days=i) for i in range(1, reorder_period + 1)
+        anchor_date + pd.DateOffset(days=i) for i in range(1, reorder_period + 1)
     ])
 
     high_bound, mean_vals = [], []
@@ -521,11 +527,12 @@ def plot_forecast_results_explained(historical_demand, forecast_dist, optimal_or
     for i in range(len(proj_stock_arr)):
         if proj_stock_arr[i] <= high_bound_arr[i]:
             ax_fut.plot(forecast_dates[i], proj_stock_arr[i], marker='o', color='#ff0000', markersize=10, zorder=5)
-            ax_fut.text(forecast_dates[i], proj_stock_arr[i] + (initial_stock * 0.05), ' CRITICAL RISK', color='#ff0000', fontweight='bold')
+            ax_fut.text(forecast_dates[i], proj_stock_arr[i] + (initial_stock * 0.05), ' CRITICAL RISK',
+                        color='#ff0000', fontweight='bold')
             break
 
     ax_fut.axhline(0, color='black', linewidth=1)
-    ax_fut.set_title('Next 7 Days: Supply Decay vs Likely Demand', fontsize=12)
+    ax_fut.set_title(f'Next {reorder_period} Days: Supply Decay vs Likely Demand', fontsize=12)
     ax_fut.tick_params(axis='x', rotation=45)
     ax_fut.legend(loc='upper right')
     plt.tight_layout()
@@ -574,15 +581,24 @@ def run_forecast_job(
         return {"error": "Provide either ingredient_name or ingredient_id."}
 
     try:
-        start_dt       = pd.to_datetime(start_date)
-        end_dt         = pd.to_datetime(end_date)
-        reorder_period = (end_dt - start_dt).days
+        start_dt = pd.to_datetime(start_date)
+        end_dt   = pd.to_datetime(end_date)
+        today    = pd.Timestamp.today().normalize()
+
+        # Clamp start to today — can't forecast the past
+        effective_start = max(start_dt, today)
+        reorder_period  = (end_dt - effective_start).days
+
         if reorder_period <= 0:
-            return {"error": "End date must be strictly after Start date."}
+            return {"error": "End date must be in the future and after start date."}
+
+        if reorder_period > MAX_FORECAST_DAYS:
+            return {"error": f"Forecast window too large ({reorder_period} days). Maximum is {MAX_FORECAST_DAYS} days."}
+
     except Exception as e:
         return {"error": f"Failed to parse dates: {e}"}
 
-    print(f"[SYSTEM] Starting forecast job for restaurant {restaurant_id}...", file=sys.stderr)
+    print(f"[SYSTEM] Starting forecast job — {reorder_period} days for restaurant {restaurant_id}...", file=sys.stderr)
 
     # --- 1. Fetch data ---
     daily_demand, unit, db_cost, db_stock, lead_time, ing_id = get_data_from_sql(
@@ -593,8 +609,8 @@ def run_forecast_job(
 
     if daily_demand is None or daily_demand.empty:
         return {"error": "No historical demand data found for the given ingredient."}
-    if len(daily_demand) < 3: 
-        return {"error": "Insufficient historical data (required at least 3 days) for forecasting."}
+    if len(daily_demand) < 3:
+        return {"error": "Insufficient historical data (minimum 3 days required) for forecasting."}
 
     # --- 2. Setup ---
     strategy_map       = {'1': 'conservative', '2': 'balanced', '3': 'aggressive'}
@@ -684,13 +700,12 @@ def run_forecast_job(
     # --- 13. Save to DB ---
     if save_to_db:
         if not return_chart:
-            # chart_data is needed to build daily predict rows — generate it temporarily
+            # chart_data needed to build daily rows — generate temporarily
             final_payload["chart_data"] = chart_data_json(
                 daily_demand, forecast_dist_ui, reorder_period, db_stock
             )
         save_forecast_to_sql(final_payload, ing_id, restaurant_id, db_engine)
         if not return_chart:
-            # Remove chart_data from response if caller didn't ask for it
             del final_payload["chart_data"]
 
     return final_payload
@@ -701,14 +716,14 @@ def run_forecast_job(
 # ============================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Munchbox Bayesian Forecaster v3.1")
+    parser = argparse.ArgumentParser(description="Munchbox Bayesian Forecaster v3.2")
     parser.add_argument("--ingredient",    type=str,   default=None,         help="Ingredient name (partial match)")
     parser.add_argument("--ingredient_id", type=int,   default=None,         help="Exact ingredient ID")
     parser.add_argument("--restaurant_id", type=int,   required=True,        help="Restaurant ID")
     parser.add_argument("--buy_price",     type=float, default=None,         help="Override DB cost per unit")
     parser.add_argument("--sell_price",    type=float, required=True,        help="Revenue per unit sold")
-    parser.add_argument("--start_date",    type=str,   default="05-01-2026", help="Forecast start date")
-    parser.add_argument("--end_date",      type=str,   default="12-01-2026", help="Forecast end date")
+    parser.add_argument("--start_date",    type=str,   default=None,         help="Forecast start date (default: today)")
+    parser.add_argument("--end_date",      type=str,   default=None,         help="Forecast end date (default: today+7)")
     parser.add_argument("--strategy",      type=str,   default="2",          help="1=Conservative 2=Balanced 3=Aggressive")
     parser.add_argument("--return_chart",  action="store_true", default=False, help="Include chart_data in output")
     args = parser.parse_args()
@@ -717,11 +732,16 @@ if __name__ == "__main__":
         print(json.dumps({"error": "Provide --ingredient or --ingredient_id"}))
         exit()
 
+    # Default dates if not provided
+    today     = pd.Timestamp.today().normalize()
+    start_date = args.start_date or today.strftime('%Y-%m-%d')
+    end_date   = args.end_date   or (today + pd.Timedelta(days=7)).strftime('%Y-%m-%d')
+
     result = run_forecast_job(
         restaurant_id=args.restaurant_id,
         sell_price=args.sell_price,
-        start_date=args.start_date,
-        end_date=args.end_date,
+        start_date=start_date,
+        end_date=end_date,
         strategy=args.strategy,
         ingredient_name=args.ingredient,
         ingredient_id=args.ingredient_id,

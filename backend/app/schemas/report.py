@@ -49,9 +49,11 @@ class PredictGenerateRequest(BaseModel):
     strategy:      str = "2"
 
 
-
+class PredictReportRequest(BaseModel):
+    days: Optional[int] = None  # None = return all days from latest set
 class PredictIngredientRequest(BaseModel):
     ingredient_id: Optional[int] = None
+    days:          Optional[int] = None  # None = return all days
 
 
 class PredictTrendRequest(BaseModel):
