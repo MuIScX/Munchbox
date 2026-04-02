@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, text
 from datetime import datetime
+from app.services.forecaster import run_forecast_job
 
 from app.db import get_db
 from app.core.security import decode_token
@@ -16,7 +17,7 @@ from app.models.ingredient import Ingredient
 router = APIRouter(prefix="/api/predict", tags=["Predict"])
 
 _SCRIPT_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v3-1_sql.py")
+    os.path.join(os.path.dirname(__file__), "..", "..", "BayesianTimeSeriesModel", "src", "Bayes_Inventory_Imp_v3-2-5_sql.py")
 )
 # Allow using a separate Python env that has PyMC installed
 _PYTHON_PATH = os.environ.get("MUNCHBOX_PYTHON_PATH", sys.executable)
@@ -35,79 +36,53 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
     if not ingredients:
         return {"message": "No active ingredients found", "Data": {"total_processed": 0, "predictions": []}}
 
-    predict_set_id = int(datetime.utcnow().timestamp())
-    now = datetime.utcnow()
     results = []
-    errors = []
+    errors  = []
 
     for ingredient in ingredients:
         try:
-            proc = subprocess.run(
-                [_PYTHON_PATH, _SCRIPT_PATH,
-                 "--ingredient", ingredient.name,
-                 "--ingredient_id", str(ingredient.id),
-                 "--restaurant_id", str(restaurant_id),
-                 "--sell_price", "100",
-                 "--days", str(body.days),
-                 "--strategy", body.strategy],
-                capture_output=True,
-                text=True,
-                timeout=600,
+            payload = run_forecast_job(
+                restaurant_id=restaurant_id,
+                sell_price=150.0,
+                buy_price=100.0,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                strategy=body.strategy,
+                ingredient_name=ingredient.name,
+                ingredient_id=ingredient.id,
+                save_to_db=True,        # forecaster handles DB insert internally
+                return_chart=True,      # needed to extract upper/lower bounds
             )
-            stdout = proc.stdout.strip()
-            if not stdout:
-                stderr_msg = proc.stderr.strip() if proc.stderr else "no stderr"
-                errors.append({"ingredient": ingredient.name, "error": f"empty output | stderr: {stderr_msg[:300]}"})
-                continue
-
-            # Script prints logs to stdout before the final JSON — find the last JSON object
-            idx = stdout.rfind("\n{")
-            json_str = stdout[idx:].strip() if idx != -1 else stdout
-            payload = json.loads(json_str)
 
             if "error" in payload:
                 errors.append({"ingredient": ingredient.name, "error": payload["error"]})
                 continue
 
-            rec = payload["recommendation"]
-            expected_usage = float(rec["optimal_target_qty"])
-            days = len(payload.get("chart_data", {}).get("forecast", []))
+            rec         = payload["recommendation"]
+            future_view = payload["chart_data"]["future_view"]
 
-            # Derive upper/lower from summed daily forecast bounds
-            forecast = payload.get("chart_data", {}).get("forecast", [])
-            upper_bound = round(sum(d["likely_high_bound_95th"] for d in forecast), 2) if forecast else None
-            lower_bound = round(sum(d["likely_low_bound_5th"] for d in forecast), 2) if forecast else None
-            daily_target_average = round(expected_usage / days, 2) if days > 0 else None
+            expected_usage       = float(rec["optimal_target_qty"])
+            upper_bound          = round(sum(d["likely_high_bound_95th"] for d in future_view), 2) if future_view else None
+            lower_bound          = round(sum(d["likely_low_bound_5th"]   for d in future_view), 2) if future_view else None
+            daily_target_average = round(expected_usage / len(future_view), 2)                     if future_view else None
 
-            db.add(Predict(
-                ingredient_id=ingredient.id,
-                prediction_type=int(body.strategy),
-                expected_usage=expected_usage,
-                upper_bound=upper_bound,
-                lower_bound=lower_bound,
-                daily_target_average=daily_target_average,
-                prediction_set=predict_set_id,
-                restaurant_id=restaurant_id,
-                timestamp=now,
-            ))
             results.append({
-                "ingredient_id": ingredient.id,
+                "ingredient_id":   ingredient.id,
                 "ingredient_name": ingredient.name,
-                "expected_usage": expected_usage,
+                "expected_usage":  expected_usage,
+                "upper_bound":     upper_bound,
+                "lower_bound":     lower_bound,
             })
-        except subprocess.TimeoutExpired:
-            errors.append({"ingredient": ingredient.name, "error": "timeout"})
+
         except Exception as e:
             errors.append({"ingredient": ingredient.name, "error": str(e)})
 
-    db.commit()
     return {
         "message": "success",
         "Data": {
-            "predict_set_id": predict_set_id,
             "total_processed": len(results),
-            "predictions": results,
-            "errors": errors,
+            "predictions":     results,
+            "errors":          errors,
         },
     }
 
