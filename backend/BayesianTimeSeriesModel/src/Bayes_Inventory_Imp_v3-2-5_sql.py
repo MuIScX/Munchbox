@@ -294,6 +294,27 @@ def run_bayesian_forecast_cloud(historical, forecast_days):
     print(f"\n--- Running Bayesian Forecast (CLOUD) for next {forecast_days} days ---")
     return _run_model(historical, forecast_days, draws=500, tune=500, cores=1, chains=1)
 
+def _log_sampling_progress(total_steps):
+    """
+    Simple text-based progress callback for Docker logs.
+    Prints a line every 10% of sampling completion.
+    """
+    checkpoints = set(int(total_steps * p / 10) for p in range(1, 11))
+    last_logged = [0]
+
+    def callback(trace, draw):
+        current = draw.draw_idx + 1
+        # Only log at checkpoints to avoid flooding logs
+        for checkpoint in sorted(checkpoints):
+            if last_logged[0] < checkpoint <= current:
+                pct = int(checkpoint / total_steps * 100)
+                bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+                print(f"[Model] Sampling |{bar}| {pct}% ({current}/{total_steps} steps)", flush=True)
+                last_logged[0] = checkpoint
+                break
+
+    return callback
+
 
 def _run_model(historical, forecast_days, draws, tune, cores, chains):
     """
@@ -326,11 +347,19 @@ def _run_model(historical, forecast_days, draws, tune, cores, chains):
 
         pm.TruncatedNormal('demand_data', mu=expected_demand, sigma=sigma, lower=0.0, observed=demand_values)
 
-        print("\n--- Sampling the Posterior... ---")
-        trace = pm.sample(draws, tune=tune, cores=cores, chains=chains, target_accept=0.95, progressbar=True)
-        pm.sample_posterior_predictive(trace, extend_inferencedata=True)
+        print("\n[Model] Sampling posterior...", flush=True)
+        trace = pm.sample(
+            draws, tune=tune, cores=cores, chains=chains,
+            target_accept=0.95,
+            progressbar=False,   # ← disable rich progress bar
+            callback=_log_sampling_progress(draws + tune),  # ← simple text progress
+        )
 
-    print("\n--- Generating Forecast Scenarios... ---")
+        print("[Model] Sampling posterior predictive...", flush=True)
+        pm.sample_posterior_predictive(trace, extend_inferencedata=True, progressbar=False)
+        print("[Model] Done.", flush=True)
+
+    print("\n[Model] Generating forecast scenarios...", flush=True)
     n_draws         = 1000
     forecast_matrix = np.zeros((n_draws, forecast_days))
 
@@ -348,7 +377,6 @@ def _run_model(historical, forecast_days, draws, tune, cores, chains):
         forecast_matrix[i, :] = np.maximum(0, base_trend + future_week_eff + future_month_eff + noise)
 
     return forecast_matrix, trace
-
 
 # ============================================================
 # 4. OPTIMIZATION
