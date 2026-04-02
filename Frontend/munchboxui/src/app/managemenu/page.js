@@ -170,7 +170,7 @@ export default function ManageMenuPage() {
             <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
               <div className="shrink-0">
                 <h2 className="font-bold text-slate-800 text-lg italic">Recipe List</h2>
-                <p className="text-xs text-slate-400">{filteredMenus.length} recipes found</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{filteredMenus.length} recipes found</p>
               </div>
 
               <div className="w-px h-8 mx-4 bg-slate-100" />

@@ -67,55 +67,56 @@ export default function InventoryLog() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                    <ClipboardList size={20} className="text-orange-500" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Inventory Log</h1>
-                    <p className="text-sm text-slate-400 mt-0.5">Track all stock changes and updates</p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                  <ClipboardList size={20} className="text-orange-500" />
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-500 font-medium">
-                  {filteredLogs.length} records
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Inventory Log</h1>
+                  <p className="text-sm text-slate-400 mt-0.5">Track all stock changes and updates</p>
                 </div>
-              </div>
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="text" placeholder="Search ingredient..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none w-52" />
-                </div>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
-                </div>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none min-w-[170px]">
-                    <option value="All">Staff: All</option>
-                    {staffList.map((staff) => (<option key={staff.id || staff.staff_id} value={staff.id || staff.staff_id}>{staff.name || staff.username}</option>))}
-                  </select>
-                </div>
-                <select value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)}
-                  className="px-4 py-2.5 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none">
-                  <option value="All">Action: All</option>
-                  <option value="in">Stock In</option>
-                  <option value="out">Stock Out</option>
-                </select>
               </div>
             </div>
           </div>
 
           {/* Log Table Container */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="font-semibold text-slate-700">Stock Records</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{filteredLogs.length} records found</p>
+            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
+              <div className="shrink-0">
+                <h2 className="font-bold text-slate-800 text-lg italic leading-tight">Stock Records</h2>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
+                  {filteredLogs.length} records found
+                </p>
+              </div>
+
+              <div className="w-px h-8 bg-slate-200 mx-6 shrink-0" />
+
+              <div className="flex gap-3 items-center flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input type="text" placeholder="Search ingredient..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none w-48 transition-all hover:border-slate-300" />
+                </div>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+                </div>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none min-w-[150px] cursor-pointer hover:border-slate-300">
+                    <option value="All">Staff: All</option>
+                    {staffList.map((staff) => (<option key={staff.id || staff.staff_id} value={staff.id || staff.staff_id}>{staff.name || staff.username}</option>))}
+                  </select>
+                </div>
+                <select value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none cursor-pointer hover:border-slate-300">
+                  <option value="All">Action: All</option>
+                  <option value="in">Stock In</option>
+                  <option value="out">Stock Out</option>
+                </select>
+              </div>
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
