@@ -21,9 +21,9 @@ def _query_menus(db: Session, restaurant_id: int, menu_id: int = None):
             Menu.id,
             Menu.name,
             Menu.type,
-            func.count(Recipe.ingredient_id).label("ingredient_count"),
+            func.count(case((Ingredient.is_active == 1, Recipe.ingredient_id), else_=None)).label("ingredient_count"),
             case(
-                (func.sum(case((Ingredient.stock_left < Recipe.amount, 1), else_=0)) == 0, 1),
+                (func.sum(case((Ingredient.is_active == 1, case((Ingredient.stock_left < Recipe.amount, 1), else_=0)), else_=0)) == 0, 1),
                 else_=0,
             ).label("readiness"),
             Menu.price,

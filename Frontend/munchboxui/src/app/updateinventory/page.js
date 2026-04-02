@@ -5,9 +5,12 @@ import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
 import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
+import UpdateInventoryModal from "../components/UpdateInventoryModal";
+import EditIngredientModal from "../components/EditIngredientModal";
 import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
 import { Search, Plus, Loader2, Trash2, PackageOpen } from 'lucide-react';
+
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
@@ -18,6 +21,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ingredientToDelete, setIngredientToDelete] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [ingredientToEdit, setIngredientToEdit] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
@@ -39,17 +44,36 @@ export default function Home() {
     fetchIngredients();
   }, []);
 
-const handleUpdateStock = async (ingredientId, changeAmount) => {
+  const handleBulkUpdate = async (updates) => {
+    setShowUpdateModal(false);
     const staff = StaffSession.get();
     try {
-      await IngredientAPI.updateStock({
-        ingredient_id: parseInt(ingredientId),
-        new_stock: parseFloat(changeAmount),
-        staff_id: staff ? parseInt(staff.id) : null,
-      });
-      fetchIngredients();
+      await Promise.all(
+        updates.map(({ id, value }) =>
+          IngredientAPI.updateStock({
+            ingredient_id: parseInt(id),
+            new_stock: value,
+            staff_id: staff ? parseInt(staff.id) : null,
+          })
+        )
+      );
+      if (updates.length > 0) {
+        showToast("success", `Updated ${updates.length} ingredient${updates.length > 1 ? "s" : ""}.`);
+        fetchIngredients();
+      }
     } catch (error) {
       showToast("error", error.message || "Failed to update stock");
+    }
+  };
+
+  const handleEditDetail = async (payload) => {
+    try {
+      await IngredientAPI.updateDetail(payload);
+      setIngredientToEdit(null);
+      showToast("success", "Ingredient updated.");
+      fetchIngredients();
+    } catch (err) {
+      showToast("error", err.message || "Update failed");
     }
   };
 
@@ -86,6 +110,20 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
         existingIngredients={ingredients}
       />
 
+      <UpdateInventoryModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        ingredients={ingredients}
+        onSave={handleBulkUpdate}
+      />
+
+      <EditIngredientModal
+        isOpen={!!ingredientToEdit}
+        onClose={() => setIngredientToEdit(null)}
+        ingredient={ingredientToEdit}
+        onSave={handleEditDetail}
+      />
+
       <DeleteIngredientModal
         isOpen={!!ingredientToDelete}
         onClose={() => setIngredientToDelete(null)}
@@ -110,12 +148,20 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     <p className="text-sm text-slate-400 mt-0.5">Track and update ingredient stock levels</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-6 py-3 rounded-xl font-bold text-base flex items-center gap-2 transition shadow-sm"
-                >
-                  <Plus size={18} /> Add Ingredient
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowUpdateModal(true)}
+                    className="bg-white border border-orange-300 hover:bg-orange-50 active:scale-95 text-orange-500 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition shadow-sm"
+                  >
+                    Update Stock
+                  </button>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-6 py-3 rounded-xl font-bold text-base flex items-center gap-2 transition shadow-sm"
+                  >
+                    <Plus size={18} /> Add Ingredient
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -169,12 +215,13 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     <th className="px-6 py-3 w-[20%]">Category</th>
                     <th className="px-6 py-3 w-[15%] text-center">Stock</th>
                     <th className="px-6 py-3 w-[15%] text-center">Unit</th>
-                    <th className="px-6 py-3 w-[14%] text-center">
+                    <th className="px-6 py-3 w-[20%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
-                        <button 
-                          onClick={() => setShowDelete(v => !v)} 
+                        <button
+                          onClick={() => setShowDelete(v => !v)}
                           className={`p-1 rounded-md transition-all ${showDelete ? "text-red-500 bg-red-50" : "text-slate-300 hover:text-red-400"}`}
+                          title="Toggle delete"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -187,12 +234,12 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     <tr><td colSpan={5} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={32} /></td></tr>
                   ) : filteredIngredients.length > 0 ? (
                     filteredIngredients.map((row) => (
-                      <IngredientRow 
-                        key={row.ingredient_id || row.id} 
-                        row={row} 
-                        onUpdateStock={handleUpdateStock} 
-                        showDelete={showDelete} 
-                        onDeleteClick={setIngredientToDelete} 
+                      <IngredientRow
+                        key={row.ingredient_id || row.id}
+                        row={row}
+                        showDelete={showDelete}
+                        onDeleteClick={setIngredientToDelete}
+                        onEditClick={setIngredientToEdit}
                       />
                     ))
                   ) : (

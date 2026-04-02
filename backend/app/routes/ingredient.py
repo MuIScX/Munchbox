@@ -7,7 +7,7 @@ from app.db import get_db
 from app.core.security import decode_token
 from app.schemas.ingredient import (
     IngredientListRequest, IngredientCreate, IngredientStockUpdate,
-    IngredientStatusRequest, IngredientLogRequest, IngredientDelete,
+    IngredientStatusRequest, IngredientLogRequest, IngredientDelete, IngredientUpdate,
 )
 from app.models.ingredient import Ingredient, IngredientHistory
 from app.models.menu import Recipe
@@ -147,6 +147,22 @@ def get_inventory_log(body: IngredientLogRequest, identity: dict = Depends(decod
         }
         for r in q.order_by(IngredientHistory.timestamp.desc()).all()
     ]}
+
+
+@router.put("/update-detail")
+def update_ingredient_detail(body: IngredientUpdate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    ingredient = db.query(Ingredient).filter(
+        Ingredient.id == body.ingredient_id,
+        Ingredient.restaurant_id == identity["restaurantId"],
+        Ingredient.is_active == 1,
+    ).first()
+    if not ingredient:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    ingredient.name = body.name
+    ingredient.category = body.category
+    ingredient.unit = body.unit
+    db.commit()
+    return {"message": "success", "Data": []}
 
 
 @router.delete("/delete")

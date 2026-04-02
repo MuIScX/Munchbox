@@ -30,3 +30,10 @@ class IngredientLogRequest(BaseModel):
 
 class IngredientDelete(BaseModel):
     ingredient_id: int
+
+
+class IngredientUpdate(BaseModel):
+    ingredient_id: int
+    name: str
+    category: int
+    unit: str

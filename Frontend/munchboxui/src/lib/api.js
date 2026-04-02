@@ -119,6 +119,7 @@ export const IngredientAPI = {
   list: (filters) => request("/ingredient/list", "POST", filters),
   create: (payload) => request("/ingredient/create", "POST", payload),
   updateStock: (payload) => request("/ingredient/update-stock", "PUT", payload),
+  updateDetail: (payload) => request("/ingredient/update-detail", "PUT", payload),
   status: (ingredient_id) => request("/ingredient/status", "POST", { ingredient_id }),
   log: (ingredient_id) => request("/ingredient/log", "POST", { ingredient_id }),
   delete: (ingredient_id) => request("/ingredient/delete", "DELETE", { ingredient_id }),
