@@ -19,27 +19,21 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
   const id = menu.menu_id || menu.id;
   const name = menu.menu_name || menu.name || "Unknown";
   const typeValue = menu.menu_type || menu.type;
-  const isReady = ((menu.readiness ?? 0) === 1) && (menu.ingredient_count > 0);
   const price = menu.menu_price || menu.price || 0;
   const count = menu.ingredient_count || menu.count || 0;
   const typeStyle = TYPE_STYLE[typeValue] || "bg-slate-100 text-slate-600";
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors">
-      <td className="px-6 py-4 text-slate-800 font-semibold">{name}</td>
-      <td className="px-6 py-4">
-        <span className={`inline-block text-slate-500 text-sm`}>
+      <td className="px-6 py-3 text-slate-800 font-semibold">{name}</td>
+      <td className="px-6 py-3">
+        <span className="inline-block text-slate-500 text-sm">
           {TYPE_MAP[typeValue] || typeValue}
         </span>
       </td>
-      <td className="px-6 py-4 text-center">
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isReady ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-          {isReady ? 'Ready' : 'Not Ready'}
-        </span>
-      </td>
-      <td className="px-6 py-4 text-center text-slate-500">{count}</td>
-      <td className="px-6 py-4 text-center text-slate-800 font-semibold">฿{price}</td>
-      <td className="px-6 py-4 text-center">
+      <td className="px-6 py-3 text-center text-slate-500">{count}</td>
+      <td className="px-6 py-3 text-center text-slate-800 font-semibold">฿{price}</td>
+      <td className="px-6 py-3 text-center">
         <div className="flex justify-center items-center gap-3">
           <button
             onClick={() => onViewRecipe(id)}

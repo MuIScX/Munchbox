@@ -8,7 +8,7 @@ import MenuRow from "../components/MenuRow";
 import Toast from "../components/Toast";
 import { MenuAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Trash2, UtensilsCrossed, CheckCircle, AlertTriangle, Plus } from "lucide-react";
+import { Search, Loader2, Trash2, UtensilsCrossed, Plus } from "lucide-react";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -20,7 +20,6 @@ export default function ManageMenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showDelete, setShowDelete] = useState(false);
-  const [selectedReadiness, setSelectedReadiness] = useState("All");
   const [toast, setToast] = useState(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -62,12 +61,7 @@ export default function ManageMenuPage() {
     const matchesSearch = name.includes(searchQuery.toLowerCase());
     const typeValue = m.menu_type || m.type;
     const matchesCategory = selectedCategory === "All" || String(typeValue) === selectedCategory;
-    
-    // Logic check: matches your MenuRow isReady condition
-    const isReady = ((m.readiness ?? 0) === 1) && (m.ingredient_count > 0);
-    const matchesReadiness = selectedReadiness === "All" || (selectedReadiness === "ready" ? isReady : !isReady);
-    
-    return matchesSearch && matchesCategory && matchesReadiness;
+    return matchesSearch && matchesCategory;
   });
   
   const incompleteCount = menus.filter((m) => (m.ingredient_count ?? 0) === 0).length;
@@ -99,7 +93,7 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <UtensilsCrossed size={20} className="text-orange-500" />
@@ -115,52 +109,6 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
                 >
                   <Plus size={18} /> Add Recipe
                 </button>
-              </div>
-
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                    <UtensilsCrossed size={18} className="text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-orange-600 font-bold uppercase tracking-wide">Total</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{menus.length}</p>
-                    <p className="text-xs text-orange-500 font-medium mt-0.5">recipes</p>
-                  </div>
-                </div>
-
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                    <CheckCircle size={18} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Ready To Serve</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{readyToServeCount}</p>
-                    <p className="text-xs text-emerald-500 font-medium mt-0.5">serve</p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle size={18} className="text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-red-600 font-bold uppercase tracking-wide">Not Ready to Serve</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{unreadyToServeCount}</p>
-                    <p className="text-xs text-red-500 font-medium mt-0.5">can't serve</p>
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle size={18} className="text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-amber-600 font-bold uppercase tracking-wide">Incomplete</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-0.5">{incompleteCount}</p>
-                    <p className="text-xs text-amber-500 font-medium mt-0.5">missing recipe</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -200,15 +148,6 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
                   {Object.entries(TYPE_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
                 </select>
 
-                <select 
-                  value={selectedReadiness} 
-                  onChange={(e) => setSelectedReadiness(e.target.value)} 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer"
-                >
-                  <option value="All">Readiness: All</option>
-                  <option value="ready">Ready</option>
-                  <option value="not_ready">Not Ready</option>
-                </select>
               </div>
             </div>
 
@@ -216,12 +155,11 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                    <th className="px-6 py-4">Recipe</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4 text-center">Ready to Serve</th>
-                    <th className="px-6 py-4 text-center">Ingredients</th>
-                    <th className="px-6 py-4 text-center">Price</th>
-                    <th className="px-6 py-4 text-center">
+                    <th className="px-6 py-3">Recipe</th>
+                    <th className="px-6 py-3">Type</th>
+                    <th className="px-6 py-3 text-center">Ingredients</th>
+                    <th className="px-6 py-3 text-center">Price</th>
+                    <th className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button onClick={() => setShowDelete(v => !v)} className={`p-1 rounded-md transition-all ${showDelete ? "text-red-500 bg-red-50" : "text-slate-300 hover:text-red-400"}`}>
@@ -235,7 +173,7 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
                 <tbody className="divide-y divide-slate-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="py-20 text-center">
+                      <td colSpan={5} className="py-20 text-center">
                         <Loader2 className="animate-spin mx-auto text-orange-500" size={32} />
                       </td>
                     </tr>
@@ -251,7 +189,7 @@ const readyToServeCount = menus.filter((m) => ((m.readiness ?? 0) === 1) && (m.i
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-20 text-center">
+                      <td colSpan={5} className="py-20 text-center">
                         <UtensilsCrossed className="mx-auto mb-3 text-slate-200" size={48} />
                         <p className="text-slate-400 font-medium italic">No recipes match your filters</p>
                       </td>
