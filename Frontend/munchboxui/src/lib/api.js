@@ -112,6 +112,7 @@ export const StaffAPI = {
   create: (name, role) => request("/staff/create", "POST", { name, role }),
   update: (staff_id, name, role) => request("/staff/update", "PUT", { staff_id, name, role }),
   delete: (staff_id) => request("/staff/delete", "DELETE", { staff_id }),
+  verifyManagerPin: (pin) => request("/staff/verify-manager-pin", "POST", { pin: parseInt(pin) }),
 }
 
 export const IngredientAPI = {

@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.core.security import decode_token
-from app.schemas.staff import StaffCreate, StaffUpdate, StaffDelete
+from app.schemas.staff import StaffCreate, StaffUpdate, StaffDelete, ManagerPinVerify
 from app.models.staff import Staff
+from app.models.restaurant import RestaurantInfo
 
 router = APIRouter(prefix="/api/staff", tags=["Staff"])
 
@@ -49,3 +50,13 @@ def delete_staff(body: StaffDelete, identity: dict = Depends(decode_token), db: 
     staff.is_active = 0
     db.commit()
     return {"message": "success", "Data": []}
+
+
+@router.post("/verify-manager-pin")
+def verify_manager_pin(body: ManagerPinVerify, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    restaurant = db.query(RestaurantInfo).filter(RestaurantInfo.id == identity["restaurantId"]).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    if restaurant.manager_pin is None or restaurant.manager_pin != body.pin:
+        raise HTTPException(status_code=401, detail="Incorrect PIN")
+    return {"message": "success"}

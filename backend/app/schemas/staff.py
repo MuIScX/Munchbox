@@ -15,3 +15,7 @@ class StaffUpdate(BaseModel):
 
 class StaffDelete(BaseModel):
     staff_id: int
+
+
+class ManagerPinVerify(BaseModel):
+    pin: int

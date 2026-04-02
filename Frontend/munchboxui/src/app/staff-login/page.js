@@ -16,6 +16,10 @@ const ROLE_MAP = {
 export default function StaffLogin() {
   const [nameValue, setNameValue] = useState("");
   const [nameError, setNameError] = useState("");
+  const [pinValue, setPinValue] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [isManager, setIsManager] = useState(false);
+  const [matchedStaff, setMatchedStaff] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -30,9 +34,31 @@ export default function StaffLogin() {
       .catch(() => setStaffList([]));
   }, [router]);
 
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setNameValue(val);
+    if (nameError) setNameError("");
+
+    const trimmed = val.trim();
+    const match = staffList.find(
+      (s) => s.name.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (match && match.role === 2) {
+      setIsManager(true);
+      setMatchedStaff(match);
+    } else {
+      setIsManager(false);
+      setMatchedStaff(match || null);
+      setPinValue("");
+      setPinError("");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setNameError("");
+    setPinError("");
 
     const trimmed = nameValue.trim();
     if (!trimmed) {
@@ -40,22 +66,36 @@ export default function StaffLogin() {
       return;
     }
 
-    setLoading(true);
-    const match = staffList.find(
+    const match = matchedStaff ?? staffList.find(
       (s) => s.name.toLowerCase() === trimmed.toLowerCase()
     );
 
     if (!match) {
       setNameError("Staff member not found. Please check your name.");
-      setLoading(false);
       return;
     }
 
+    if (isManager) {
+      if (!pinValue) {
+        setPinError("Please enter the manager PIN.");
+        return;
+      }
+      try {
+        setLoading(true);
+        await StaffAPI.verifyManagerPin(pinValue);
+      } catch (err) {
+        setPinError(err.message || "Incorrect PIN.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    setLoading(true);
     StaffSession.set({
       id: match.staff_id,
       name: match.name,
       role: match.role,
-      roleLabel: ROLE_MAP[match.role] ?? "Staff",
+      roleLabel: match.role === 2 ? "Manager" : (ROLE_MAP[match.role] ?? "Staff"),
     });
     router.push("/dashboard");
   };
@@ -88,10 +128,7 @@ export default function StaffLogin() {
                   id="name"
                   type="text"
                   value={nameValue}
-                  onChange={(e) => {
-                    setNameValue(e.target.value);
-                    if (nameError) setNameError("");
-                  }}
+                  onChange={handleNameChange}
                   placeholder="Enter your name"
                   className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                     nameError ? "border-red-500" : "border-slate-300"
@@ -100,6 +137,38 @@ export default function StaffLogin() {
                 <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
                   {nameError}
                 </p>
+              </div>
+
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isManager ? "max-h-32 opacity-100 pt-0.5 px-0.5" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="text-left pt-1">
+                  <label
+                    htmlFor="pin"
+                    className="block text-xs font-semibold text-slate-400 mb-1"
+                  >
+                    MANAGER PIN
+                  </label>
+                  <input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    value={pinValue}
+                    onChange={(e) => {
+                      setPinValue(e.target.value);
+                      if (pinError) setPinError("");
+                    }}
+                    placeholder="Enter manager PIN"
+                    className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      pinError ? "border-red-500" : "border-slate-300"
+                    }`}
+                  />
+                  <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
+                    {pinError}
+                  </p>
+                </div>
               </div>
 
               <button
