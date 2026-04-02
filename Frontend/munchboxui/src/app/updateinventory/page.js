@@ -7,10 +7,10 @@ import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import UpdateInventoryModal from "../components/UpdateInventoryModal";
 import EditIngredientModal from "../components/EditIngredientModal";
+import CategorySortPopover from "../components/CategorySortPopover";
 import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
-import { Search, Plus, Loader2, Trash2, PackageOpen } from 'lucide-react';
-
+import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
@@ -23,6 +23,8 @@ export default function Home() {
   const [showDelete, setShowDelete] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [ingredientToEdit, setIngredientToEdit] = useState(null);
+  const [showSortModal, setShowSortModal] = useState(false);
+  const [categoryOrder, setCategoryOrder] = useState(Object.keys(CATEGORY_MAP));
   const [toast, setToast] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
@@ -87,12 +89,18 @@ export default function Home() {
   };
 
   const filteredIngredients = useMemo(() => {
-    return ingredients.filter(i => {
-      const nameMatch = (i.ingredient_name || i.name || i.item || "").toLowerCase().includes(searchQuery.toLowerCase());
-      const categoryMatch = selectedCategory === "All" || String(i.category) === String(selectedCategory);
-      return nameMatch && categoryMatch;
-    });
-  }, [ingredients, searchQuery, selectedCategory]);
+    return ingredients
+      .filter(i => {
+        const nameMatch = (i.ingredient_name || i.name || i.item || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const categoryMatch = selectedCategory === "All" || String(i.category) === String(selectedCategory);
+        return nameMatch && categoryMatch;
+      })
+      .sort((a, b) => {
+        const ai = categoryOrder.indexOf(String(a.category));
+        const bi = categoryOrder.indexOf(String(b.category));
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+  }, [ingredients, searchQuery, selectedCategory, categoryOrder]);
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -177,7 +185,7 @@ export default function Home() {
               <div className="w-px h-8 bg-slate-200 mx-6 shrink-0" />
 
               {/* Filters Group moved here */}
-              <div className="flex gap-3 items-center flex-1">
+              <div className="flex gap-3 items-center flex-1 justify-between">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
@@ -199,6 +207,25 @@ export default function Home() {
                     <option key={id} value={id}>{name}</option>
                   ))}
                 </select>
+
+                {/* Sort popover */}
+                <div className="relative ml-auto">
+                  <button
+                    onClick={() => setShowSortModal(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                      showSortModal ? "bg-orange-500 border-orange-500 text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <ArrowUpDown size={13} /> Sort
+                  </button>
+                  <CategorySortPopover
+                    isOpen={showSortModal}
+                    onClose={() => setShowSortModal(false)}
+                    categoryOrder={categoryOrder}
+                    onChange={setCategoryOrder}
+                    categoryMap={CATEGORY_MAP}
+                  />
+                </div>
 
               </div>
             </div>
