@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, defs, linearGradient, stop } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 
 function CustomTooltip({ active, payload, label }) {
@@ -62,12 +62,12 @@ export default function SalesTrendChart({
       </div>
 
       <div className="relative h-64 w-full">
-        <span className="absolute top-0 left-0 text-xs font-bold italic text-slate-800">Order</span>
+        <span className="absolute text-xs font-bold italic text-slate-800" style={{ left: 35, top: -5 }}>Order</span>
         <span className="absolute bottom-0 right-0 text-xs font-bold italic text-slate-800">Time</span>
 
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
               <defs>
                 <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.50} />
@@ -76,7 +76,7 @@ export default function SalesTrendChart({
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
-              <YAxis tick={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }} axisLine={{ stroke: '#cbd5e1' }} tickLine={false} width={40} allowDecimals={false} />
               <RechartsTooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
