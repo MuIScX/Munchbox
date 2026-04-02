@@ -7,13 +7,12 @@ import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
-import { Search, Plus, Loader2, Trash2, PackageOpen, Package, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2, PackageOpen, Package } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -71,21 +70,9 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
     return ingredients.filter(i => {
       const nameMatch = (i.ingredient_name || i.name || i.item || "").toLowerCase().includes(searchQuery.toLowerCase());
       const categoryMatch = selectedCategory === "All" || String(i.category) === String(selectedCategory);
-      const stock = Number(i.stock_left ?? i.stock ?? 0);
-      const min = i.min_stock || i.minStock || 0;
-      const isOk = stock >= min;
-      const statusMatch = selectedStatus === "All" || (selectedStatus === "ok" ? isOk : !isOk);
-      return nameMatch && categoryMatch && statusMatch;
+      return nameMatch && categoryMatch;
     });
-  }, [ingredients, searchQuery, selectedCategory, selectedStatus]);
-
-  const understockCount = useMemo(() => {
-    return ingredients.filter(i => {
-      const stock = Number(i.stock_left ?? i.stock ?? 0);
-      const min = i.min_stock || i.minStock || 0;
-      return stock < min;
-    }).length;
-  }, [ingredients]);
+  }, [ingredients, searchQuery, selectedCategory]);
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -131,7 +118,7 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                 </button>
               </div>
               <div className="flex gap-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4 flex-1">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                     <Package size={18} className="text-blue-600" />
                   </div>
@@ -139,26 +126,6 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     <p className="text-xs text-blue-600 font-bold uppercase tracking-wide">Total</p>
                     <p className="text-3xl font-bold text-blue-900 mt-0.5">{ingredients.length}</p>
                     <p className="text-xs text-blue-500 font-medium mt-0.5">ingredients</p>
-                  </div>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-4 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                    <CheckCircle size={18} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">OK Stock</p>
-                    <p className="text-3xl font-bold text-emerald-900 mt-0.5">{ingredients.length - understockCount}</p>
-                    <p className="text-xs text-emerald-500 font-medium mt-0.5">sufficient</p>
-                  </div>
-                </div>
-                <div className={`rounded-xl border p-4 flex items-center gap-4 flex-1 ${understockCount > 0 ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-100"}`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${understockCount > 0 ? "bg-red-100" : "bg-slate-200"}`}>
-                    <AlertTriangle size={18} className={understockCount > 0 ? "text-red-600" : "text-slate-500"} />
-                  </div>
-                  <div>
-                    <p className={`text-xs font-bold uppercase tracking-wide ${understockCount > 0 ? "text-red-600" : "text-slate-500"}`}>Understock</p>
-                    <p className={`text-3xl font-bold mt-0.5 ${understockCount > 0 ? "text-red-900" : "text-slate-700"}`}>{understockCount}</p>
-                    <p className={`text-xs font-medium mt-0.5 ${understockCount > 0 ? "text-red-500" : "text-slate-400"}`}>need reorder</p>
                   </div>
                 </div>
               </div>
@@ -203,16 +170,6 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                   ))}
                 </select>
 
-                <select 
-                  value={selectedStatus} 
-                  onChange={(e) => setSelectedStatus(e.target.value)} 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer hover:border-slate-300"
-                >
-                  <option value="All">Status: All</option>
-                  <option value="ok">OK</option>
-                  <option value="low_stock">Low Stock</option>
-                </select>
-
               </div>
             </div>
 
@@ -220,12 +177,10 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                    <th className="px-6 py-4 w-[25%]">Item</th>
-                    <th className="px-6 py-4 w-[15%]">Category</th>
-                    <th className="px-6 py-4 w-[12%] text-center">Status</th>
-                    <th className="px-6 py-4 w-[12%] text-center">Stock</th>
-                    <th className="px-6 py-4 w-[12%] text-center">Require Stock</th>
-                    <th className="px-6 py-4 w-[10%] text-center">Unit</th>
+                    <th className="px-6 py-4 w-[30%]">Item</th>
+                    <th className="px-6 py-4 w-[20%]">Category</th>
+                    <th className="px-6 py-4 w-[15%] text-center">Stock</th>
+                    <th className="px-6 py-4 w-[15%] text-center">Unit</th>
                     <th className="px-6 py-4 w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
@@ -241,7 +196,7 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {loading ? (
-                    <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={32} /></td></tr>
+                    <tr><td colSpan={5} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={32} /></td></tr>
                   ) : filteredIngredients.length > 0 ? (
                     filteredIngredients.map((row) => (
                       <IngredientRow 
@@ -254,7 +209,7 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-24 text-center">
+                      <td colSpan={5} className="py-24 text-center">
                         <PackageOpen className="mx-auto mb-3 text-slate-200" size={48} />
                         <p className="text-slate-400 font-medium italic">No ingredients found</p>
                       </td>

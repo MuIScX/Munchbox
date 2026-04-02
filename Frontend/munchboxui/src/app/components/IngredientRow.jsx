@@ -9,17 +9,12 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
 
   const currentId = row.ingredient_id || row.id;
   const name = row.ingredient_name || row.name || row.item;
-  const minVal = row.min_stock || row.minStock || 0;
   const currentStock = Number(row.stock_left ?? row.stock ?? 0);
-  const isOk = currentStock >= minVal;
 
   const newStock = editValue === "" ? currentStock : Number(editValue);
   const hasChanged = isEditing && newStock !== currentStock;
 
-  let stockColorClass = "text-slate-800 font-semibold";
-  if (isEditing && hasChanged) {
-    stockColorClass = newStock >= minVal ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold";
-  }
+  const stockColorClass = (isEditing && hasChanged) ? "text-emerald-600 font-semibold" : "text-slate-800 font-semibold";
 
   const handleSave = () => {
     if (editValue === "") return;
@@ -37,15 +32,9 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
     <tr className="hover:bg-orange-50/40 transition-colors">
       <td className="px-6 py-4 text-slate-800 font-semibold">{name}</td>
       <td className="px-6 py-4 text-slate-500 text-sm">{CATEGORY_MAP[row.category] || row.category || 'Unknown'}</td>
-      <td className="px-6 py-4 text-center">
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isOk ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-          {isOk ? 'OK' : 'Low Stock'}
-        </span>
-      </td>
       <td className={`px-6 py-4 text-center transition-colors duration-200 ${stockColorClass}`}>
         {isEditing && editValue !== "" ? newStock : currentStock}
       </td>
-      <td className="px-6 py-4 text-center text-slate-600 font-medium">{minVal}</td>
       <td className="px-6 py-4 text-center text-slate-500 text-sm">{row.unit}</td>
       <td className="px-6 py-4">
         <div className="flex justify-center items-center gap-3">
