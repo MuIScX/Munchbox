@@ -1,112 +1,95 @@
 "use client";
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function EditIngredientModal({ isOpen, onClose, ingredient, onSave }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [unit, setUnit] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({ name: "", category: "1", unit: "" });
 
   useEffect(() => {
     if (ingredient) {
-      setName(ingredient.ingredient_name || ingredient.name || "");
-      setCategory(String(ingredient.category || ""));
-      setUnit(ingredient.unit || "");
+      setFormData({
+        name: ingredient.ingredient_name || ingredient.name || "",
+        category: String(ingredient.category || "1"),
+        unit: ingredient.unit || "",
+      });
+      setError("");
     }
   }, [ingredient]);
 
   if (!isOpen || !ingredient) return null;
 
-  const handleSave = () => {
-    if (!name.trim() || !category || !unit.trim()) return;
-    onSave({
-      ingredient_id: ingredient.ingredient_id || ingredient.id,
-      name: name.trim(),
-      category: parseInt(category),
-      unit: unit.trim(),
-    });
+  const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+
+  const handleNameChange = (e) => {
+    setFormData({ ...formData, name: capitalize(e.target.value) });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await onSave({
+        ingredient_id: ingredient.ingredient_id || ingredient.id,
+        name: formData.name.trim(),
+        category: Number(formData.category),
+        unit: formData.unit,
+      });
+    } catch (err) {
+      setError(err.message || "Failed to update ingredient");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-
-        <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
-
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <h2 className="text-xl font-bold text-slate-800">Edit Ingredient</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <h2 className="font-bold text-slate-800 text-lg">Edit Ingredient</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Update name, category, and unit</p>
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Ingredient Name</label>
+            <input required type="text" placeholder="e.g., Tomato" value={formData.name} onChange={handleNameChange} className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none" />
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
-          {/* Name */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">
-              Ingredient Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-              placeholder="e.g. Tomato"
-            />
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Category</label>
+            <select required value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
+              {Object.entries(CATEGORY_MAP).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
           </div>
-
-          {/* Category + Unit side by side */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer bg-white transition"
-              >
-                <option value="">Select...</option>
-                {Object.entries(CATEGORY_MAP).map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="w-32">
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                Unit
-              </label>
-              <input
-                type="text"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-                placeholder="e.g. kg"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Unit</label>
+            <select required value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
+              <option value="" disabled>Select Unit</option>
+              <option value="kg">kg (Kilogram)</option>
+              <option value="g">g (Gram)</option>
+              <option value="liter">liter</option>
+              <option value="ml">ml (Milliliter)</option>
+              <option value="piece">piece</option>
+              <option value="bag">bag</option>
+              <option value="pack">pack</option>
+              <option value="box">box</option>
+              <option value="bottle">bottle</option>
+            </select>
           </div>
-        </div>
-
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || !category || !unit.trim()}
-            className="px-5 py-2 bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition shadow-sm"
-          >
-            Update Ingredient
-          </button>
-        </div>
+          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Update Ingredient"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

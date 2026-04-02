@@ -67,14 +67,10 @@ export default function Home() {
   };
 
   const handleEditDetail = async (payload) => {
-    try {
-      await IngredientAPI.updateDetail(payload);
-      setIngredientToEdit(null);
-      showToast("success", "Ingredient updated.");
-      fetchIngredients();
-    } catch (err) {
-      showToast("error", err.message || "Update failed");
-    }
+    await IngredientAPI.updateDetail(payload);
+    setIngredientToEdit(null);
+    showToast("success", "Ingredient updated.");
+    fetchIngredients();
   };
 
   const confirmDelete = async () => {
