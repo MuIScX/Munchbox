@@ -47,7 +47,7 @@ export default function IngredientFilterPopover({ isOpen, onClose, ingredients, 
       ref={ref}
       className="absolute -top-3 left-full ml-3 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl w-80 overflow-hidden"
     >
-      <div className="p-4 space-y-3 min-h-[230px]">
+      <div className="p-4 space-y-2 min-h-[230px]">
 
         {/* 1. Search input always on top */}
         <div className="relative" ref={dropdownRef}>
@@ -84,33 +84,37 @@ export default function IngredientFilterPopover({ isOpen, onClose, ingredients, 
           )}
         </div>
 
-        {/* 2. Selected pills below search */}
+        {/* Divider + Clear all pinned right below it */}
+        <div className="border-t border-slate-100" />
         {selectedItems.length > 0 && (
-          <div className="space-y-2">
-            <button
-              onClick={() => { onClear(); setSearchTerm(""); }}
-              className="text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
-            >
-              Clear all
-            </button>
+          <button
+            onClick={() => { onClear(); setSearchTerm(""); }}
+            className="-mt-3 text-xs text-orange-500 font-semibold hover:text-orange-600 transition-colors"
+          >
+            Clear all
+          </button>
+        )}
 
-            <div className="flex flex-wrap gap-1.5">
-              {selectedItems.map((ing) => {
-                const id = ing.ingredient_id || ing.id;
-                const name = ing.ingredient_name || ing.name;
-                return (
-                  <span
-                    key={id}
-                    className="group flex items-center gap-1 pl-3 pr-2 py-1 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-full transition-colors hover:border-red-300 hover:bg-red-50 cursor-pointer"
-                    onClick={() => onToggle(id)}
-                  >
-                    {name}
-                    <X size={11} className="text-orange-400 group-hover:text-red-500 transition-colors shrink-0" strokeWidth={2.5} />
-                  </span>
-                );
-              })}
-            </div>
+        {/* 2. Selected pills or empty state */}
+        {selectedItems.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedItems.map((ing) => {
+              const id = ing.ingredient_id || ing.id;
+              const name = ing.ingredient_name || ing.name;
+              return (
+                <span
+                  key={id}
+                  className="group flex items-center gap-1 pl-3 pr-2 py-1 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-full transition-colors hover:border-red-300 hover:bg-red-50 cursor-pointer"
+                  onClick={() => onToggle(id)}
+                >
+                  {name}
+                  <X size={11} className="text-orange-400 group-hover:text-red-500 transition-colors shrink-0" strokeWidth={2.5} />
+                </span>
+              );
+            })}
           </div>
+        ) : (
+          <p className="text-xs text-slate-400 italic text-center pt-2">No ingredients filtered yet</p>
         )}
 
       </div>
