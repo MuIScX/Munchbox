@@ -164,10 +164,10 @@ shareMenu: (start_date, end_date) =>
  
 
 export const PredictAPI = {
-  report: () => request("/predict/report"),
-  trend: (ingredient_id) => request("/predict/trend", "POST", { ingredient_id }),
+  report: (days = null) => request("/predict/report", "POST", { days }),  trend: (ingredient_id) => request("/predict/trend", "POST", { ingredient_id }),
   actual: (ingredient_id) => request("/predict/actual", "POST", { ingredient_id }),
-  dailyForecast: (ingredient_id) => request("/predict/ingredient-forecast", "POST", { ingredient_id }),
+ dailyForecast: (ingredient_id, days = null) => 
+  request("/predict/ingredient-forecast", "POST", { ingredient_id, days }),
   generate: (payload) => request("/predict/generate", "POST", payload, 0),
   generateMenu: (payload) => request("/predict/generate-menu", "POST", payload, 0),
 }
