@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import AddMenuModal from "../components/AddMenuModal";
 import DeleteMenuModal from "../components/DeleteMenuModal";
 import MenuRow from "../components/MenuRow";
 import Toast from "../components/Toast";
-import { MenuAPI } from "../../lib/api";
+import IngredientFilterPopover from "../components/IngredientFilterPopover";
+import { MenuAPI, IngredientAPI, RecipeAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Trash2, UtensilsCrossed, Plus } from "lucide-react";
+import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal } from "lucide-react";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
 export default function ManageMenuPage() {
   const router = useRouter();
+  const filterBtnRef = useRef(null);
 
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,11 @@ export default function ManageMenuPage() {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [menuToDelete, setMenuToDelete] = useState(null);
+
+  const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const [allIngredients, setAllIngredients] = useState([]);
+  const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [recipeMap, setRecipeMap] = useState([]); // [{menu_id, ingredient_id}]
 
   const showToast = (type, message) => setToast({ type, message });
 
@@ -41,6 +48,16 @@ export default function ManageMenuPage() {
 
   useEffect(() => {
     fetchMenus();
+    // Fetch ingredients and recipe map for filter
+    Promise.allSettled([
+      IngredientAPI.list({}),
+      RecipeAPI.getMap(),
+    ]).then(([ingRes, mapRes]) => {
+      if (ingRes.status === "fulfilled" && Array.isArray(ingRes.value?.Data))
+        setAllIngredients(ingRes.value.Data);
+      if (mapRes.status === "fulfilled" && Array.isArray(mapRes.value?.Data))
+        setRecipeMap(mapRes.value.Data);
+    });
   }, []);
 
   const confirmDelete = async () => {
@@ -56,14 +73,30 @@ export default function ManageMenuPage() {
     }
   };
 
+  const handleIngredientToggle = (id) => {
+    setSelectedIngredients(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const filteredMenus = menus.filter((m) => {
     const name = (m.menu_name || m.name || "").toLowerCase();
     const matchesSearch = name.includes(searchQuery.toLowerCase());
     const typeValue = m.menu_type || m.type;
     const matchesCategory = selectedCategory === "All" || String(typeValue) === selectedCategory;
-    return matchesSearch && matchesCategory;
+
+    let matchesIngredients = true;
+    if (selectedIngredients.length > 0) {
+      const menuId = m.menu_id || m.id;
+      const menuIngredientIds = recipeMap
+        .filter(r => String(r.menu_id) === String(menuId))
+        .map(r => r.ingredient_id);
+      matchesIngredients = selectedIngredients.every(id => menuIngredientIds.includes(id));
+    }
+
+    return matchesSearch && matchesCategory && matchesIngredients;
   });
-  
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
@@ -111,19 +144,16 @@ export default function ManageMenuPage() {
 
           {/* Recipe Table Container */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            
-            {/* NEW CONSOLIDATED HEADER */}
+
             <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
               <div className="shrink-0">
                 <h2 className="font-bold text-slate-800 text-lg italic">Recipe List</h2>
                 <p className="text-xs text-slate-400">{filteredMenus.length} recipes found</p>
               </div>
 
-              {/* Vertical Divider */}
               <div className="w-px h-8 mx-4 bg-slate-100" />
 
-              {/* Search and Filters Group */}
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-3 items-center flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
@@ -134,16 +164,44 @@ export default function ManageMenuPage() {
                     className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-48 transition-all"
                   />
                 </div>
-                
-                <select 
-                  value={selectedCategory} 
-                  onChange={(e) => setSelectedCategory(e.target.value)} 
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer"
                 >
                   <option value="All">Type: All</option>
                   {Object.entries(TYPE_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
                 </select>
 
+                {/* Filter button with popover */}
+                <div className="relative" ref={filterBtnRef}>
+                  <button
+                    onClick={() => setShowFilterPopover(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                      selectedIngredients.length > 0
+                        ? "bg-orange-500 border-orange-500 text-white"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <SlidersHorizontal size={13} />
+                    Ingredients
+                    {selectedIngredients.length > 0 && (
+                      <span className="bg-white/30 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                        {selectedIngredients.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <IngredientFilterPopover
+                    isOpen={showFilterPopover}
+                    onClose={() => setShowFilterPopover(false)}
+                    ingredients={allIngredients}
+                    selected={selectedIngredients}
+                    onToggle={handleIngredientToggle}
+                    onClear={() => setSelectedIngredients([])}
+                  />
+                </div>
               </div>
             </div>
 

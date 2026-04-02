@@ -90,6 +90,18 @@ def get_menu_detail(body: MenuDetailRequest, identity: dict = Depends(decode_tok
 
 # ── Recipe ────────────────────────────────────────────────────────────────────
 
+@recipe_router.post("/map")
+def get_recipe_map(identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    rows = (
+        db.query(Recipe.menu_id, Recipe.ingredient_id)
+        .join(Ingredient, Ingredient.id == Recipe.ingredient_id)
+        .filter(Ingredient.restaurant_id == identity["restaurantId"],
+                Ingredient.is_active == 1)
+        .all()
+    )
+    return {"message": "success", "Data": [{"menu_id": r[0], "ingredient_id": r[1]} for r in rows]}
+
+
 @recipe_router.post("/detail")
 def get_recipe_detail(body: RecipeDetailRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
     rows = (
