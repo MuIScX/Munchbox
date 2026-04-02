@@ -6,7 +6,6 @@ class PredictSet(Base):
     __tablename__ = "predict_set"
 
     id            = Column(BigInteger, primary_key=True, autoincrement=True)
-    prediction_id = Column(BigInteger, nullable=False)
     timestamp     = Column(TIMESTAMP, nullable=False)
     model         = Column(Integer, nullable=False)
     day_ahead     = Column(Integer, nullable=False)
