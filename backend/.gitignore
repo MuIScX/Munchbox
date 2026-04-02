@@ -1,3 +1,5 @@
 venv/
 .env
 forecast_output.json
+__pycache__/
+*.pyc
