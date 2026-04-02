@@ -30,13 +30,13 @@ export default function IngredientRow({ row, onUpdateStock, showDelete, onDelete
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors">
-      <td className="px-6 py-4 text-slate-800 font-semibold">{name}</td>
-      <td className="px-6 py-4 text-slate-500 text-sm">{CATEGORY_MAP[row.category] || row.category || 'Unknown'}</td>
-      <td className={`px-6 py-4 text-center transition-colors duration-200 ${stockColorClass}`}>
+      <td className="px-6 py-3 text-slate-800 font-semibold">{name}</td>
+      <td className="px-6 py-3 text-slate-500 text-sm">{CATEGORY_MAP[row.category] || row.category || 'Unknown'}</td>
+      <td className={`px-6 py-3 text-center transition-colors duration-200 ${stockColorClass}`}>
         {isEditing && editValue !== "" ? newStock : currentStock}
       </td>
-      <td className="px-6 py-4 text-center text-slate-500 text-sm">{row.unit}</td>
-      <td className="px-6 py-4">
+      <td className="px-6 py-3 text-center text-slate-500 text-sm">{row.unit}</td>
+      <td className="px-6 py-3">
         <div className="flex justify-center items-center gap-3">
           {isEditing ? (
             <div className="flex items-center gap-2">

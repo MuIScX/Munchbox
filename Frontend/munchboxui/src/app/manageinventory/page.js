@@ -7,7 +7,7 @@ import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
-import { Search, Plus, Loader2, Trash2, PackageOpen, Package } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2, PackageOpen } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function Home() {
@@ -100,7 +100,7 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <PackageOpen size={20} className="text-orange-500" />
@@ -116,18 +116,6 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                 >
                   <Plus size={18} /> Add Ingredient
                 </button>
-              </div>
-              <div className="flex gap-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                    <Package size={18} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wide">Total</p>
-                    <p className="text-3xl font-bold text-blue-900 mt-0.5">{ingredients.length}</p>
-                    <p className="text-xs text-blue-500 font-medium mt-0.5">ingredients</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -177,11 +165,11 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                    <th className="px-6 py-4 w-[30%]">Item</th>
-                    <th className="px-6 py-4 w-[20%]">Category</th>
-                    <th className="px-6 py-4 w-[15%] text-center">Stock</th>
-                    <th className="px-6 py-4 w-[15%] text-center">Unit</th>
-                    <th className="px-6 py-4 w-[14%] text-center">
+                    <th className="px-6 py-3 w-[30%]">Item</th>
+                    <th className="px-6 py-3 w-[20%]">Category</th>
+                    <th className="px-6 py-3 w-[15%] text-center">Stock</th>
+                    <th className="px-6 py-3 w-[15%] text-center">Unit</th>
+                    <th className="px-6 py-3 w-[14%] text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button 
