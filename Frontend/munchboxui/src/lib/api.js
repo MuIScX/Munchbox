@@ -84,9 +84,27 @@ export const AuthAPI = {
 
   register: (payload) => request("/register", "POST", payload),
 
-  logout: () => deleteCookie("token"),
+  logout: () => {
+    deleteCookie("token");
+    deleteCookie("staff");
+  },
 
   me: () => request("/user/me", "GET"),
+}
+
+export const StaffSession = {
+  set: (staff) =>
+    setCookie("staff", JSON.stringify(staff), {
+      maxAge: 60 * 60 * 24,
+      path: "/",
+      sameSite: "lax",
+    }),
+  get: () => {
+    const raw = getCookie("staff");
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  },
+  clear: () => deleteCookie("staff"),
 }
 
 export const StaffAPI = {

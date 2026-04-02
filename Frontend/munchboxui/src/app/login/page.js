@@ -62,7 +62,7 @@ export default function Home() {
     try {
       setLoading(true);
       await AuthAPI.login(emailValue, passwordValue);
-      router.push("/dashboard");
+      router.push("/staff-login");
     } catch (error) {
       const msg = error.message || "";
       if (msg.includes("User not found")) {

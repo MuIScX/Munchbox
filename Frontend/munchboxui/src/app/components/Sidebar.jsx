@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { AuthAPI } from '../../lib/api';
+import { AuthAPI, StaffSession } from '../../lib/api';
 import {
   Home,
   FileChartColumn,
@@ -33,6 +33,24 @@ function useCurrentUser() {
     let cancelled = false;
     async function fetchUser() {
       try {
+        const staff = StaffSession.get();
+        if (staff) {
+          if (!cancelled) {
+            setUser({
+              name: staff.name,
+              email: '',
+              role: staff.roleLabel ?? 'Staff',
+              avatarUrl: undefined,
+              initials: staff.name
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2),
+            });
+          }
+          return;
+        }
         const res = await AuthAPI.me();
         const data = res.Data ?? res;
         if (!cancelled) {
