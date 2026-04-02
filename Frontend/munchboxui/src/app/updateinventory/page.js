@@ -106,7 +106,7 @@ const handleUpdateStock = async (ingredientId, changeAmount) => {
                     <PackageOpen size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Manage Inventory</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Update Inventory</h1>
                     <p className="text-sm text-slate-400 mt-0.5">Track and update ingredient stock levels</p>
                   </div>
                 </div>
