@@ -14,17 +14,25 @@ import {
 } from "lucide-react";
 
 /* ─── helpers ─── */
-function computeAccuracy(actualData, dailyTargetAvg) {
-  if (dailyTargetAvg == null) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
+function computeAccuracy(actualData, trendData) {
+  // Build actual map: date → actual_usage
+  const actualMap = {};
+  (actualData || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
 
-  const actuals = (actualData || []).filter((d) => d.actual_usage != null && d.actual_usage > 0);
-  if (actuals.length === 0) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
+  // Only use type-1 (daily forecast) rows — each has expected_usage for that specific date
+  const predPoints = (trendData?.data || [])
+    .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
+    .map((d) => ({
+      date:      (d.timestamp || "").split(" ")[0],
+      predicted: d.expected_usage,
+    }));
 
-  const merged = actuals.map((d) => ({
-    date:      d.date,
-    actual:    d.actual_usage,
-    predicted: dailyTargetAvg,
-  }));
+  // Join on date — only keep rows where both predicted AND actual exist
+  const merged = predPoints
+    .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
+    .filter((d) => d.actual !== null && d.actual > 0);
+
+  if (merged.length === 0) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
 
   const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
   const pctErrors = merged.map((d) => Math.abs(d.actual - d.predicted) / d.actual);
@@ -35,10 +43,10 @@ function computeAccuracy(actualData, dailyTargetAvg) {
   const bias = biasArr.reduce((a, b) => a + b, 0) / merged.length;
 
   return {
-    accuracy: Math.max(0, 100 - mape),
-    mae:      parseFloat(mae.toFixed(2)),
-    bias:     parseFloat(bias.toFixed(2)),
-    days:     merged.length,
+    accuracy:  Math.max(0, 100 - mape),
+    mae:       parseFloat(mae.toFixed(2)),
+    bias:      parseFloat(bias.toFixed(2)),
+    days:      merged.length,
     chartData: merged.sort((a, b) => a.date.localeCompare(b.date)),
   };
 }
@@ -106,8 +114,11 @@ export default function AccuracyPage() {
         // Progressively load accuracy data per ingredient
         for (const ing of list) {
           try {
-            const actualRes = await PredictAPI.actual(ing.ingredient_id);
-            const stats = computeAccuracy(actualRes?.Data, ing.daily_target_average);
+            const [actualRes, trendRes] = await Promise.all([
+              PredictAPI.actual(ing.ingredient_id),
+              PredictAPI.trend(ing.ingredient_id),
+            ]);
+            const stats = computeAccuracy(actualRes?.Data, trendRes?.Data);
             const updated = { ...ing, ...stats, _loaded: true };
 
             setIngredients((prev) =>

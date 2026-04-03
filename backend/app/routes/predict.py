@@ -377,6 +377,7 @@ def predicted_trend(body: PredictTrendRequest, identity: dict = Depends(decode_t
         db.query(
             Predict.timestamp, Predict.expected_usage,
             Predict.upper_bound, Predict.lower_bound, Predict.daily_target_average,
+            Predict.prediction_type,
         )
         .join(latest_sub, Predict.timestamp == latest_sub.c.max_ts)
         .filter(Predict.ingredient_id == body.ingredient_id, Predict.restaurant_id == restaurant_id)
@@ -387,11 +388,12 @@ def predicted_trend(body: PredictTrendRequest, identity: dict = Depends(decode_t
         "ingredient_id": body.ingredient_id,
         "data": [
             {
-                "timestamp": str(r[0]),
-                "expected_usage": float(r[1]),
-                "upper_bound": float(r[2]) if r[2] is not None else None,
-                "lower_bound": float(r[3]) if r[3] is not None else None,
+                "timestamp":            str(r[0]),
+                "expected_usage":       float(r[1]),
+                "upper_bound":          float(r[2]) if r[2] is not None else None,
+                "lower_bound":          float(r[3]) if r[3] is not None else None,
                 "daily_target_average": float(r[4]) if r[4] is not None else None,
+                "prediction_type":      r[5],
             }
             for r in rows
         ],
