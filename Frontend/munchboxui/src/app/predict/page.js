@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
@@ -8,7 +8,7 @@ import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
 import { PredictAPI, IngredientAPI } from "../../lib/api";
 import {
-  Search, Loader2, TrendingUp, SlidersHorizontal, X, Plus,
+  Search, Loader2, TrendingUp, X, Plus,
   Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw,
 } from "lucide-react";
 
@@ -26,7 +26,6 @@ export default function PredictPage() {
   const [toast, setToast]                         = useState(null);
   const [modalOpen, setModalOpen]                 = useState(false);
   const [ingredientList, setIngredientList]       = useState([]);
-  const [filterOpen, setFilterOpen]               = useState(false);
   const [requestForm, setRequestForm]             = useState({
     ingredient_id: "",
     start_date: new Date().toISOString().split("T")[0],
@@ -39,8 +38,6 @@ export default function PredictPage() {
     suggestionRange: true,
     dailyTargetAvg:  true,
   });
-  const filterRef = useRef(null);
-
   const showToast = (type, message) => setToast({ type, message });
 
   // ── Fetch trend — accepts days explicitly to avoid stale closure ──
@@ -112,14 +109,6 @@ export default function PredictPage() {
     IngredientAPI.list({}).then((res) => {
       setIngredientList(Array.isArray(res?.Data) ? res.Data : []);
     }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const handleSelectIngredient = (ing) => {
@@ -291,456 +280,401 @@ const yAxisMax = useMemo(() => {
       <Toast toast={toast} onClose={() => setToast(null)} />
       <Sidebar />
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div className="p-8 flex flex-col gap-6 max-w-screen-2xl w-full mx-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="p-6 flex flex-col h-full gap-4">
 
-          {/* ── Header + Stat cards ── */}
+          {/* ── Header ── */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                    <TrendingUp size={20} className="text-orange-500" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Demand Forecast</h1>
-                    <p className="text-sm text-slate-400 mt-0.5">Bayesian time-series prediction for ingredient usage</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => fetchReport(forecastDays)}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium hover:bg-slate-50 transition shadow-sm disabled:opacity-50"
-                  >
-                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                    Refresh
-                  </button>
-                  <button
-                    onClick={() => setModalOpen(true)}
-                    disabled={generating}
-                    className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition shadow-sm disabled:opacity-60"
-                  >
-                    {generating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    {generating ? "Generating…" : "New Prediction"}
-                  </button>
-                </div>
+            <div className="h-1 bg-gradient-to-r from-orange-500 to-orange-300" />
+            <div className="px-6 py-4 flex items-center gap-4">
+              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                <TrendingUp size={18} className="text-orange-500" />
               </div>
-
-              {selectedIngredient ? (
-                <div className="grid grid-cols-4 gap-4">
-                  {/* Current Stock */}
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-200 flex items-center justify-center shrink-0">
-                      <Package size={16} className="text-slate-500" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Current Stock</p>
-                      <p className="text-2xl font-bold text-slate-700">{selectedIngredient.current_stock}</p>
-                      <p className="text-[11px] text-slate-400">{selectedIngredient.unit}</p>
-                    </div>
-                  </div>
-
-                  {/* Est Usage */}
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                      <BarChart2 size={16} className="text-orange-500" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-orange-500 font-bold uppercase tracking-wide">Est. Usage ({forecastDays}d)</p>
-                      <p className="text-2xl font-bold text-orange-900">{Math.ceil(selectedIngredient.expected_usage)}</p>
-                      <p className="text-[11px] text-orange-400">{selectedIngredient.unit}</p>
-                    </div>
-                  </div>
-
-                  {/* Avg/Day */}
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                      <Clock size={16} className="text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wide">Avg / Day</p>
-                      <p className="text-2xl font-bold text-blue-900">{selectedIngredient.daily_target_average ?? "—"}</p>
-                      <p className="text-[11px] text-blue-400">{selectedIngredient.unit}/day</p>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div className={`rounded-xl border p-4 flex items-center gap-3 ${selectedIngredient.status === 1 ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${selectedIngredient.status === 1 ? "bg-emerald-100" : "bg-red-100"}`}>
-                      {selectedIngredient.status === 1
-                        ? <CheckCircle size={16} className="text-emerald-600" />
-                        : <AlertTriangle size={16} className="text-red-500" />}
-                    </div>
-                    <div>
-                      <p className={`text-[10px] font-bold uppercase tracking-wide ${selectedIngredient.status === 1 ? "text-emerald-600" : "text-red-500"}`}>Status</p>
-                      <p className={`text-2xl font-bold ${selectedIngredient.status === 1 ? "text-emerald-900" : "text-red-900"}`}>
-                        {selectedIngredient.status === 1 ? "OK" : "Low"}
-                      </p>
-                      <p className={`text-[11px] ${selectedIngredient.status === 1 ? "text-emerald-500" : "text-red-400"}`}>
-                        {selectedIngredient.status === 1
-                          ? `+${surplus} ${selectedIngredient.unit} surplus`
-                          : `Need ${Math.abs(surplus)} ${selectedIngredient.unit} more`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-20 flex items-center justify-center text-slate-300 text-sm italic">
-                  Select an ingredient to view stats
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Controls bar ── */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {[
-              { label: "Ingredient", node: (
-                <select
-                  value={selectedIngredient?.ingredient_id || ""}
-                  onChange={(e) => { const ing = report.find((r) => String(r.ingredient_id) === e.target.value); if (ing) handleSelectIngredient(ing); }}
-                  className="text-sm font-semibold text-slate-700 bg-transparent outline-none cursor-pointer max-w-[130px]"
-                >
-                  {report.map((r) => <option key={r.ingredient_id} value={r.ingredient_id}>{r.ingredient_name}</option>)}
-                </select>
-              )},
-              { label: "Forecast", node: (
-                <select
-                  value={forecastDays}
-                  onChange={(e) => handleChangeDays(parseInt(e.target.value))}
-                  className="text-sm font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
-                >
-                  <option value={7}>Next 7 days</option>
-                  <option value={14}>Next 14 days</option>
-                  <option value={30}>Next 30 days</option>
-                </select>
-              )},
-              { label: "Model", node: (
-                <select
-                  value={requestForm.strategy}
-                  onChange={(e) => setRequestForm((f) => ({ ...f, strategy: e.target.value }))}
-                  className="text-sm font-semibold text-slate-700 bg-transparent outline-none cursor-pointer"
-                >
-                  <option value="1">Conservative</option>
-                  <option value="2">Balanced</option>
-                  <option value="3">Aggressive</option>
-                </select>
-              )},
-            ].map(({ label, node }) => (
-              <div key={label} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm">
-                <span className="text-xs text-slate-400 font-medium">{label}</span>
-                <span className="text-slate-200">|</span>
-                {node}
+              <div className="flex-1">
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight">Demand Forecast</h1>
+                <p className="text-xs text-slate-400 mt-0.5">Bayesian time-series prediction for ingredient usage</p>
               </div>
-            ))}
-
-            <div className="flex-1" />
-
-            {/* Graph filter */}
-            <div className="relative" ref={filterRef}>
               <button
-                onClick={() => setFilterOpen((o) => !o)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition shadow-sm ${filterOpen ? "bg-orange-50 border-orange-300 text-orange-600" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+                onClick={() => fetchReport(forecastDays)}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium hover:bg-slate-50 transition shadow-sm disabled:opacity-50"
               >
-                <SlidersHorizontal size={14} /> Filters
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                Refresh
               </button>
-              {filterOpen && (
-                <div className="absolute right-0 top-12 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-20 w-52">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Show / Hide</p>
-                  {[
-                    { key: "historicalUsage", label: "Historical Usage", dot: "bg-emerald-400" },
-                    { key: "futureForecast",  label: "Future Forecast",  dot: "bg-indigo-400" },
-                    { key: "suggestionRange", label: "Suggestion Range", dot: "bg-orange-200" },
-                    { key: "dailyTargetAvg",  label: "Daily Target Avg", dot: "bg-orange-400" },
-                  ].map(({ key, label, dot }) => (
-                    <label key={key} className="flex items-center gap-3 py-1.5 cursor-pointer group">
-                      <div
-                        className={`w-4 h-4 rounded flex items-center justify-center border-2 transition ${graphFilters[key] ? "border-orange-500 bg-orange-500" : "border-slate-300"}`}
-                        onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
-                      >
-                        {graphFilters[key] && <svg viewBox="0 0 10 8" className="w-2.5 h-2.5"><path d="M1 4l2.5 3L9 1" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>}
-                      </div>
-                      <div className={`w-2.5 h-2.5 rounded-full ${dot}`} />
-                      <span className="text-sm text-slate-600 group-hover:text-slate-800 select-none">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
+              <button
+                onClick={() => setModalOpen(true)}
+                disabled={generating}
+                className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition shadow-sm disabled:opacity-60"
+              >
+                {generating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                {generating ? "Generating…" : "New Prediction"}
+              </button>
             </div>
           </div>
 
-          {/* ── Chart card ── */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {selectedIngredient && (
-              <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-slate-700 text-sm">
-              {selectedIngredient.ingredient_name} {forecastDays}-day forecast
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {selectedIngredient.daily_target_average != null
-                      ? `Average ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day — expect to use ~${selectedIngredient.expected_usage} ${selectedIngredient.unit} in the next ${forecastDays} days.`
-                      : 'No forecast data yet. Click "New Prediction" to generate one.'}
-                  </p>
-                </div>
-                {selectedIngredient.status === 1 ? (
-                  <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-semibold px-3 py-1.5 rounded-xl shrink-0">
-                    <CheckCircle size={12} /> Stock OK
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-500 text-xs font-semibold px-3 py-1.5 rounded-xl shrink-0">
-                    <AlertTriangle size={12} /> Reorder needed
-                  </div>
-                )}
-              </div>
-            )}
+          {/* ── Body: split panel ── */}
+          <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
 
-            {selectedIngredient ? (
-              trendLoading ? (
-                <div className="flex flex-col items-center justify-center h-80 gap-3">
-                  <Loader2 className="animate-spin text-orange-400" size={28} />
-                  <p className="text-sm text-slate-400">Loading forecast data…</p>
-                </div>
-              ) : chartData.length > 0 ? (
-                <>
-                  <div className="h-80 px-2 pt-4 pb-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor="#10b981" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}    />
-                          </linearGradient>
-                          <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.12} />
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
-                          </linearGradient>
-                        </defs>
-
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-<XAxis
-  dataKey="date"
-  tick={{ fontSize: 11, fill: "#94a3b8" }}
-  axisLine={false}
-  tickLine={false}
-  padding={{ left: 10, right: 10 }}
-  interval={chartData.length <= 21 ? 1 : Math.ceil(chartData.length / 8)}
-  tickFormatter={(v) => {
-    const d = new Date(v);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  }}
-/>
-                        <YAxis
-                          tick={{ fontSize: 11, fill: "#94a3b8" }}
-                          axisLine={false}
-                          tickLine={false}
-                          domain={[0, yAxisMax]}
-                          allowDataOverflow
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-
-                        {/* Suggestion range band */}
-                        {hasSuggestionRange && (
-                          <Area type="monotone" dataKey="future_band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />
-                        )}
-                        {hasSuggestionRange && (
-                          <Area type="monotone" dataKey="future_band_range" stackId="fb" stroke="none" fill="#f97316" fillOpacity={0.12} legendType="none" />
-                        )}
-
-                        {/* Actual usage area + line */}
-                        {hasActual && (
-                          <Area
-                            type="monotone"
-                            dataKey="actual_usage"
-                            stroke="#10b981"
-                            strokeWidth={2.5}
-                            fill="url(#actualGrad)"
-                            dot={false}
-                            activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
-                            connectNulls={false}
-                            legendType="none"
-                          />
-                        )}
-
-                        {/* Future forecast area + line */}
-                        {hasFuture && (
-                          <Area
-                            type="monotone"
-                            dataKey="future_forecast"
-                            stroke="#6366f1"
-                            strokeWidth={2.5}
-                            fill="url(#forecastGrad)"
-                            dot={false}
-                            activeDot={{ r: 5, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }}
-                            connectNulls
-                            legendType="none"
-                          />
-                        )}
-
-                        {/* Today divider */}
-                        <ReferenceLine
-                          x={todayStr}
-                          stroke="#cbd5e1"
-                          strokeWidth={1.5}
-                          strokeDasharray="4 3"
-                          label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
-                        />
-
-                        {/* Daily avg dashed line */}
-                        {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
-                          <Line
-                            type="monotone"
-                            dataKey="daily_avg"
-                            stroke="#f97316"
-                            strokeWidth={1.5}
-                            strokeDasharray="5 3"
-                            dot={false}
-                            activeDot={false}
-                            connectNulls={false}
-                            legendType="none"
-                          />
-                        )}
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex items-center gap-5 px-6 py-3 border-t border-slate-100 flex-wrap">
-                    {hasActual && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                        Actual usage
-                      </div>
-                    )}
-                    {hasFuture && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <div className="w-3 h-3 rounded-full bg-indigo-400" />
-                        Forecast ({forecastDays}d)
-                      </div>
-                    )}
-                    {hasSuggestionRange && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <div className="w-4 h-3 rounded" style={{ background: "rgba(249,115,22,0.2)" }} />
-                        Expected range
-                      </div>
-                    )}
-                    {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="4 3" /></svg>
-                        Daily avg
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-56 text-slate-400 gap-2">
-                  <TrendingUp className="text-slate-200" size={36} />
-                  <p className="text-sm">No data — click <b>New Prediction</b> to generate a forecast</p>
-                </div>
-              )
-            ) : (
-              <div className="flex flex-col items-center justify-center h-56 text-slate-400 gap-2">
-                <TrendingUp className="text-slate-200" size={36} />
-                <p className="text-sm italic">Select an ingredient to view the forecast</p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Prediction Results Table ── */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4">
-              <div>
-                <h2 className="font-bold text-slate-800">Prediction Results</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Click a row to view forecast chart</p>
-              </div>
-              <div className="flex-1" />
+            {/* ── Left panel: ingredient list ── */}
+            <div className="w-64 shrink-0 flex flex-col gap-3">
+              {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search ingredient…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none w-52"
+                  className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none shadow-sm"
                 />
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none"
-              >
-                <option value="All">All Status</option>
-                <option value="OK">Sufficient</option>
-                <option value="Reorder">Reorder</option>
-              </select>
+
+              {/* Status filter pills */}
+              <div className="flex gap-1.5">
+                {[["All", "All"], ["OK", "OK"], ["Reorder", "Low"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setStatusFilter(val)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      statusFilter === val
+                        ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                        : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Ingredient cards (scrollable) */}
+              <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-0.5">
+                {loading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="animate-spin text-orange-400" size={20} />
+                  </div>
+                ) : filteredReport.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-slate-300 gap-2">
+                    <Package size={24} />
+                    <p className="text-xs">No ingredients found</p>
+                  </div>
+                ) : filteredReport.map((ing) => {
+                  const isSelected = selectedIngredient?.ingredient_id === ing.ingredient_id;
+                  const isLow      = ing.status === 0;
+                  const diff       = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
+                  return (
+                    <button
+                      key={ing.ingredient_id}
+                      onClick={() => handleSelectIngredient(ing)}
+                      className={`w-full text-left rounded-xl border p-3 transition-all ${
+                        isSelected
+                          ? "bg-orange-50 border-orange-300 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
+                        <span className={`font-semibold text-sm truncate flex-1 ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
+                          {ing.ingredient_name}
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
+                          isLow
+                            ? "text-red-500 bg-red-50 border-red-200"
+                            : "text-emerald-600 bg-emerald-50 border-emerald-200"
+                        }`}>
+                          {isLow ? "Low" : "OK"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2">
+                        <div>
+                          <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Stock</p>
+                          <p className="text-xs font-bold text-slate-600">{ing.current_stock} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Est. {forecastDays}d</p>
+                          <p className="text-xs font-bold text-slate-600">{Math.ceil(ing.expected_usage)} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                        </div>
+                      </div>
+                      {isLow && (
+                        <div className="mt-2 pt-2 border-t border-red-100">
+                          <p className="text-[10px] text-red-400 font-medium">Need {Math.abs(diff)} more {ing.unit}</p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 text-slate-400 text-xs uppercase tracking-wide border-b border-slate-100">
-                  <th className="px-6 py-3 font-semibold">Ingredient</th>
-                  <th className="px-6 py-3 font-semibold text-right">Current Stock</th>
-                  <th className="px-6 py-3 font-semibold text-right">Est. Usage ({forecastDays}d)</th>
-                  <th className="px-6 py-3 font-semibold text-right">Avg / Day</th>
-                  <th className="px-6 py-3 font-semibold text-center">Unit</th>
-                  <th className="px-6 py-3 font-semibold text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-14 text-center">
-                      <Loader2 className="animate-spin text-orange-400 mx-auto" size={24} />
-                    </td>
-                  </tr>
-                ) : filteredReport.length > 0 ? (
-                  filteredReport.map((row) => {
-                    const isSelected = selectedIngredient?.ingredient_id === row.ingredient_id;
-                    const diff       = (row.current_stock - row.expected_usage).toFixed(1);
-                    return (
-                      <tr
-                        key={row.ingredient_id}
-                        onClick={() => handleSelectIngredient(row)}
-                        className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {isSelected && <div className="w-1 h-6 bg-orange-400 rounded-full" />}
-                            <span className={`font-semibold text-sm ${isSelected ? "text-orange-600" : "text-slate-700"}`}>
-                              {row.ingredient_name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-medium text-slate-700">{row.current_stock}</td>
-                        <td className="px-6 py-4 text-right text-sm text-slate-600">{row.expected_usage}</td>
-                        <td className="px-6 py-4 text-right text-sm text-slate-500">{row.daily_target_average ?? "—"}</td>
-                        <td className="px-6 py-4 text-center text-sm text-slate-400">{row.unit}</td>
-                        <td className="px-6 py-4 text-center">
-                          {row.status === 1 ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                              <CheckCircle size={11} /> OK +{diff}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
-                              <AlertTriangle size={11} /> Need {Math.abs(diff)}
-                            </span>
+            {/* ── Right panel: stats + chart ── */}
+            <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto">
+
+              {/* Stat cards */}
+              {selectedIngredient && (
+                <div className="grid grid-cols-4 gap-3 shrink-0">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                      <Package size={14} className="text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Stock</p>
+                      <p className="text-xl font-bold text-slate-700 leading-tight">{selectedIngredient.current_stock}</p>
+                      <p className="text-[10px] text-slate-400">{selectedIngredient.unit}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                      <BarChart2 size={14} className="text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-orange-500 font-bold uppercase tracking-wide">Est. {forecastDays}d</p>
+                      <p className="text-xl font-bold text-orange-900 leading-tight">{Math.ceil(selectedIngredient.expected_usage)}</p>
+                      <p className="text-[10px] text-orange-400">{selectedIngredient.unit}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                      <Clock size={14} className="text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-blue-500 font-bold uppercase tracking-wide">Avg / Day</p>
+                      <p className="text-xl font-bold text-blue-900 leading-tight">{selectedIngredient.daily_target_average ?? "—"}</p>
+                      <p className="text-[10px] text-blue-400">{selectedIngredient.unit}/day</p>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-xl border p-3.5 flex items-center gap-3 shadow-sm ${selectedIngredient.status === 1 ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${selectedIngredient.status === 1 ? "bg-emerald-100" : "bg-red-100"}`}>
+                      {selectedIngredient.status === 1
+                        ? <CheckCircle size={14} className="text-emerald-600" />
+                        : <AlertTriangle size={14} className="text-red-500" />}
+                    </div>
+                    <div>
+                      <p className={`text-[9px] font-bold uppercase tracking-wide ${selectedIngredient.status === 1 ? "text-emerald-600" : "text-red-500"}`}>Status</p>
+                      <p className={`text-xl font-bold leading-tight ${selectedIngredient.status === 1 ? "text-emerald-900" : "text-red-900"}`}>
+                        {selectedIngredient.status === 1 ? "OK" : "Low"}
+                      </p>
+                      <p className={`text-[10px] ${selectedIngredient.status === 1 ? "text-emerald-500" : "text-red-400"}`}>
+                        {selectedIngredient.status === 1
+                          ? `+${surplus} ${selectedIngredient.unit} surplus`
+                          : `Need ${Math.abs(surplus)} ${selectedIngredient.unit}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Chart card */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+                {/* Chart header */}
+                <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3 shrink-0">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-slate-700 text-sm truncate">
+                      {selectedIngredient
+                        ? `${selectedIngredient.ingredient_name} — ${forecastDays}-day forecast`
+                        : "Select an ingredient to view forecast"}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">
+                      {selectedIngredient?.daily_target_average != null
+                        ? `Avg ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · expected ${Math.ceil(selectedIngredient.expected_usage)} ${selectedIngredient.unit} over ${forecastDays} days`
+                        : selectedIngredient
+                        ? 'No forecast yet — click "New Prediction" to generate one'
+                        : "Choose an ingredient from the list on the left"}
+                    </p>
+                  </div>
+
+                  {/* Forecast days selector */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
+                    <span className="text-[10px] text-slate-400 font-medium">Forecast</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <select
+                      value={forecastDays}
+                      onChange={(e) => handleChangeDays(parseInt(e.target.value))}
+                      className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                    >
+                      <option value={7}>7 days</option>
+                      <option value={14}>14 days</option>
+                      <option value={30}>30 days</option>
+                    </select>
+                  </div>
+
+                  {/* Model selector */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
+                    <span className="text-[10px] text-slate-400 font-medium">Model</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <select
+                      value={requestForm.strategy}
+                      onChange={(e) => setRequestForm((f) => ({ ...f, strategy: e.target.value }))}
+                      className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                    >
+                      <option value="1">Conservative</option>
+                      <option value="2">Balanced</option>
+                      <option value="3">Aggressive</option>
+                    </select>
+                  </div>
+
+                  {/* Status badge */}
+                  {selectedIngredient && (
+                    selectedIngredient.status === 1 ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0">
+                        <CheckCircle size={11} /> Stock OK
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg shrink-0">
+                        <AlertTriangle size={11} /> Reorder
+                      </span>
+                    )
+                  )}
+                </div>
+
+                {/* Graph layer toggles */}
+                <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 shrink-0 bg-slate-50/40">
+                  {[
+                    { key: "historicalUsage", label: "Actual",       color: "#10b981" },
+                    { key: "futureForecast",  label: "Forecast",     color: "#6366f1" },
+                    { key: "suggestionRange", label: "Range band",   color: "#f97316", opacity: 0.4 },
+                    { key: "dailyTargetAvg",  label: "Daily avg",    color: "#f97316", dashed: true },
+                  ].map(({ key, label, color, opacity, dashed }) => (
+                    <button
+                      key={key}
+                      onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                        graphFilters[key]
+                          ? "bg-white border-slate-300 text-slate-700 shadow-sm"
+                          : "border-transparent text-slate-400 hover:text-slate-500"
+                      }`}
+                    >
+                      {dashed ? (
+                        <svg width="14" height="8" className={!graphFilters[key] ? "opacity-40" : ""}>
+                          <line x1="0" y1="4" x2="14" y2="4" stroke={color} strokeWidth="2" strokeDasharray="3 2" />
+                        </svg>
+                      ) : (
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: color, opacity: graphFilters[key] ? (opacity ?? 1) : 0.3 }}
+                        />
+                      )}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Chart body */}
+                {selectedIngredient ? (
+                  trendLoading ? (
+                    <div className="flex flex-col items-center justify-center flex-1 gap-3">
+                      <Loader2 className="animate-spin text-orange-400" size={26} />
+                      <p className="text-sm text-slate-400">Loading forecast data…</p>
+                    </div>
+                  ) : chartData.length > 0 ? (
+                    <div className="flex-1 min-h-0 px-2 pt-4 pb-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor="#10b981" stopOpacity={0.12} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}    />
+                            </linearGradient>
+                            <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.10} />
+                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
+                            </linearGradient>
+                          </defs>
+
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 11, fill: "#94a3b8" }}
+                            axisLine={false}
+                            tickLine={false}
+                            padding={{ left: 10, right: 10 }}
+                            interval={chartData.length <= 21 ? 1 : Math.ceil(chartData.length / 8)}
+                            tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11, fill: "#94a3b8" }}
+                            axisLine={false}
+                            tickLine={false}
+                            domain={[0, yAxisMax]}
+                            allowDataOverflow
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+
+                          {hasSuggestionRange && (
+                            <Area type="monotone" dataKey="future_band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })
+                          {hasSuggestionRange && (
+                            <Area type="monotone" dataKey="future_band_range" stackId="fb" stroke="none" fill="#f97316" fillOpacity={0.10} legendType="none" />
+                          )}
+
+                          {hasActual && (
+                            <Area
+                              type="monotone"
+                              dataKey="actual_usage"
+                              stroke="#10b981"
+                              strokeWidth={2.5}
+                              fill="url(#actualGrad)"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
+                              connectNulls={false}
+                              legendType="none"
+                            />
+                          )}
+
+                          {hasFuture && (
+                            <Area
+                              type="monotone"
+                              dataKey="future_forecast"
+                              stroke="#6366f1"
+                              strokeWidth={2.5}
+                              fill="url(#forecastGrad)"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }}
+                              connectNulls
+                              legendType="none"
+                            />
+                          )}
+
+                          <ReferenceLine
+                            x={todayStr}
+                            stroke="#cbd5e1"
+                            strokeWidth={1.5}
+                            strokeDasharray="4 3"
+                            label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
+                          />
+
+                          {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
+                            <Line
+                              type="monotone"
+                              dataKey="daily_avg"
+                              stroke="#f97316"
+                              strokeWidth={1.5}
+                              strokeDasharray="5 3"
+                              dot={false}
+                              activeDot={false}
+                              connectNulls={false}
+                              legendType="none"
+                            />
+                          )}
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center flex-1 text-slate-400 gap-2">
+                      <TrendingUp className="text-slate-200" size={32} />
+                      <p className="text-sm">No data — click <b className="text-slate-500">New Prediction</b> to generate a forecast</p>
+                    </div>
+                  )
                 ) : (
-                  <tr>
-                    <td colSpan={6} className="py-14 text-center">
-                      <TrendingUp className="mx-auto mb-2 text-slate-200" size={32} />
-                      <p className="text-slate-400 text-sm italic">No prediction data</p>
-                    </td>
-                  </tr>
+                  <div className="flex flex-col items-center justify-center flex-1 text-slate-300 gap-3">
+                    <TrendingUp size={36} />
+                    <p className="text-sm text-slate-400">Select an ingredient from the left panel</p>
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
 
         </div>
