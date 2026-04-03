@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
@@ -14,24 +14,21 @@ import {
 } from "lucide-react";
 
 /* ─── helpers ─── */
-function computeAccuracy(actualData, trendData) {
-  const actualMap = {};
-  (actualData || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
+function computeAccuracy(actualData, dailyTargetAvg) {
+  if (dailyTargetAvg == null) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
 
-  const trendPoints = (trendData?.data || []).map((d) => ({
-    date: d.timestamp.split(" ")[0],
-    predicted: d.daily_target_average,
+  const actuals = (actualData || []).filter((d) => d.actual_usage != null && d.actual_usage > 0);
+  if (actuals.length === 0) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
+
+  const merged = actuals.map((d) => ({
+    date:      d.date,
+    actual:    d.actual_usage,
+    predicted: dailyTargetAvg,
   }));
-
-  const merged = trendPoints
-    .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
-    .filter((d) => d.actual !== null && d.predicted !== null && d.actual > 0);
-
-  if (merged.length === 0) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
 
   const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
   const pctErrors = merged.map((d) => Math.abs(d.actual - d.predicted) / d.actual);
-  const biasArr  = merged.map((d) => d.predicted - d.actual);
+  const biasArr   = merged.map((d) => d.predicted - d.actual);
 
   const mape = (pctErrors.reduce((a, b) => a + b, 0) / merged.length) * 100;
   const mae  = absErrors.reduce((a, b) => a + b, 0) / merged.length;
@@ -39,9 +36,9 @@ function computeAccuracy(actualData, trendData) {
 
   return {
     accuracy: Math.max(0, 100 - mape),
-    mae: parseFloat(mae.toFixed(2)),
-    bias: parseFloat(bias.toFixed(2)),
-    days: merged.length,
+    mae:      parseFloat(mae.toFixed(2)),
+    bias:     parseFloat(bias.toFixed(2)),
+    days:     merged.length,
     chartData: merged.sort((a, b) => a.date.localeCompare(b.date)),
   };
 }
@@ -109,11 +106,8 @@ export default function AccuracyPage() {
         // Progressively load accuracy data per ingredient
         for (const ing of list) {
           try {
-            const [actualRes, trendRes] = await Promise.all([
-              PredictAPI.actual(ing.ingredient_id),
-              PredictAPI.trend(ing.ingredient_id),
-            ]);
-            const stats = computeAccuracy(actualRes?.Data, trendRes?.Data);
+            const actualRes = await PredictAPI.actual(ing.ingredient_id);
+            const stats = computeAccuracy(actualRes?.Data, ing.daily_target_average);
             const updated = { ...ing, ...stats, _loaded: true };
 
             setIngredients((prev) =>
