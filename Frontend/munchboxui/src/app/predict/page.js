@@ -204,14 +204,8 @@ const chartData = useMemo(() => {
   const firstForecast = future[0];
 
   const historicalMerged = historical.map((d) => {
-    if (!firstForecast || !lastActual) return d;
-    if (d.date >= lastActual.date && d.date < firstForecast.date) {
-      return { ...d,
-        future_forecast:   firstForecast.future_forecast,
-        future_band_low:   firstForecast.future_band_low,
-        future_band_range: firstForecast.future_band_range };
-    }
-    return d;
+    const forecastVal = d.predicted_usage ?? firstForecast?.future_forecast ?? null;
+    return { ...d, future_forecast: forecastVal };
   });
 
   const existingDates = new Set(historical.map((d) => d.date));
@@ -262,7 +256,7 @@ const yAxisMax = useMemo(() => {
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[180px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-          {isFuture ? "🔮" : "📊"} {label}
+          {label}
           <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${isFuture ? "bg-indigo-50 text-indigo-500" : "bg-emerald-50 text-emerald-600"}`}>
             {isFuture ? "Forecast" : "Actual"}
           </span>
