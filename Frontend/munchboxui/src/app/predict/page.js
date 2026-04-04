@@ -32,7 +32,7 @@ export default function PredictPage() {
     end_date:   new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     strategy:   "2",
   });
-  const [historyDays, setHistoryDays]   = useState(14);
+  const [historyDays]                   = useState(7);
   const [graphFilters, setGraphFilters] = useState({
     zoneColors:      true,
     reorderLine:     true,
@@ -245,69 +245,27 @@ const filteredReport = useMemo(() => {
     ? (selectedIngredient.current_stock - Math.ceil(selectedIngredient.expected_usage)).toFixed(1)
     : 0;
 
-  // ── Usage chart data (bottom chart) ──
-  const chartData = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - historyDays);
-    const cutoffStr = cutoff.toISOString().split("T")[0];
-    const dailyAvg  = selectedIngredient?.daily_target_average ?? null;
-
-    const historical = trendData
-      .filter((d) => d.date >= cutoffStr && d.date <= todayStr)
-      .map((d) => ({ ...d, section: "historical" }));
-
-    const future = dailyForecast.slice(0, forecastDays).map((d) => ({
-      date:              d.date,
-      section:           "future",
-      future_forecast:   d.mean_demand != null ? Math.ceil(d.mean_demand) : null,
-      future_band_low:   d.low_bound,
-      future_band_range: (d.high_bound != null && d.low_bound != null)
-                           ? Math.max(0, d.high_bound - d.low_bound) : null,
-      daily_avg:         dailyAvg,
+  // ── Forecast chart data (top chart — forecast only, no actual) ──
+  const forecastChartData = useMemo(() => {
+    const dailyAvg = selectedIngredient?.daily_target_average ?? null;
+    return dailyForecast.slice(0, forecastDays).map((d) => ({
+      date:       d.date,
+      forecast:   d.mean_demand != null ? d.mean_demand : null,
+      band_low:   d.low_bound  ?? null,
+      band_range: (d.high_bound != null && d.low_bound != null)
+                    ? Math.max(0, d.high_bound - d.low_bound) : null,
+      daily_avg:  dailyAvg,
     }));
+  }, [dailyForecast, forecastDays, selectedIngredient]);
 
-    const firstForecast    = future[0];
-    const historicalMerged = historical.map((d) => ({
-      ...d,
-      future_forecast: d.predicted_usage ?? firstForecast?.future_forecast ?? null,
-    }));
+  const hasForecastLine    = graphFilters.futureForecast  && forecastChartData.some((d) => d.forecast != null);
+  const hasForecastBand    = graphFilters.suggestionRange && forecastChartData.some((d) => d.band_range != null);
 
-    const existingDates = new Set(historical.map((d) => d.date));
-    const gapPoints     = [];
-    const lastActual    = [...historical].reverse().find((d) => d.actual_usage != null);
-    if (lastActual && firstForecast) {
-      const cur = new Date(lastActual.date);
-      const end = new Date(firstForecast.date);
-      cur.setDate(cur.getDate() + 1);
-      while (cur < end) {
-        const ds = cur.toISOString().split("T")[0];
-        if (!existingDates.has(ds)) {
-          gapPoints.push({
-            date: ds, section: "gap",
-            future_forecast:   firstForecast.future_forecast,
-            future_band_low:   firstForecast.future_band_low,
-            future_band_range: firstForecast.future_band_range,
-            daily_avg:         dailyAvg,
-          });
-        }
-        cur.setDate(cur.getDate() + 1);
-      }
-    }
-
-    return [...historicalMerged, ...gapPoints, ...future]
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [trendData, dailyForecast, selectedIngredient, forecastDays, historyDays, todayStr]);
-
-  const hasActual          = graphFilters.historicalUsage && chartData.some((d) => d.actual_usage != null);
-  const hasFuture          = graphFilters.futureForecast  && chartData.some((d) => d.future_forecast != null);
-  const hasSuggestionRange = graphFilters.suggestionRange && chartData.some((d) => d.future_band_range != null);
-
-  const yAxisMax = useMemo(() => {
-    const maxActual     = Math.max(0, ...chartData.map((d) => d.actual_usage ?? 0));
-    const maxFutureBand = Math.max(0, ...chartData.map((d) => (d.future_band_low ?? 0) + (d.future_band_range ?? 0)));
-    const maxForecast   = Math.max(0, ...chartData.map((d) => d.future_forecast ?? 0));
-    return Math.ceil(Math.max(maxActual, maxFutureBand, maxForecast) * 1.2) || 10;
-  }, [chartData]);
+  const yForecastMax = useMemo(() => {
+    const maxBand = Math.max(0, ...forecastChartData.map((d) => (d.band_low ?? 0) + (d.band_range ?? 0)));
+    const maxLine = Math.max(0, ...forecastChartData.map((d) => d.forecast ?? 0));
+    return Math.ceil(Math.max(maxBand, maxLine) * 1.2) || 10;
+  }, [forecastChartData]);
 
   const fmtDate = (str) => {
     if (!str) return "";
@@ -320,10 +278,10 @@ const filteredReport = useMemo(() => {
     return { start: stockDepletionData[0].date, end: stockDepletionData[stockDepletionData.length - 1].date };
   }, [stockDepletionData]);
 
-  const usageDateRange = useMemo(() => {
-    if (!chartData.length) return null;
-    return { start: chartData[0].date, end: chartData[chartData.length - 1].date };
-  }, [chartData]);
+  const forecastDateRange = useMemo(() => {
+    if (!forecastChartData.length) return null;
+    return { start: forecastChartData[0].date, end: forecastChartData[forecastChartData.length - 1].date };
+  }, [forecastChartData]);
 
   // ── Custom tooltip ──
   const CustomTooltip = ({ active, payload, label }) => {
@@ -347,15 +305,6 @@ const filteredReport = useMemo(() => {
             <span className="text-slate-500">Stock left</span>
             <span className={`ml-auto font-bold ${isLow ? "text-red-500" : "text-slate-700"}`}>
               {d.stock_left} {selectedIngredient?.unit}
-            </span>
-          </div>
-        )}
-        {d?.cumulative_usage != null && (
-          <div className="flex items-center gap-2 text-sm mt-1">
-            <div className="w-2 h-2 rounded-full bg-orange-400" />
-            <span className="text-slate-500">Total used</span>
-            <span className="ml-auto font-bold text-slate-700">
-              {d.cumulative_usage.toFixed(1)} {selectedIngredient?.unit}
             </span>
           </div>
         )}
@@ -559,31 +508,21 @@ const filteredReport = useMemo(() => {
                 </div>
               )}
 
-              {/* ── TOP CHART: Stock Depletion ── */}
+              {/* ── TOP CHART: Demand Forecast ── */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
                 {/* Header */}
                 <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-slate-700 text-sm truncate">
-                      {selectedIngredient ? `${selectedIngredient.ingredient_name} — Stock Depletion` : "Select an ingredient"}
+                      {selectedIngredient ? `${selectedIngredient.ingredient_name} — Demand Forecast` : "Select an ingredient"}
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">
-                      {depletionDateRange
-                        ? <><span className="font-medium text-slate-500">{fmtDate(depletionDateRange.start)} – {fmtDate(depletionDateRange.end)}</span>{selectedIngredient?.daily_target_average != null ? ` · Avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder: ${reorderPoint} ${selectedIngredient.unit}${stockoutDate ? ` · ⚠ Stockout ${fmtDate(stockoutDate)}` : ""}` : ""}</>
-                        : "Stock level projection based on forecast usage"}
+                      {forecastDateRange
+                        ? <><span className="font-medium text-slate-500">{fmtDate(forecastDateRange.start)} – {fmtDate(forecastDateRange.end)}</span> · {forecastChartData.length} day forecast</>
+                        : "Predicted demand per day for the selected window"}
                     </p>
                   </div>
-                  {/* History + Forecast + model selectors */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
-                    <span className="text-[10px] text-slate-400 font-medium">History</span>
-                    <span className="text-slate-200 text-xs">|</span>
-                    <select value={historyDays} onChange={(e) => setHistoryDays(parseInt(e.target.value))} className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer">
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
-                      <option value={30}>30 days</option>
-                      <option value={60}>60 days</option>
-                    </select>
-                  </div>
+                  {/* Forecast + model selectors */}
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
                     <span className="text-[10px] text-slate-400 font-medium">Forecast</span>
                     <span className="text-slate-200 text-xs">|</span>
@@ -612,8 +551,88 @@ const filteredReport = useMemo(() => {
                 {/* Toggles */}
                 <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/40">
                   {[
-                    { key: "zoneColors",  label: "Safe/Reorder zones", isZone: true,   color: "#10b981" },
-                    { key: "reorderLine", label: "Reorder line",       dashed: true,   color: "#94a3b8" },
+                    { key: "futureForecast",  label: "Forecast",   color: "#6366f1" },
+                    { key: "suggestionRange", label: "Range band", color: "#6366f1", opacity: 0.25 },
+                    { key: "dailyTargetAvg",  label: "Daily avg",  color: "#f97316", dashed: true },
+                  ].map(({ key, label, color, opacity, dashed }) => (
+                    <button key={key} onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${graphFilters[key] ? "bg-white border-slate-300 text-slate-700 shadow-sm" : "border-transparent text-slate-400 hover:text-slate-500"}`}>
+                      {dashed
+                        ? <svg width="14" height="8" className={!graphFilters[key] ? "opacity-40" : ""}><line x1="0" y1="4" x2="14" y2="4" stroke={color} strokeWidth="2" strokeDasharray="3 2" /></svg>
+                        : <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color, opacity: graphFilters[key] ? (opacity ?? 1) : 0.3 }} />
+                      }
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Chart */}
+                {trendLoading ? (
+                  <div className="flex items-center justify-center h-56 gap-3">
+                    <Loader2 className="animate-spin text-orange-400" size={22} />
+                    <p className="text-sm text-slate-400">Loading…</p>
+                  </div>
+                ) : forecastChartData.length > 0 ? (
+                  <>
+                    <div className="h-56 px-2 pt-3 pb-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={forecastChartData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.14} />
+                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow />
+                          <Tooltip content={<CustomTooltip />} />
+                          {hasForecastBand && <Area type="monotone" dataKey="band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />}
+                          {hasForecastBand && <Area type="monotone" dataKey="band_range" stackId="fb" stroke="none" fill="#6366f1" fillOpacity={0.10} legendType="none" />}
+                          {hasForecastLine && (
+                            <Area type="monotone" dataKey="forecast" stroke="#6366f1" strokeWidth={2.5} fill="url(#forecastGrad)" dot={{ r: 3, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }} connectNulls legendType="none" />
+                          )}
+                          {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
+                            <Line type="monotone" dataKey="daily_avg" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 3" dot={false} activeDot={false} connectNulls legendType="none" />
+                          )}
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="px-5 py-2 border-t border-slate-100 bg-slate-50/30 flex items-center gap-5 text-xs text-slate-500 flex-wrap">
+                      <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="2.5" /></svg>Forecast demand</div>
+                      <div className="flex items-center gap-1.5"><div className="w-8 h-3 rounded-sm bg-indigo-100 border border-indigo-200" />Range band</div>
+                      <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>Daily avg</div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-56 text-slate-400 gap-2">
+                    <BarChart2 className="text-slate-200" size={28} />
+                    <p className="text-sm">{selectedIngredient ? 'No data — click "New Prediction" to generate a forecast' : "Select an ingredient from the list"}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── BOTTOM CHART: Stock Depletion ── */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
+                {/* Header */}
+                <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-slate-700 text-sm truncate">
+                      {selectedIngredient ? `${selectedIngredient.ingredient_name} — Stock Depletion` : "Select an ingredient"}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">
+                      {depletionDateRange
+                        ? <><span className="font-medium text-slate-500">{fmtDate(depletionDateRange.start)} – {fmtDate(depletionDateRange.end)}</span>{selectedIngredient?.daily_target_average != null ? ` · Avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder: ${reorderPoint} ${selectedIngredient.unit}${stockoutDate ? ` · ⚠ Stockout ${fmtDate(stockoutDate)}` : ""}` : ""}</>
+                        : "Stock level projection based on forecast usage"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/40">
+                  {[
+                    { key: "zoneColors",  label: "Safe/Reorder zones", isZone: true, color: "#10b981" },
+                    { key: "reorderLine", label: "Reorder line",        dashed: true, color: "#94a3b8" },
                   ].map(({ key, label, color, dashed, isZone }) => (
                     <button key={key} onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
                       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${graphFilters[key] ? "bg-white border-slate-300 text-slate-700 shadow-sm" : "border-transparent text-slate-400 hover:text-slate-500"}`}>
@@ -650,7 +669,7 @@ const filteredReport = useMemo(() => {
                             </>
                           )}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} />
                           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow />
                           <Tooltip content={<CustomTooltip />} />
                           {graphFilters.reorderLine && reorderPoint > 0 && (
@@ -676,96 +695,6 @@ const filteredReport = useMemo(() => {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-56 text-slate-400 gap-2">
                     <TrendingUp className="text-slate-200" size={28} />
-                    <p className="text-sm">{selectedIngredient ? 'No data — click "New Prediction" to generate a forecast' : "Select an ingredient from the list"}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* ── BOTTOM CHART: Daily Usage & Forecast ── */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
-                {/* Header */}
-                <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-700 text-sm truncate">
-                      {selectedIngredient ? `${selectedIngredient.ingredient_name} — Daily Usage & Forecast` : "Select an ingredient"}
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">
-                      {usageDateRange
-                        ? <><span className="font-medium text-slate-500">{fmtDate(usageDateRange.start)} – {fmtDate(usageDateRange.end)}</span> · Actual usage vs. predicted demand</>
-                        : "Historical actual usage vs. predicted demand per day"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Toggles */}
-                <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/40">
-                  {[
-                    { key: "historicalUsage", label: "Actual",      color: "#10b981" },
-                    { key: "futureForecast",  label: "Forecast",    color: "#6366f1" },
-                    { key: "suggestionRange", label: "Range band",  color: "#f97316", opacity: 0.4 },
-                    { key: "dailyTargetAvg",  label: "Daily avg",   color: "#f97316", dashed: true },
-                  ].map(({ key, label, color, opacity, dashed }) => (
-                    <button key={key} onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${graphFilters[key] ? "bg-white border-slate-300 text-slate-700 shadow-sm" : "border-transparent text-slate-400 hover:text-slate-500"}`}>
-                      {dashed
-                        ? <svg width="14" height="8" className={!graphFilters[key] ? "opacity-40" : ""}><line x1="0" y1="4" x2="14" y2="4" stroke={color} strokeWidth="2" strokeDasharray="3 2" /></svg>
-                        : <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color, opacity: graphFilters[key] ? (opacity ?? 1) : 0.3 }} />
-                      }
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Chart */}
-                {trendLoading ? (
-                  <div className="flex items-center justify-center h-56 gap-3">
-                    <Loader2 className="animate-spin text-orange-400" size={22} />
-                    <p className="text-sm text-slate-400">Loading…</p>
-                  </div>
-                ) : chartData.length > 0 ? (
-                  <>
-                    <div className="h-56 px-2 pt-3 pb-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%"  stopColor="#10b981" stopOpacity={0.12} />
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.10} />
-                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={chartData.length <= 21 ? 1 : Math.ceil(chartData.length / 8)} tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yAxisMax]} allowDataOverflow />
-                          <Tooltip content={<CustomTooltip />} />
-                          {hasSuggestionRange && <Area type="monotone" dataKey="future_band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />}
-                          {hasSuggestionRange && <Area type="monotone" dataKey="future_band_range" stackId="fb" stroke="none" fill="#f97316" fillOpacity={0.10} legendType="none" />}
-                          {hasActual && (
-                            <Area type="monotone" dataKey="actual_usage" stroke="#10b981" strokeWidth={2.5} fill="url(#actualGrad)" dot={false} activeDot={{ r: 4, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} connectNulls={false} legendType="none" />
-                          )}
-                          {hasFuture && (
-                            <Area type="monotone" dataKey="future_forecast" stroke="#6366f1" strokeWidth={2.5} fill="url(#forecastGrad)" dot={false} activeDot={{ r: 4, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }} connectNulls legendType="none" />
-                          )}
-                          <ReferenceLine x={todayStr} stroke="#cbd5e1" strokeWidth={1.5} strokeDasharray="4 3"
-                            label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }} />
-                          {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
-                            <Line type="monotone" dataKey="daily_avg" stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 3" dot={false} activeDot={false} connectNulls={false} legendType="none" />
-                          )}
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="px-5 py-2 border-t border-slate-100 bg-slate-50/30 flex items-center gap-5 text-xs text-slate-500 flex-wrap">
-                      <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#10b981" strokeWidth="2.5" /></svg>Actual usage</div>
-                      <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="2" /></svg>Forecast</div>
-                      <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>Daily avg</div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-56 text-slate-400 gap-2">
-                    <BarChart2 className="text-slate-200" size={28} />
                     <p className="text-sm">{selectedIngredient ? 'No data — click "New Prediction" to generate a forecast' : "Select an ingredient from the list"}</p>
                   </div>
                 )}
