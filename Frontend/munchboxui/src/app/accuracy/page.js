@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
@@ -34,16 +34,20 @@ function computeAccuracy(actualData, trendData) {
 
   if (merged.length > 0) {
     // Primary: date-aligned comparison
+    // Asymmetric: predicted >= actual → 100% (safe, no stockout)
+    //             predicted <  actual → predicted/actual × 100 (under-prepared)
+    const dailyAcc = merged.map((d) =>
+      d.predicted >= d.actual ? 100 : (d.predicted / d.actual) * 100
+    );
     const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
-    const pctErrors = merged.map((d) => Math.abs(d.actual - d.predicted) / d.actual);
     const biasArr   = merged.map((d) => d.predicted - d.actual);
 
-    const mape = (pctErrors.reduce((a, b) => a + b, 0) / merged.length) * 100;
-    const mae  = absErrors.reduce((a, b) => a + b, 0) / merged.length;
-    const bias = biasArr.reduce((a, b) => a + b, 0) / merged.length;
+    const accuracy = dailyAcc.reduce((a, b) => a + b, 0) / merged.length;
+    const mae      = absErrors.reduce((a, b) => a + b, 0) / merged.length;
+    const bias     = biasArr.reduce((a, b) => a + b, 0) / merged.length;
 
     return {
-      accuracy:   Math.max(0, 100 - mape),
+      accuracy:   parseFloat(Math.min(100, accuracy).toFixed(2)),
       mae:        parseFloat(mae.toFixed(2)),
       bias:       parseFloat(bias.toFixed(2)),
       days:       merged.length,
@@ -53,7 +57,8 @@ function computeAccuracy(actualData, trendData) {
   }
 
   // Fallback: no date overlap yet (predictions are for future dates).
-  // Compare the model's daily_target_average against historical actual average.
+  // Compare daily_target_average against historical actual average for stats.
+  // For the chart: show actual history (left) + per-day forecast values (right).
   const type2Row = (trendData?.data || []).find(
     (d) => d.prediction_type === 2 && d.daily_target_average != null
   );
@@ -61,26 +66,54 @@ function computeAccuracy(actualData, trendData) {
     .filter((d) => d.actual_usage > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!type2Row || actualRows.length === 0) {
+  if ((!type2Row && !(trendData?.data?.length)) || actualRows.length === 0) {
     return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], isFallback: false };
   }
 
-  const predictedDailyAvg = type2Row.daily_target_average;
-  const actualDailyAvg    = actualRows.reduce((s, d) => s + d.actual_usage, 0) / actualRows.length;
+  // Per-day prediction rows (type-1) — these give a wavy forecast line
+  const predRows = (trendData?.data || [])
+    .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
+    .map((d) => ({
+      date:      (d.timestamp || "").split(" ")[0],
+      predicted: d.expected_usage,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  const mae  = Math.abs(predictedDailyAvg - actualDailyAvg);
-  const mape = (mae / actualDailyAvg) * 100;
-  const bias = predictedDailyAvg - actualDailyAvg;
+  // Daily avg from type-2 summary (for accuracy stats)
+  const predictedDailyAvg = type2Row?.daily_target_average
+    ?? (predRows.length > 0
+      ? predRows.reduce((s, d) => s + d.predicted, 0) / predRows.length
+      : null);
 
-  // Cap to last 60 days for chart readability
-  const chartData = actualRows.slice(-60).map((d) => ({
+  if (predictedDailyAvg == null) {
+    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], isFallback: false };
+  }
+
+  const actualDailyAvg = actualRows.reduce((s, d) => s + d.actual_usage, 0) / actualRows.length;
+  const mae      = Math.abs(predictedDailyAvg - actualDailyAvg);
+  const bias     = predictedDailyAvg - actualDailyAvg;
+  // Asymmetric: predicted >= actual avg → 100%, else predicted/actual × 100
+  const accuracy = predictedDailyAvg >= actualDailyAvg
+    ? 100
+    : (predictedDailyAvg / actualDailyAvg) * 100;
+
+  // Chart: actual history (last 60 days) on the left + forecast per-day on the right
+  // connectNulls=false means each line only draws in its own date range
+  const historicalPoints = actualRows.slice(-60).map((d) => ({
     date:      d.date,
     actual:    d.actual_usage,
-    predicted: predictedDailyAvg,
+    predicted: null,
   }));
+  const forecastPoints = predRows.map((d) => ({
+    date:      d.date,
+    actual:    null,
+    predicted: d.predicted,
+  }));
+  const chartData = [...historicalPoints, ...forecastPoints]
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
-    accuracy:           Math.max(0, 100 - mape),
+    accuracy:           parseFloat(Math.min(100, accuracy).toFixed(2)),
     mae:                parseFloat(mae.toFixed(2)),
     bias:               parseFloat(bias.toFixed(2)),
     days:               actualRows.length,
@@ -389,6 +422,17 @@ export default function AccuracyPage() {
                       <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                       <Tooltip content={<ChartTooltip unit={selected.unit ?? ""} />} />
 
+                      {/* Today divider — only in fallback mode where chart spans past+future */}
+                      {selected?.isFallback && (
+                        <ReferenceLine
+                          x={new Date().toISOString().split("T")[0]}
+                          stroke="#cbd5e1"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 3"
+                          label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
+                        />
+                      )}
+
                       {/* Actual usage — emerald solid line */}
                       <Line
                         type="monotone"
@@ -424,7 +468,7 @@ export default function AccuracyPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                    {selected?.isFallback ? "Forecast daily avg (flat target)" : "Predicted (daily avg)"}
+                    {selected?.isFallback ? "Forecast (per-day prediction)" : "Predicted (daily avg)"}
                   </div>
                   {selected?.accuracy !== null && (
                     <div className="ml-auto">
