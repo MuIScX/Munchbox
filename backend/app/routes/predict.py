@@ -252,6 +252,7 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
             "forecast_days":        agg["day_count"],
             "daily_target_average": daily_avg,
             "unit":                 ing.unit,
+            "category":             ing.category,
             "status":               1 if float(ing.stock_left) >= total_usage else 0,
         })
 

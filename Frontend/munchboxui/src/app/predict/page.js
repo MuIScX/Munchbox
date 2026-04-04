@@ -7,9 +7,10 @@ import {
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
 import { PredictAPI, IngredientAPI } from "../../lib/api";
+import { CATEGORY_MAP } from "../../lib/schema";
 import {
   Search, Loader2, TrendingUp, X, Plus,
-  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw,
+  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown,
 } from "lucide-react";
 
 export default function PredictPage() {
@@ -32,7 +33,9 @@ export default function PredictPage() {
     end_date:   new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     strategy:   "2",
   });
-  const [historyDays]                   = useState(7);
+  const [historyDays, setHistoryDays]   = useState(7);
+  const [sortBy, setSortBy]             = useState("urgency");
+  const [prepSummaryOpen, setPrepSummaryOpen] = useState(false);
   const [graphFilters, setGraphFilters] = useState({
     zoneColors:      true,
     reorderLine:     true,
@@ -160,12 +163,23 @@ const filteredReport = useMemo(() => {
       return nameMatch && statusMatch;
     })
     .sort((a, b) => {
-      // Selected ingredient always first
       if (a.ingredient_id === selectedIngredient?.ingredient_id) return -1;
       if (b.ingredient_id === selectedIngredient?.ingredient_id) return 1;
+      if (sortBy === "urgency") {
+        // Low status first, then by biggest deficit (current_stock - expected_usage)
+        if (a.status !== b.status) return a.status - b.status; // 0 (Low) before 1 (OK)
+        const defA = a.current_stock - a.expected_usage;
+        const defB = b.current_stock - b.expected_usage;
+        return defA - defB; // most deficit first
+      }
+      if (sortBy === "category") {
+        const catA = CATEGORY_MAP[a.category] || "ZZZ";
+        const catB = CATEGORY_MAP[b.category] || "ZZZ";
+        return catA.localeCompare(catB);
+      }
       return 0;
     });
-}, [report, searchQuery, statusFilter, selectedIngredient]);
+}, [report, searchQuery, statusFilter, selectedIngredient, sortBy]);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -283,20 +297,56 @@ const filteredReport = useMemo(() => {
     return { start: forecastChartData[0].date, end: forecastChartData[forecastChartData.length - 1].date };
   }, [forecastChartData]);
 
-  // ── Custom tooltip ──
-  const CustomTooltip = ({ active, payload, label }) => {
+  // ── Tooltips ──
+  const ForecastTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
-    const d        = payload[0]?.payload;
-    const isFuture = d?.section === "future";
-    const isLow    = d?.stock_left != null && d.stock_left <= reorderPoint;
+    const d = payload[0]?.payload;
+    const [,m,day] = (label || "").split("-");
+    const dateStr = label ? `${parseInt(day)}/${parseInt(m)}` : label;
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[180px]">
+        <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+          {dateStr}
+          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-500">Forecast</span>
+        </p>
+        {d?.forecast != null && (
+          <div className="flex items-center gap-2 text-sm">
+            <div className="w-2 h-2 rounded-full bg-indigo-400" />
+            <span className="text-slate-500">Est. demand</span>
+            <span className="ml-auto font-bold text-slate-700">{d.forecast.toFixed(1)} {selectedIngredient?.unit}</span>
+          </div>
+        )}
+        {d?.band_low != null && d?.band_range != null && (
+          <div className="flex items-center gap-2 text-sm mt-1">
+            <div className="w-2 h-2 rounded-sm bg-indigo-200" />
+            <span className="text-slate-500">Range</span>
+            <span className="ml-auto font-bold text-slate-700">{d.band_low.toFixed(1)} – {(d.band_low + d.band_range).toFixed(1)}</span>
+          </div>
+        )}
+        {d?.daily_avg != null && (
+          <div className="flex items-center gap-2 text-sm mt-1">
+            <div className="w-2 h-2 rounded-full bg-orange-400" />
+            <span className="text-slate-500">Daily avg</span>
+            <span className="ml-auto font-bold text-slate-700">{d.daily_avg} {selectedIngredient?.unit}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const DepletionTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0]?.payload;
+    const isLow = d?.stock_left != null && d.stock_left <= reorderPoint;
+    const isForecast = d?.section === "future";
+    const [,m,day] = (label || "").split("-");
+    const dateStr = label ? `${parseInt(day)}/${parseInt(m)}` : label;
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[190px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-          {label}
-          <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-            isFuture ? "bg-indigo-50 text-indigo-500" : "bg-emerald-50 text-emerald-600"
-          }`}>
-            {isFuture ? "Forecast" : "Actual"}
+          {dateStr}
+          <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${isForecast ? "bg-indigo-50 text-indigo-500" : "bg-slate-100 text-slate-500"}`}>
+            {isForecast ? "Projected" : "Historical"}
           </span>
         </p>
         {d?.stock_left != null && (
@@ -336,6 +386,13 @@ const filteredReport = useMemo(() => {
                 <h1 className="text-xl font-bold text-slate-800 tracking-tight">Demand Forecast</h1>
                 <p className="text-xs text-slate-400 mt-0.5">Bayesian time-series prediction for ingredient usage</p>
               </div>
+              <button
+                onClick={() => setPrepSummaryOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition shadow-sm"
+              >
+                <ClipboardList size={13} />
+                Prep Summary
+              </button>
               <button
                 onClick={() => fetchReport(forecastDays)}
                 disabled={loading}
@@ -389,6 +446,20 @@ const filteredReport = useMemo(() => {
                 ))}
               </div>
 
+              {/* Sort */}
+              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                <ArrowUpDown size={11} className="text-slate-400 shrink-0" />
+                <span className="text-[10px] text-slate-400 font-medium shrink-0">Sort</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="flex-1 text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                >
+                  <option value="urgency">Top Urgency</option>
+                  <option value="category">Category</option>
+                </select>
+              </div>
+
               {/* Ingredient cards (scrollable) */}
               <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-0.5">
                 {loading ? (
@@ -437,6 +508,9 @@ const filteredReport = useMemo(() => {
                           <p className="text-xs font-bold text-slate-600">{Math.ceil(ing.expected_usage)} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
                         </div>
                       </div>
+                      {ing.category != null && (
+                        <p className="text-[9px] text-slate-400 mt-1">{CATEGORY_MAP[ing.category] || "Other"}</p>
+                      )}
                       {isLow && (
                         <div className="mt-2 pt-2 border-t border-red-100">
                           <p className="text-[10px] text-red-400 font-medium">Need {Math.abs(diff)} more {ing.unit}</p>
@@ -522,15 +596,16 @@ const filteredReport = useMemo(() => {
                         : "Predicted demand per day for the selected window"}
                     </p>
                   </div>
-                  {/* Forecast + model selectors */}
+                  {/* Forecast days input */}
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
                     <span className="text-[10px] text-slate-400 font-medium">Forecast</span>
                     <span className="text-slate-200 text-xs">|</span>
-                    <select value={forecastDays} onChange={(e) => handleChangeDays(parseInt(e.target.value))} className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer">
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
-                      <option value={30}>30 days</option>
-                    </select>
+                    <input
+                      type="number" min={1} max={30} value={forecastDays}
+                      onChange={(e) => { const v = Math.min(30, Math.max(1, parseInt(e.target.value) || 1)); handleChangeDays(v); }}
+                      className="w-8 text-xs font-semibold text-slate-600 bg-transparent outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-[10px] text-slate-400">days</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
                     <span className="text-[10px] text-slate-400 font-medium">Model</span>
@@ -584,9 +659,9 @@ const filteredReport = useMemo(() => {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow />
-                          <Tooltip content={<CustomTooltip />} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "#cbd5e1" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 16, fontSize: 10, fill: "#cbd5e1" }} />
+                          <Tooltip content={<ForecastTooltip />} />
                           {hasForecastBand && <Area type="monotone" dataKey="band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />}
                           {hasForecastBand && <Area type="monotone" dataKey="band_range" stackId="fb" stroke="none" fill="#6366f1" fillOpacity={0.10} legendType="none" />}
                           {hasForecastLine && (
@@ -625,6 +700,17 @@ const filteredReport = useMemo(() => {
                         ? <><span className="font-medium text-slate-500">{fmtDate(depletionDateRange.start)} – {fmtDate(depletionDateRange.end)}</span>{selectedIngredient?.daily_target_average != null ? ` · Avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder: ${reorderPoint} ${selectedIngredient.unit}${stockoutDate ? ` · ⚠ Stockout ${fmtDate(stockoutDate)}` : ""}` : ""}</>
                         : "Stock level projection based on forecast usage"}
                     </p>
+                  </div>
+                  {/* History days input */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
+                    <span className="text-[10px] text-slate-400 font-medium">History</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <input
+                      type="number" min={1} max={30} value={historyDays}
+                      onChange={(e) => { const v = Math.min(30, Math.max(1, parseInt(e.target.value) || 1)); setHistoryDays(v); }}
+                      className="w-8 text-xs font-semibold text-slate-600 bg-transparent outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-[10px] text-slate-400">days</span>
                   </div>
                 </div>
 
@@ -669,9 +755,9 @@ const filteredReport = useMemo(() => {
                             </>
                           )}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow />
-                          <Tooltip content={<CustomTooltip />} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "#cbd5e1" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 16, fontSize: 10, fill: "#cbd5e1" }} />
+                          <Tooltip content={<DepletionTooltip />} />
                           {graphFilters.reorderLine && reorderPoint > 0 && (
                             <ReferenceLine y={reorderPoint} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="6 4"
                               label={{ value: `Reorder: ${reorderPoint} ${selectedIngredient?.unit ?? ""}`, fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopLeft" }} />
@@ -704,6 +790,85 @@ const filteredReport = useMemo(() => {
 
         </div>
       </main>
+
+      {/* ── Prep Summary Modal ── */}
+      {prepSummaryOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                <ClipboardList size={15} className="text-orange-500" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-base font-bold text-slate-800">Prep Summary</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Ingredients needed for the next {forecastDays} days</p>
+              </div>
+              <button onClick={() => setPrepSummaryOpen(false)} className="text-slate-400 hover:text-slate-600 transition p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-2">
+              {report.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">No prediction data available.</p>
+              ) : (
+                <>
+                  {/* Reorder needed */}
+                  {report.filter((r) => r.status === 0).length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[10px] font-bold text-red-500 uppercase tracking-wide mb-1.5">Need to Order</p>
+                      {report.filter((r) => r.status === 0).sort((a, b) => (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage)).map((r) => {
+                        const needed = Math.ceil(r.expected_usage - r.current_stock);
+                        return (
+                          <div key={r.ingredient_id} className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
+                              <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"} · Stock: {r.current_stock} {r.unit}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-red-600">+{needed} {r.unit}</p>
+                              <p className="text-[10px] text-red-400">to order</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Sufficient stock */}
+                  {report.filter((r) => r.status === 1).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mb-1.5">Stock Sufficient</p>
+                      {report.filter((r) => r.status === 1).map((r) => {
+                        const surplus = (r.current_stock - r.expected_usage).toFixed(1);
+                        return (
+                          <div key={r.ingredient_id} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 mb-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
+                              <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"} · Stock: {r.current_stock} {r.unit}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-emerald-600">+{surplus} {r.unit}</p>
+                              <p className="text-[10px] text-emerald-500">surplus</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
+              <span>{report.filter((r) => r.status === 0).length} need ordering · {report.filter((r) => r.status === 1).length} sufficient</span>
+              <span>Forecast window: {forecastDays} days</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Request Prediction Modal ── */}
       {modalOpen && (
