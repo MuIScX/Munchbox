@@ -12,6 +12,7 @@ import {
   Search, Loader2, TrendingUp, X, Plus,
   Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown,
 } from "lucide-react";
+import CategorySortPopover from "../components/CategorySortPopover";
 
 export default function PredictPage() {
   const [forecastDays, setForecastDays]           = useState(7);
@@ -35,6 +36,18 @@ export default function PredictPage() {
   });
   const [historyDays, setHistoryDays]   = useState(7);
   const [sortBy, setSortBy]             = useState("urgency");
+  const [showSortPopover, setShowSortPopover] = useState(false);
+  const [categoryOrder, setCategoryOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("inventory_category_order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const allKeys = Object.keys(CATEGORY_MAP);
+        return [...parsed.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !parsed.includes(k))];
+      }
+    } catch {}
+    return Object.keys(CATEGORY_MAP);
+  });
   const [prepSummaryOpen, setPrepSummaryOpen] = useState(false);
   const [graphFilters, setGraphFilters] = useState({
     zoneColors:      true,
@@ -173,9 +186,9 @@ const filteredReport = useMemo(() => {
         return defA - defB; // most deficit first
       }
       if (sortBy === "category") {
-        const catA = CATEGORY_MAP[a.category] || "ZZZ";
-        const catB = CATEGORY_MAP[b.category] || "ZZZ";
-        return catA.localeCompare(catB);
+        const ai = categoryOrder.indexOf(String(a.category));
+        const bi = categoryOrder.indexOf(String(b.category));
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
       }
       return 0;
     });
@@ -440,17 +453,41 @@ const filteredReport = useMemo(() => {
               </div>
 
               {/* Sort */}
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                <ArrowUpDown size={11} className="text-slate-400 shrink-0" />
-                <span className="text-[10px] text-slate-400 font-medium shrink-0">Sort</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="flex-1 text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
-                >
-                  <option value="urgency">Top Urgency</option>
-                  <option value="category">Category</option>
-                </select>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm flex-1">
+                  <ArrowUpDown size={11} className="text-slate-400 shrink-0" />
+                  <span className="text-[10px] text-slate-400 font-medium shrink-0">Sort</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="flex-1 text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                  >
+                    <option value="urgency">Top Urgency</option>
+                    <option value="category">Category</option>
+                  </select>
+                </div>
+                {sortBy === "category" && (
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => setShowSortPopover(v => !v)}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                        showSortPopover ? "bg-orange-500 border-orange-500 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <ArrowUpDown size={11} /> Order
+                    </button>
+                    <CategorySortPopover
+                      isOpen={showSortPopover}
+                      onClose={() => setShowSortPopover(false)}
+                      categoryOrder={categoryOrder}
+                      onChange={(newOrder) => {
+                        setCategoryOrder(newOrder);
+                        localStorage.setItem("inventory_category_order", JSON.stringify(newOrder));
+                      }}
+                      categoryMap={CATEGORY_MAP}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Ingredient cards (scrollable) */}
@@ -464,54 +501,70 @@ const filteredReport = useMemo(() => {
                     <Package size={24} />
                     <p className="text-xs">No ingredients found</p>
                   </div>
-                ) : filteredReport.map((ing) => {
-                  const isSelected = selectedIngredient?.ingredient_id === ing.ingredient_id;
-                  const isLow      = ing.status === 0;
-                  const diff       = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
-                  return (
-                    <button
-                      key={ing.ingredient_id}
-                      onClick={() => handleSelectIngredient(ing)}
-                      className={`w-full text-left rounded-xl border p-3 transition-all ${
-                        isSelected
-                          ? "bg-orange-50 border-orange-300 shadow-sm"
-                          : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
-                        <span className={`font-semibold text-sm truncate flex-1 ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
-                          {ing.ingredient_name}
-                        </span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
-                          isLow
-                            ? "text-red-500 bg-red-50 border-red-200"
-                            : "text-emerald-600 bg-emerald-50 border-emerald-200"
-                        }`}>
-                          {isLow ? "Low" : "OK"}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-2">
-                        <div>
-                          <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Stock</p>
-                          <p className="text-xs font-bold text-slate-600">{ing.current_stock} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                ) : (() => {
+                  const renderCard = (ing) => {
+                    const isSelected = selectedIngredient?.ingredient_id === ing.ingredient_id;
+                    const isLow      = ing.status === 0;
+                    const diff       = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
+                    return (
+                      <button
+                        key={ing.ingredient_id}
+                        onClick={() => handleSelectIngredient(ing)}
+                        className={`w-full text-left rounded-xl border p-3 transition-all ${
+                          isSelected
+                            ? "bg-orange-50 border-orange-300 shadow-sm"
+                            : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
+                          <span className={`font-semibold text-sm truncate flex-1 ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
+                            {ing.ingredient_name}
+                          </span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
+                            isLow
+                              ? "text-red-500 bg-red-50 border-red-200"
+                              : "text-emerald-600 bg-emerald-50 border-emerald-200"
+                          }`}>
+                            {isLow ? "Low" : "OK"}
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Est. {forecastDays}d</p>
-                          <p className="text-xs font-bold text-slate-600">{Math.ceil(ing.expected_usage)} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                        <div className="grid grid-cols-2 gap-x-2">
+                          <div>
+                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Stock</p>
+                            <p className="text-xs font-bold text-slate-600">{ing.current_stock} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Est. {forecastDays}d</p>
+                            <p className="text-xs font-bold text-slate-600">{Math.ceil(ing.expected_usage)} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
+                          </div>
                         </div>
-                      </div>
-                      {ing.category != null && (
-                        <p className="text-[9px] text-slate-400 mt-1">{CATEGORY_MAP[ing.category] || "Other"}</p>
-                      )}
-                      {isLow && (
-                        <div className="mt-2 pt-2 border-t border-red-100">
-                          <p className="text-[10px] text-red-400 font-medium">Need {Math.abs(diff)} more {ing.unit}</p>
+                        {isLow && (
+                          <div className="mt-2 pt-2 border-t border-red-100">
+                            <p className="text-[10px] text-red-400 font-medium">Need {Math.abs(diff)} more {ing.unit}</p>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  };
+
+                  if (sortBy === "category") {
+                    return categoryOrder.map((catId) => {
+                      const items = filteredReport.filter(ing => String(ing.category) === catId);
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={catId} className="flex flex-col gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 pb-1 border-b border-orange-100">
+                            {CATEGORY_MAP[catId] || catId}
+                          </p>
+                          {items.map(renderCard)}
                         </div>
-                      )}
-                    </button>
-                  );
-                })}
+                      );
+                    });
+                  }
+
+                  return filteredReport.map(renderCard);
+                })()}
               </div>
             </div>
 
