@@ -316,13 +316,6 @@ const filteredReport = useMemo(() => {
             <span className="ml-auto font-bold text-slate-700">{d.forecast.toFixed(1)} {selectedIngredient?.unit}</span>
           </div>
         )}
-        {d?.band_low != null && d?.band_range != null && (
-          <div className="flex items-center gap-2 text-sm mt-1">
-            <div className="w-2 h-2 rounded-sm bg-indigo-200" />
-            <span className="text-slate-500">Range</span>
-            <span className="ml-auto font-bold text-slate-700">{d.band_low.toFixed(1)} – {(d.band_low + d.band_range).toFixed(1)}</span>
-          </div>
-        )}
         {d?.daily_avg != null && (
           <div className="flex items-center gap-2 text-sm mt-1">
             <div className="w-2 h-2 rounded-full bg-orange-400" />
@@ -651,7 +644,7 @@ const filteredReport = useMemo(() => {
                   <>
                     <div className="h-56 px-2 pt-3 pb-1">
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={forecastChartData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                        <ComposedChart data={forecastChartData} margin={{ top: 8, right: 24, left: -16, bottom: 16 }}>
                           <defs>
                             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.14} />
@@ -659,8 +652,8 @@ const filteredReport = useMemo(() => {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "#cbd5e1" }} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 16, fontSize: 10, fill: "#cbd5e1" }} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 12, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <Tooltip content={<ForecastTooltip />} />
                           {hasForecastBand && <Area type="monotone" dataKey="band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />}
                           {hasForecastBand && <Area type="monotone" dataKey="band_range" stackId="fb" stroke="none" fill="#6366f1" fillOpacity={0.10} legendType="none" />}
@@ -741,7 +734,7 @@ const filteredReport = useMemo(() => {
                   <>
                     <div className="h-56 px-2 pt-3 pb-1">
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={stockDepletionData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                        <ComposedChart data={stockDepletionData} margin={{ top: 8, right: 24, left: -16, bottom: 16 }}>
                           <defs>
                             <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.18} />
@@ -755,8 +748,8 @@ const filteredReport = useMemo(() => {
                             </>
                           )}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "#cbd5e1" }} />
-                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 16, fontSize: 10, fill: "#cbd5e1" }} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 12, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <Tooltip content={<DepletionTooltip />} />
                           {graphFilters.reorderLine && reorderPoint > 0 && (
                             <ReferenceLine y={reorderPoint} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="6 4"
