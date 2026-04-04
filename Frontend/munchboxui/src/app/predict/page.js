@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine,
+  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea,
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
@@ -33,10 +33,10 @@ export default function PredictPage() {
     strategy:   "2",
   });
   const [graphFilters, setGraphFilters] = useState({
-    historicalUsage: true,
-    futureForecast:  true,
-    suggestionRange: true,
-    dailyTargetAvg:  true,
+    stockLeft:   true,
+    usageLine:   true,
+    zoneColors:  true,
+    reorderLine: true,
   });
   const showToast = (type, message) => setToast({ type, message });
 
@@ -166,73 +166,78 @@ const filteredReport = useMemo(() => {
 
   const todayStr = new Date().toISOString().split("T")[0];
 
-const chartData = useMemo(() => {
-  const historyDays = Math.max(14, forecastDays * 2);
-  const cutoff      = new Date();
-  cutoff.setDate(cutoff.getDate() - historyDays);
-  const cutoffStr   = cutoff.toISOString().split("T")[0];
+  // Reorder point = 3 days of daily avg usage (safety buffer)
+  const reorderPoint = useMemo(() => {
+    if (!selectedIngredient?.daily_target_average) return 0;
+    return Math.ceil(selectedIngredient.daily_target_average * 3);
+  }, [selectedIngredient]);
 
-  const dailyAvg = selectedIngredient?.daily_target_average ?? null;
+  // Stock depletion chart data
+  const stockDepletionData = useMemo(() => {
+    if (!selectedIngredient) return [];
+    const current  = selectedIngredient.current_stock;
+    const dailyAvg = selectedIngredient.daily_target_average ?? 0;
 
-  // ← Only include historical points that are in the past AND have actual usage
-  const historical = trendData
-    .filter((d) => d.date >= cutoffStr && d.date <= todayStr)  // ← cap at today
-    .map((d) => ({ ...d, section: "historical" }));
+    // Historical actual usage, last N days
+    const historyWindow = Math.max(14, forecastDays * 2);
+    const actualDays = trendData
+      .filter((d) => d.date <= todayStr && d.actual_usage != null && d.actual_usage > 0)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-historyWindow);
 
-  const future = dailyForecast.slice(0, forecastDays).map((d) => ({
-    date:              d.date,
-    section:           "future",
-    future_forecast:   d.mean_demand != null ? Math.ceil(d.mean_demand) : null,
-    future_band_low:   d.low_bound,
-    future_band_range: (d.high_bound != null && d.low_bound != null)
-                         ? Math.max(0, d.high_bound - d.low_bound) : null,
-    daily_avg:         dailyAvg,
-  }));
+    // Estimate starting stock by working backward from current
+    const totalActual = actualDays.reduce((s, d) => s + (d.actual_usage || 0), 0);
+    const startStock  = current + totalActual;
 
-  const lastActual    = [...historical].reverse().find((d) => d.actual_usage != null);
-  const firstForecast = future[0];
+    const points = [];
+    let cumUsage = 0;
 
-  const historicalMerged = historical.map((d) => {
-    const forecastVal = d.predicted_usage ?? firstForecast?.future_forecast ?? null;
-    return { ...d, future_forecast: forecastVal };
-  });
+    actualDays.forEach((day) => {
+      cumUsage += day.actual_usage || 0;
+      points.push({
+        date:             day.date,
+        stock_left:       parseFloat(Math.max(0, startStock - cumUsage).toFixed(2)),
+        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
+        section:          "historical",
+      });
+    });
 
-  const existingDates = new Set(historical.map((d) => d.date));
-  const gapPoints     = [];
-  if (lastActual && firstForecast) {
-    const d   = new Date(lastActual.date);
-    const end = new Date(firstForecast.date);
-    d.setDate(d.getDate() + 1);
-    while (d < end) {
-      const ds = d.toISOString().split("T")[0];
-      if (!existingDates.has(ds)) {
-        gapPoints.push({
-          date: ds, section: "gap",
-          future_forecast:   firstForecast.future_forecast,
-          future_band_low:   firstForecast.future_band_low,
-          future_band_range: firstForecast.future_band_range,
-          daily_avg:         dailyAvg,
-        });
-      }
-      d.setDate(d.getDate() + 1);
+    // Bridge: today point (if not already covered)
+    if (points[points.length - 1]?.date !== todayStr) {
+      points.push({
+        date:             todayStr,
+        stock_left:       parseFloat(current.toFixed(2)),
+        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
+        section:          "today",
+      });
     }
-  }
 
-  return [...historicalMerged, ...gapPoints, ...future]
-    .sort((a, b) => a.date.localeCompare(b.date));
+    // Future forecast
+    dailyForecast.slice(0, forecastDays).forEach((day) => {
+      const use = day.mean_demand != null ? day.mean_demand : dailyAvg;
+      cumUsage += use;
+      points.push({
+        date:             day.date,
+        stock_left:       parseFloat(Math.max(0, startStock - cumUsage).toFixed(2)),
+        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
+        section:          "future",
+      });
+    });
 
-}, [trendData, dailyForecast, selectedIngredient, forecastDays, todayStr]);
-  const hasActual          = graphFilters.historicalUsage && chartData.some((d) => d.actual_usage != null);
-  const hasFuture          = graphFilters.futureForecast  && chartData.some((d) => d.future_forecast != null);
-  const hasSuggestionRange = graphFilters.suggestionRange  && chartData.some((d) => d.future_band_range != null);
+    return points.sort((a, b) => a.date.localeCompare(b.date));
+  }, [trendData, dailyForecast, selectedIngredient, forecastDays, todayStr]);
 
-const yAxisMax = useMemo(() => {
-  const maxActual     = Math.max(0, ...chartData.map((d) => d.actual_usage ?? 0));
-  const maxFutureBand = Math.max(0, ...chartData.map((d) => (d.future_band_low ?? 0) + (d.future_band_range ?? 0)));
-  const maxForecast   = Math.max(0, ...chartData.map((d) => d.future_forecast ?? 0));
-  const raw           = Math.max(maxActual, maxFutureBand, maxForecast);
-  return Math.ceil(raw * 1.2) || 10;  // ← 1.2 instead of 1.4 — tighter headroom
-}, [chartData]);
+  const yMaxDepletion = useMemo(() => {
+    if (!stockDepletionData.length) return 100;
+    const vals = stockDepletionData.flatMap((d) => [d.stock_left, d.cumulative_usage]);
+    return Math.ceil(Math.max(...vals) * 1.15) || 100;
+  }, [stockDepletionData]);
+
+  // Date when stock hits zero (in forecast window)
+  const stockoutDate = useMemo(() => {
+    return stockDepletionData.find((d) => d.section === "future" && d.stock_left <= 0)?.date ?? null;
+  }, [stockDepletionData]);
+
   const surplus = selectedIngredient
     ? (selectedIngredient.current_stock - Math.ceil(selectedIngredient.expected_usage)).toFixed(1)
     : 0;
@@ -242,33 +247,38 @@ const yAxisMax = useMemo(() => {
     if (!active || !payload?.length) return null;
     const d        = payload[0]?.payload;
     const isFuture = d?.section === "future";
+    const isLow    = d?.stock_left != null && d.stock_left <= reorderPoint;
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[180px]">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[190px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
           {label}
-          <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${isFuture ? "bg-indigo-50 text-indigo-500" : "bg-emerald-50 text-emerald-600"}`}>
+          <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+            isFuture ? "bg-indigo-50 text-indigo-500" : "bg-emerald-50 text-emerald-600"
+          }`}>
             {isFuture ? "Forecast" : "Actual"}
           </span>
         </p>
-        {d?.actual_usage != null && (
+        {d?.stock_left != null && (
           <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-slate-500">Used</span>
-            <span className="ml-auto font-bold text-slate-700">{d.actual_usage} {selectedIngredient?.unit}</span>
+            <div className="w-2 h-2 rounded-full bg-blue-400" />
+            <span className="text-slate-500">Stock left</span>
+            <span className={`ml-auto font-bold ${isLow ? "text-red-500" : "text-slate-700"}`}>
+              {d.stock_left} {selectedIngredient?.unit}
+            </span>
           </div>
         )}
-        {d?.future_forecast != null && (
+        {d?.cumulative_usage != null && (
           <div className="flex items-center gap-2 text-sm mt-1">
-            <div className="w-2 h-2 rounded-full bg-indigo-400" />
-            <span className="text-slate-500">Forecast</span>
-            <span className="ml-auto font-bold text-slate-700">{Math.ceil(d.future_forecast)} {selectedIngredient?.unit}/day</span>
+            <div className="w-2 h-2 rounded-full bg-orange-400" />
+            <span className="text-slate-500">Total used</span>
+            <span className="ml-auto font-bold text-slate-700">
+              {d.cumulative_usage.toFixed(1)} {selectedIngredient?.unit}
+            </span>
           </div>
         )}
-        {d?.future_band_low != null && d?.future_band_range != null && (
-          <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-400">
-            Range: <span className="font-semibold text-slate-500">
-              {Number(d.future_band_low).toFixed(1)} – {Number(d.future_band_low + d.future_band_range).toFixed(1)}
-            </span> {selectedIngredient?.unit}
+        {isLow && (
+          <div className="mt-2 pt-2 border-t border-red-100 text-[11px] text-red-500 font-semibold flex items-center gap-1">
+            ⚠ Below reorder point ({reorderPoint} {selectedIngredient?.unit})
           </div>
         )}
       </div>
@@ -478,7 +488,7 @@ const yAxisMax = useMemo(() => {
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">
                       {selectedIngredient?.daily_target_average != null
-                        ? `Avg ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · expected ${Math.ceil(selectedIngredient.expected_usage)} ${selectedIngredient.unit} over ${forecastDays} days`
+                        ? `Stock depletion forecast · Daily avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder threshold: ${reorderPoint} ${selectedIngredient.unit}`
                         : selectedIngredient
                         ? 'No forecast yet — click "New Prediction" to generate one'
                         : "Choose an ingredient from the list on the left"}
@@ -532,11 +542,11 @@ const yAxisMax = useMemo(() => {
                 {/* Graph layer toggles */}
                 <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 shrink-0 bg-slate-50/40">
                   {[
-                    { key: "historicalUsage", label: "Actual",       color: "#10b981" },
-                    { key: "futureForecast",  label: "Forecast",     color: "#6366f1" },
-                    { key: "suggestionRange", label: "Range band",   color: "#f97316", opacity: 0.4 },
-                    { key: "dailyTargetAvg",  label: "Daily avg",    color: "#f97316", dashed: true },
-                  ].map(({ key, label, color, opacity, dashed }) => (
+                    { key: "stockLeft",   label: "Stock left",     color: "#3b82f6" },
+                    { key: "usageLine",   label: "Usage total",    color: "#f97316", dashed: true },
+                    { key: "zoneColors",  label: "Safe/Reorder",   color: "#10b981", isZone: true },
+                    { key: "reorderLine", label: "Reorder line",   color: "#94a3b8", dashed: true },
+                  ].map(({ key, label, color, dashed, isZone }) => (
                     <button
                       key={key}
                       onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
@@ -546,20 +556,48 @@ const yAxisMax = useMemo(() => {
                           : "border-transparent text-slate-400 hover:text-slate-500"
                       }`}
                     >
-                      {dashed ? (
+                      {isZone ? (
+                        <div className={`w-3 h-3 rounded-sm shrink-0 border ${graphFilters[key] ? "bg-emerald-100 border-emerald-300" : "bg-slate-100 border-slate-200"}`} />
+                      ) : dashed ? (
                         <svg width="14" height="8" className={!graphFilters[key] ? "opacity-40" : ""}>
                           <line x1="0" y1="4" x2="14" y2="4" stroke={color} strokeWidth="2" strokeDasharray="3 2" />
                         </svg>
                       ) : (
-                        <div
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: color, opacity: graphFilters[key] ? (opacity ?? 1) : 0.3 }}
-                        />
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color, opacity: graphFilters[key] ? 1 : 0.3 }} />
                       )}
                       {label}
                     </button>
                   ))}
                 </div>
+
+                {/* Info bar */}
+                {selectedIngredient?.daily_target_average != null && (
+                  <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-5 shrink-0 bg-slate-50/50 text-xs flex-wrap">
+                    <span className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Min. Target</span>
+                      <span className="mx-1 text-slate-300">·</span>
+                      {reorderPoint} {selectedIngredient.unit}
+                    </span>
+                    <span className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Daily Target Avg</span>
+                      <span className="mx-1 text-slate-300">·</span>
+                      {selectedIngredient.daily_target_average} {selectedIngredient.unit}
+                    </span>
+                    <span className="text-slate-500">
+                      <span className="font-semibold text-slate-700">Expected {forecastDays}d</span>
+                      <span className="mx-1 text-slate-300">·</span>
+                      {Math.ceil(selectedIngredient.expected_usage)} {selectedIngredient.unit}
+                    </span>
+                    {stockoutDate && (
+                      <span className="text-red-500 font-semibold flex items-center gap-1">
+                        ⚠ Stockout est. {stockoutDate}
+                      </span>
+                    )}
+                    <span className={`ml-auto font-bold ${selectedIngredient.status === 1 ? "text-emerald-600" : "text-red-500"}`}>
+                      Recommendation: {selectedIngredient.status === 1 ? "OK — Sufficient stock" : "Reorder Now"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Chart body */}
                 {selectedIngredient ? (
@@ -568,99 +606,131 @@ const yAxisMax = useMemo(() => {
                       <Loader2 className="animate-spin text-orange-400" size={26} />
                       <p className="text-sm text-slate-400">Loading forecast data…</p>
                     </div>
-                  ) : chartData.length > 0 ? (
-                    <div className="flex-1 min-h-0 px-2 pt-4 pb-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%"  stopColor="#10b981" stopOpacity={0.12} />
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}    />
-                            </linearGradient>
-                            <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.10} />
-                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
-                            </linearGradient>
-                          </defs>
+                  ) : stockDepletionData.length > 0 ? (
+                    <>
+                      <div className="flex-1 min-h-0 px-2 pt-3 pb-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={stockDepletionData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.18} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                              </linearGradient>
+                            </defs>
 
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis
-                            dataKey="date"
-                            tick={{ fontSize: 11, fill: "#94a3b8" }}
-                            axisLine={false}
-                            tickLine={false}
-                            padding={{ left: 10, right: 10 }}
-                            interval={chartData.length <= 21 ? 1 : Math.ceil(chartData.length / 8)}
-                            tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: "#94a3b8" }}
-                            axisLine={false}
-                            tickLine={false}
-                            domain={[0, yAxisMax]}
-                            allowDataOverflow
-                          />
-                          <Tooltip content={<CustomTooltip />} />
+                            {/* Background zone colors — rendered first so lines appear on top */}
+                            {graphFilters.zoneColors && reorderPoint > 0 && (
+                              <>
+                                <ReferenceArea y1={reorderPoint} y2={yMaxDepletion} fill="#f0fdf4" fillOpacity={0.7} ifOverflow="visible" />
+                                <ReferenceArea y1={0} y2={reorderPoint} fill="#fff1f2" fillOpacity={0.85} ifOverflow="visible" />
+                              </>
+                            )}
 
-                          {hasSuggestionRange && (
-                            <Area type="monotone" dataKey="future_band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />
-                          )}
-                          {hasSuggestionRange && (
-                            <Area type="monotone" dataKey="future_band_range" stackId="fb" stroke="none" fill="#f97316" fillOpacity={0.10} legendType="none" />
-                          )}
-
-                          {hasActual && (
-                            <Area
-                              type="monotone"
-                              dataKey="actual_usage"
-                              stroke="#10b981"
-                              strokeWidth={2.5}
-                              fill="url(#actualGrad)"
-                              dot={false}
-                              activeDot={{ r: 4, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
-                              connectNulls={false}
-                              legendType="none"
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 11, fill: "#94a3b8" }}
+                              axisLine={false}
+                              tickLine={false}
+                              padding={{ left: 10, right: 10 }}
+                              interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)}
+                              tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }}
                             />
-                          )}
-
-                          {hasFuture && (
-                            <Area
-                              type="monotone"
-                              dataKey="future_forecast"
-                              stroke="#6366f1"
-                              strokeWidth={2.5}
-                              fill="url(#forecastGrad)"
-                              dot={false}
-                              activeDot={{ r: 4, fill: "#6366f1", stroke: "#fff", strokeWidth: 2 }}
-                              connectNulls
-                              legendType="none"
+                            <YAxis
+                              tick={{ fontSize: 11, fill: "#94a3b8" }}
+                              axisLine={false}
+                              tickLine={false}
+                              domain={[0, yMaxDepletion]}
+                              allowDataOverflow
                             />
-                          )}
+                            <Tooltip content={<CustomTooltip />} />
 
-                          <ReferenceLine
-                            x={todayStr}
-                            stroke="#cbd5e1"
-                            strokeWidth={1.5}
-                            strokeDasharray="4 3"
-                            label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
-                          />
+                            {/* Reorder threshold line */}
+                            {graphFilters.reorderLine && reorderPoint > 0 && (
+                              <ReferenceLine
+                                y={reorderPoint}
+                                stroke="#94a3b8"
+                                strokeWidth={1.5}
+                                strokeDasharray="6 4"
+                                label={{ value: `Reorder: ${reorderPoint} ${selectedIngredient?.unit ?? ""}`, fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopLeft" }}
+                              />
+                            )}
 
-                          {selectedIngredient?.daily_target_average != null && graphFilters.dailyTargetAvg && (
-                            <Line
-                              type="monotone"
-                              dataKey="daily_avg"
-                              stroke="#f97316"
+                            {/* Today divider */}
+                            <ReferenceLine
+                              x={todayStr}
+                              stroke="#cbd5e1"
                               strokeWidth={1.5}
-                              strokeDasharray="5 3"
-                              dot={false}
-                              activeDot={false}
-                              connectNulls={false}
-                              legendType="none"
+                              strokeDasharray="4 3"
+                              label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
                             />
-                          )}
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
+
+                            {/* Stockout date marker */}
+                            {stockoutDate && (
+                              <ReferenceLine
+                                x={stockoutDate}
+                                stroke="#ef4444"
+                                strokeWidth={1.5}
+                                strokeDasharray="4 3"
+                                label={{ value: "Stockout", fill: "#ef4444", fontSize: 10, fontWeight: 700, position: "insideTopRight" }}
+                              />
+                            )}
+
+                            {/* Cumulative usage — orange dashed line */}
+                            {graphFilters.usageLine && (
+                              <Line
+                                type="monotone"
+                                dataKey="cumulative_usage"
+                                stroke="#f97316"
+                                strokeWidth={2}
+                                strokeDasharray="5 3"
+                                dot={false}
+                                activeDot={{ r: 4, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
+                                connectNulls
+                                legendType="none"
+                              />
+                            )}
+
+                            {/* Stock left — blue area line */}
+                            {graphFilters.stockLeft && (
+                              <Area
+                                type="monotone"
+                                dataKey="stock_left"
+                                stroke="#3b82f6"
+                                strokeWidth={2.5}
+                                fill="url(#stockGrad)"
+                                dot={false}
+                                activeDot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }}
+                                connectNulls
+                                legendType="none"
+                              />
+                            )}
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50/30 flex items-center gap-5 text-xs text-slate-500 flex-wrap shrink-0">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Lines</span>
+                        <div className="flex items-center gap-1.5">
+                          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#3b82f6" strokeWidth="2.5" /></svg>
+                          Stock left
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
+                          Ingredient usage
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1">Shades</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
+                          Safe to use
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-red-100 border border-red-300" />
+                          Reorder soon
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center flex-1 text-slate-400 gap-2">
                       <TrendingUp className="text-slate-200" size={32} />
