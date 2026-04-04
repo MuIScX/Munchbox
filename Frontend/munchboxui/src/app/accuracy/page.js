@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
@@ -404,7 +404,7 @@ export default function AccuracyPage() {
 
           {/* ── Accuracy Table ── */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4">
+            <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-4">
               <div>
                 <h2 className="font-bold text-slate-800">Accuracy per Ingredient</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Click a row to view the comparison chart</p>
@@ -424,7 +424,7 @@ export default function AccuracyPage() {
 
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50 text-slate-400 text-xs uppercase tracking-wide border-b border-slate-100">
+                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
                   <th className="px-6 py-3 font-semibold">Ingredient</th>
                   <th className="px-6 py-3 font-semibold text-center">Accuracy</th>
                   <th className="px-6 py-3 font-semibold text-right">MAE (avg error)</th>
@@ -443,7 +443,6 @@ export default function AccuracyPage() {
                 ) : filtered.length > 0 ? (
                   filtered.map((row) => {
                     const isSelected = selected?.ingredient_id === row.ingredient_id;
-                    const c = accuracyColor(row._loaded ? row.accuracy : null);
                     return (
                       <tr
                         key={row.ingredient_id}
@@ -451,7 +450,7 @@ export default function AccuracyPage() {
                         className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
                       >
                         {/* Ingredient name */}
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-3">
                           <div className="flex items-center gap-3">
                             {isSelected && <div className="w-1 h-6 bg-orange-400 rounded-full" />}
                             <div className="flex items-center gap-2.5">
@@ -466,7 +465,7 @@ export default function AccuracyPage() {
                         </td>
 
                         {/* Accuracy badge */}
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-6 py-3 text-center">
                           {!row._loaded ? (
                             <div className="flex items-center justify-center gap-1 text-xs text-slate-300">
                               <Loader2 size={11} className="animate-spin" /> computing
@@ -477,7 +476,7 @@ export default function AccuracyPage() {
                         </td>
 
                         {/* MAE */}
-                        <td className="px-6 py-4 text-right text-sm font-medium text-slate-700">
+                        <td className="px-6 py-3 text-right text-sm font-medium text-slate-700">
                           {!row._loaded ? (
                             <span className="text-slate-200">—</span>
                           ) : row.mae !== null ? (
@@ -488,7 +487,7 @@ export default function AccuracyPage() {
                         </td>
 
                         {/* Bias */}
-                        <td className="px-6 py-4 text-right text-sm">
+                        <td className="px-6 py-3 text-right text-sm">
                           {!row._loaded ? (
                             <span className="text-slate-200">—</span>
                           ) : row.bias !== null ? (
@@ -501,12 +500,12 @@ export default function AccuracyPage() {
                         </td>
 
                         {/* Days */}
-                        <td className="px-6 py-4 text-right text-sm text-slate-500">
+                        <td className="px-6 py-3 text-right text-sm text-slate-500">
                           {row._loaded ? row.days : <span className="text-slate-200">—</span>}
                         </td>
 
                         {/* Unit */}
-                        <td className="px-6 py-4 text-center text-sm text-slate-400">{row.unit}</td>
+                        <td className="px-6 py-3 text-center text-sm text-slate-400">{row.unit}</td>
                       </tr>
                     );
                   })

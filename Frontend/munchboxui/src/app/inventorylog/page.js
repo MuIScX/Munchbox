@@ -100,7 +100,7 @@ export default function InventoryLog() {
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
               <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300 shrink-0" />
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="font-bold text-slate-800 text-lg">Stock Update Detail</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -111,7 +111,7 @@ export default function InventoryLog() {
                   <X size={18} />
                 </button>
               </div>
-              <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6 custom-scrollbar">
+              <div className="overflow-y-auto flex-1 px-6 py-3 space-y-6 custom-scrollbar">
                 {Object.entries(grouped).map(([catId, items]) => (
                   <div key={catId}>
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2 pb-1 border-b border-orange-100">
@@ -162,7 +162,7 @@ export default function InventoryLog() {
 
           {/* Log Table Container */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
+            <div className="px-6 py-3 border-b border-slate-100 shrink-0 flex items-center bg-white">
               <div className="shrink-0">
                 <h2 className="font-bold text-slate-800 text-lg italic leading-tight">Stock Records</h2>
                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
@@ -211,19 +211,19 @@ export default function InventoryLog() {
                   ) : filteredBatches.length > 0 ? (
                     filteredBatches.map((batch, index) => (
                       <tr key={index} className="hover:bg-orange-50/40 transition-colors">
-                        <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
-                        <td className="px-6 py-4 text-slate-800 font-semibold">{batch.staff_name}</td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-6 py-3 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
+                        <td className="px-6 py-3 text-slate-800 font-semibold">{batch.staff_name}</td>
+                        <td className="px-6 py-3 text-center">
                           <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-600">
                             STOCK UPDATE
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 text-sm">
+                        <td className="px-6 py-3 text-slate-500 text-sm">
                           <span className="font-semibold text-slate-700">{batch.staff_name}</span> updated stock at{" "}
                           <span className="font-semibold text-slate-700">{batch.timestamp}</span>
                           {" "}({batch.rows.length} ingredient{batch.rows.length > 1 ? "s" : ""})
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-3">
                           <button
                             onClick={() => setDetailBatch(batch)}
                             className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-orange-500 transition-colors"

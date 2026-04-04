@@ -61,10 +61,10 @@ export default function SalesReportTable({
             {sortedTableData.length > 0 ? (
               sortedTableData.map((row) => (
                 <tr key={row.id} className="text-slate-700 text-sm hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-5 font-medium">{row.item}</td>
-                  <td className="px-6 py-5">{row.orders.toLocaleString()}</td>
-                  <td className="px-6 py-5">{formatCurrency(row.revenue)}</td>
-                  <td className="px-6 py-5">{Number(row.share).toFixed(1)}%</td>
+                  <td className="px-6 py-3 font-medium">{row.item}</td>
+                  <td className="px-6 py-3">{row.orders.toLocaleString()}</td>
+                  <td className="px-6 py-3">{formatCurrency(row.revenue)}</td>
+                  <td className="px-6 py-3">{Number(row.share).toFixed(1)}%</td>
                 </tr>
               ))
             ) : (
