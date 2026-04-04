@@ -62,26 +62,30 @@ class TestIngredient:
 
     def test_update_stock_success(self, client, auth_headers, created_ingredient_id):
         res = client.put("/api/ingredient/update-stock", headers=auth_headers, json={
-            "ingredient_id": created_ingredient_id, "new_stock": 50, "staff_id": 1,
+            "updates": [{"ingredient_id": created_ingredient_id, "new_stock": 50}],
+            "staff_id": 1,
         })
         assert res.status_code == 200
         assert res.json()["message"] == "success"
 
     def test_update_stock_nonexistent(self, client, auth_headers):
         res = client.put("/api/ingredient/update-stock", headers=auth_headers, json={
-            "ingredient_id": 99999, "new_stock": 10, "staff_id": 1,
+            "updates": [{"ingredient_id": 99999, "new_stock": 10}],
+            "staff_id": 1,
         })
         assert res.status_code in (404, 400)
 
     def test_update_stock_negative(self, client, auth_headers, created_ingredient_id):
         res = client.put("/api/ingredient/update-stock", headers=auth_headers, json={
-            "ingredient_id": created_ingredient_id, "new_stock": -5, "staff_id": 1,
+            "updates": [{"ingredient_id": created_ingredient_id, "new_stock": -5}],
+            "staff_id": 1,
         })
         assert res.status_code in (200, 400, 422)
 
     def test_get_ingredient_log(self, client, auth_headers, created_ingredient_id):
         client.put("/api/ingredient/update-stock", headers=auth_headers, json={
-            "ingredient_id": created_ingredient_id, "new_stock": 20, "staff_id": 1,
+            "updates": [{"ingredient_id": created_ingredient_id, "new_stock": 20}],
+            "staff_id": 1,
         })
         res = client.post("/api/ingredient/log", headers=auth_headers, json={
             "ingredient_id": created_ingredient_id,

@@ -57,6 +57,7 @@ def add_ingredient(body: IngredientCreate, identity: dict = Depends(decode_token
 def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
     now = datetime.now(bkk)
     try:
+        found = 0
         for item in body.updates:
             ingredient = db.query(Ingredient).filter(
                 Ingredient.id == item.ingredient_id,
@@ -66,6 +67,7 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
             if not ingredient:
                 continue
 
+            found += 1
             current = float(ingredient.stock_left)
             new_stock = float(item.new_stock)
             if new_stock < 0 or new_stock == current:
@@ -83,8 +85,14 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
                 restaurant_id=identity["restaurantId"],
                 new_current=int(new_stock),
             ))
+
+        if found == 0:
+            raise HTTPException(status_code=404, detail="No valid ingredients found to update")
+
         db.commit()
         return {"message": "success", "Data": []}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
