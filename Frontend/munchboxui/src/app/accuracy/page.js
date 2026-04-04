@@ -19,7 +19,7 @@ function computeAccuracy(actualData, trendData) {
   const actualMap = {};
   (actualData || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
 
-  // Only use type-1 (daily forecast) rows — each has expected_usage for that specific date
+  // type-1 rows = daily prediction history (one row per forecasted date)
   const predPoints = (trendData?.data || [])
     .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
     .map((d) => ({
@@ -27,100 +27,34 @@ function computeAccuracy(actualData, trendData) {
       predicted: d.expected_usage,
     }));
 
-  // Join on date — only keep rows where both predicted AND actual exist
+  // Join on date — only keep rows where BOTH historical prediction AND actual exist
   const merged = predPoints
     .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
-    .filter((d) => d.actual !== null && d.actual > 0);
+    .filter((d) => d.actual !== null && d.actual > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (merged.length > 0) {
-    // Primary: date-aligned comparison
-    // Asymmetric: predicted >= actual → 100% (safe, no stockout)
-    //             predicted <  actual → predicted/actual × 100 (under-prepared)
-    const dailyAcc = merged.map((d) =>
-      d.predicted >= d.actual ? 100 : (d.predicted / d.actual) * 100
-    );
-    const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
-    const biasArr   = merged.map((d) => d.predicted - d.actual);
-
-    const accuracy = dailyAcc.reduce((a, b) => a + b, 0) / merged.length;
-    const mae      = absErrors.reduce((a, b) => a + b, 0) / merged.length;
-    const bias     = biasArr.reduce((a, b) => a + b, 0) / merged.length;
-
-    return {
-      accuracy:   parseFloat(Math.min(100, accuracy).toFixed(2)),
-      mae:        parseFloat(mae.toFixed(2)),
-      bias:       parseFloat(bias.toFixed(2)),
-      days:       merged.length,
-      chartData:  merged.sort((a, b) => a.date.localeCompare(b.date)),
-      isFallback: false,
-    };
+  if (merged.length === 0) {
+    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
   }
 
-  // Fallback: no date overlap yet (predictions are for future dates).
-  // Compare daily_target_average against historical actual average for stats.
-  // For the chart: show actual history (left) + per-day forecast values (right).
-  const type2Row = (trendData?.data || []).find(
-    (d) => d.prediction_type === 2 && d.daily_target_average != null
+  // Asymmetric accuracy: predicted >= actual → 100% (safe, no stockout)
+  //                      predicted <  actual → predicted/actual × 100 (under-prepared)
+  const dailyAcc  = merged.map((d) =>
+    d.predicted >= d.actual ? 100 : (d.predicted / d.actual) * 100
   );
-  const actualRows = (actualData || [])
-    .filter((d) => d.actual_usage > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
+  const biasArr   = merged.map((d) => d.predicted - d.actual);
 
-  if ((!type2Row && !(trendData?.data?.length)) || actualRows.length === 0) {
-    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], isFallback: false };
-  }
-
-  // Per-day prediction rows (type-1) — these give a wavy forecast line
-  const predRows = (trendData?.data || [])
-    .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
-    .map((d) => ({
-      date:      (d.timestamp || "").split(" ")[0],
-      predicted: d.expected_usage,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  // Daily avg from type-2 summary (for accuracy stats)
-  const predictedDailyAvg = type2Row?.daily_target_average
-    ?? (predRows.length > 0
-      ? predRows.reduce((s, d) => s + d.predicted, 0) / predRows.length
-      : null);
-
-  if (predictedDailyAvg == null) {
-    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], isFallback: false };
-  }
-
-  const actualDailyAvg = actualRows.reduce((s, d) => s + d.actual_usage, 0) / actualRows.length;
-  const mae      = Math.abs(predictedDailyAvg - actualDailyAvg);
-  const bias     = predictedDailyAvg - actualDailyAvg;
-  // Asymmetric: predicted >= actual avg → 100%, else predicted/actual × 100
-  const accuracy = predictedDailyAvg >= actualDailyAvg
-    ? 100
-    : (predictedDailyAvg / actualDailyAvg) * 100;
-
-  // Chart: actual history (last 60 days) on the left + forecast per-day on the right
-  // connectNulls=false means each line only draws in its own date range
-  const historicalPoints = actualRows.slice(-60).map((d) => ({
-    date:      d.date,
-    actual:    d.actual_usage,
-    predicted: null,
-  }));
-  const forecastPoints = predRows.map((d) => ({
-    date:      d.date,
-    actual:    null,
-    predicted: d.predicted,
-  }));
-  const chartData = [...historicalPoints, ...forecastPoints]
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const accuracy = dailyAcc.reduce((a, b) => a + b, 0) / merged.length;
+  const mae      = absErrors.reduce((a, b) => a + b, 0) / merged.length;
+  const bias     = biasArr.reduce((a, b) => a + b, 0) / merged.length;
 
   return {
-    accuracy:           parseFloat(Math.min(100, accuracy).toFixed(2)),
-    mae:                parseFloat(mae.toFixed(2)),
-    bias:               parseFloat(bias.toFixed(2)),
-    days:               actualRows.length,
-    chartData,
-    isFallback:         true,
-    predictedDailyAvg:  parseFloat(predictedDailyAvg.toFixed(2)),
-    actualDailyAvg:     parseFloat(actualDailyAvg.toFixed(2)),
+    accuracy:  parseFloat(Math.min(100, accuracy).toFixed(2)),
+    mae:       parseFloat(mae.toFixed(2)),
+    bias:      parseFloat(bias.toFixed(2)),
+    days:      merged.length,
+    chartData: merged,
   };
 }
 
@@ -352,18 +286,9 @@ export default function AccuracyPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-semibold text-slate-700 text-sm">
-                    {selected
-                      ? selected.isFallback
-                        ? `${selected.ingredient_name} — Forecast Calibration`
-                        : `${selected.ingredient_name} — Actual vs. Predicted`
-                      : "Select an ingredient"}
+                    {selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient"}
                   </h3>
                   {selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
-                  {selected?._loaded && selected.isFallback && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500 border border-blue-200">
-                      Calibration Mode
-                    </span>
-                  )}
                   {selected && !selected._loaded && (
                     <div className="flex items-center gap-1 text-xs text-slate-400">
                       <Loader2 size={11} className="animate-spin" /> loading…
@@ -372,10 +297,8 @@ export default function AccuracyPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {selected?._loaded && selected.days > 0
-                    ? selected.isFallback
-                      ? `${selected.days} days of history — Predicted avg ${selected.predictedDailyAvg} ${selected.unit ?? ""}/day · Actual avg ${selected.actualDailyAvg} ${selected.unit ?? ""}/day · MAE ${selected.mae}`
-                      : `${selected.days} days of overlap data — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
-                    : "Comparing dates where both actual usage and a prediction exist"}
+                    ? `${selected.days} days matched — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
+                    : "Comparing historical predictions vs actual usage on matching dates"}
                 </p>
               </div>
 
@@ -422,17 +345,6 @@ export default function AccuracyPage() {
                       <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                       <Tooltip content={<ChartTooltip unit={selected.unit ?? ""} />} />
 
-                      {/* Today divider — only in fallback mode where chart spans past+future */}
-                      {selected?.isFallback && (
-                        <ReferenceLine
-                          x={new Date().toISOString().split("T")[0]}
-                          stroke="#cbd5e1"
-                          strokeWidth={1.5}
-                          strokeDasharray="4 3"
-                          label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }}
-                        />
-                      )}
-
                       {/* Actual usage — emerald solid line */}
                       <Line
                         type="monotone"
@@ -468,7 +380,7 @@ export default function AccuracyPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                    {selected?.isFallback ? "Forecast (per-day prediction)" : "Predicted (daily avg)"}
+                    Predicted
                   </div>
                   {selected?.accuracy !== null && (
                     <div className="ml-auto">
@@ -590,11 +502,7 @@ export default function AccuracyPage() {
 
                         {/* Days */}
                         <td className="px-6 py-4 text-right text-sm text-slate-500">
-                          {row._loaded ? (
-                            <span title={row.isFallback ? "Days of historical sales used for calibration" : "Days with both prediction and actual data"}>
-                              {row.days}{row.isFallback && <span className="ml-1 text-blue-400 text-[10px]">hist</span>}
-                            </span>
-                          ) : <span className="text-slate-200">—</span>}
+                          {row._loaded ? row.days : <span className="text-slate-200">—</span>}
                         </td>
 
                         {/* Unit */}
