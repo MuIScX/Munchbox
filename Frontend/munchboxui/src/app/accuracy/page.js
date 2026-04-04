@@ -32,22 +32,62 @@ function computeAccuracy(actualData, trendData) {
     .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
     .filter((d) => d.actual !== null && d.actual > 0);
 
-  if (merged.length === 0) return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
+  if (merged.length > 0) {
+    // Primary: date-aligned comparison
+    const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
+    const pctErrors = merged.map((d) => Math.abs(d.actual - d.predicted) / d.actual);
+    const biasArr   = merged.map((d) => d.predicted - d.actual);
 
-  const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
-  const pctErrors = merged.map((d) => Math.abs(d.actual - d.predicted) / d.actual);
-  const biasArr   = merged.map((d) => d.predicted - d.actual);
+    const mape = (pctErrors.reduce((a, b) => a + b, 0) / merged.length) * 100;
+    const mae  = absErrors.reduce((a, b) => a + b, 0) / merged.length;
+    const bias = biasArr.reduce((a, b) => a + b, 0) / merged.length;
 
-  const mape = (pctErrors.reduce((a, b) => a + b, 0) / merged.length) * 100;
-  const mae  = absErrors.reduce((a, b) => a + b, 0) / merged.length;
-  const bias = biasArr.reduce((a, b) => a + b, 0) / merged.length;
+    return {
+      accuracy:   Math.max(0, 100 - mape),
+      mae:        parseFloat(mae.toFixed(2)),
+      bias:       parseFloat(bias.toFixed(2)),
+      days:       merged.length,
+      chartData:  merged.sort((a, b) => a.date.localeCompare(b.date)),
+      isFallback: false,
+    };
+  }
+
+  // Fallback: no date overlap yet (predictions are for future dates).
+  // Compare the model's daily_target_average against historical actual average.
+  const type2Row = (trendData?.data || []).find(
+    (d) => d.prediction_type === 2 && d.daily_target_average != null
+  );
+  const actualRows = (actualData || [])
+    .filter((d) => d.actual_usage > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!type2Row || actualRows.length === 0) {
+    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], isFallback: false };
+  }
+
+  const predictedDailyAvg = type2Row.daily_target_average;
+  const actualDailyAvg    = actualRows.reduce((s, d) => s + d.actual_usage, 0) / actualRows.length;
+
+  const mae  = Math.abs(predictedDailyAvg - actualDailyAvg);
+  const mape = (mae / actualDailyAvg) * 100;
+  const bias = predictedDailyAvg - actualDailyAvg;
+
+  // Cap to last 60 days for chart readability
+  const chartData = actualRows.slice(-60).map((d) => ({
+    date:      d.date,
+    actual:    d.actual_usage,
+    predicted: predictedDailyAvg,
+  }));
 
   return {
-    accuracy:  Math.max(0, 100 - mape),
-    mae:       parseFloat(mae.toFixed(2)),
-    bias:      parseFloat(bias.toFixed(2)),
-    days:      merged.length,
-    chartData: merged.sort((a, b) => a.date.localeCompare(b.date)),
+    accuracy:           Math.max(0, 100 - mape),
+    mae:                parseFloat(mae.toFixed(2)),
+    bias:               parseFloat(bias.toFixed(2)),
+    days:               actualRows.length,
+    chartData,
+    isFallback:         true,
+    predictedDailyAvg:  parseFloat(predictedDailyAvg.toFixed(2)),
+    actualDailyAvg:     parseFloat(actualDailyAvg.toFixed(2)),
   };
 }
 
@@ -152,10 +192,6 @@ export default function AccuracyPage() {
     ingredients.filter((i) =>
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
-
-  const selColor = selected?.accuracy !== null && selected?.accuracy !== undefined
-    ? accuracyColor(selected.accuracy)
-    : accuracyColor(null);
 
   /* format date for X axis */
   const fmtDate = (v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; };
@@ -283,9 +319,18 @@ export default function AccuracyPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-semibold text-slate-700 text-sm">
-                    {selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient"}
+                    {selected
+                      ? selected.isFallback
+                        ? `${selected.ingredient_name} — Forecast Calibration`
+                        : `${selected.ingredient_name} — Actual vs. Predicted`
+                      : "Select an ingredient"}
                   </h3>
                   {selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
+                  {selected?._loaded && selected.isFallback && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500 border border-blue-200">
+                      Calibration Mode
+                    </span>
+                  )}
                   {selected && !selected._loaded && (
                     <div className="flex items-center gap-1 text-xs text-slate-400">
                       <Loader2 size={11} className="animate-spin" /> loading…
@@ -294,7 +339,9 @@ export default function AccuracyPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {selected?._loaded && selected.days > 0
-                    ? `${selected.days} days of overlap data — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
+                    ? selected.isFallback
+                      ? `${selected.days} days of history — Predicted avg ${selected.predictedDailyAvg} ${selected.unit ?? ""}/day · Actual avg ${selected.actualDailyAvg} ${selected.unit ?? ""}/day · MAE ${selected.mae}`
+                      : `${selected.days} days of overlap data — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
                     : "Comparing dates where both actual usage and a prediction exist"}
                 </p>
               </div>
@@ -377,7 +424,7 @@ export default function AccuracyPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                    Predicted (daily avg)
+                    {selected?.isFallback ? "Forecast daily avg (flat target)" : "Predicted (daily avg)"}
                   </div>
                   {selected?.accuracy !== null && (
                     <div className="ml-auto">
@@ -499,7 +546,11 @@ export default function AccuracyPage() {
 
                         {/* Days */}
                         <td className="px-6 py-4 text-right text-sm text-slate-500">
-                          {row._loaded ? row.days : <span className="text-slate-200">—</span>}
+                          {row._loaded ? (
+                            <span title={row.isFallback ? "Days of historical sales used for calibration" : "Days with both prediction and actual data"}>
+                              {row.days}{row.isFallback && <span className="ml-1 text-blue-400 text-[10px]">hist</span>}
+                            </span>
+                          ) : <span className="text-slate-200">—</span>}
                         </td>
 
                         {/* Unit */}
