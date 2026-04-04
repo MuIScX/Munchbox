@@ -14,9 +14,13 @@ class IngredientCreate(BaseModel):
     category: int
 
 
-class IngredientStockUpdate(BaseModel):
+class IngredientStockItem(BaseModel):
     ingredient_id: int
     new_stock: float
+
+
+class IngredientStockUpdate(BaseModel):
+    updates: list[IngredientStockItem]
     staff_id: Optional[int] = None
 
 
@@ -37,3 +41,5 @@ class IngredientUpdate(BaseModel):
     name: str
     category: int
     unit: str
+
+

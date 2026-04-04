@@ -1,5 +1,5 @@
 "use client";
-import { Trash2, BookOpen } from 'lucide-react';
+import { Trash2, Pencil } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function IngredientRow({ row, showDelete, onDeleteClick, onEditClick }) {
@@ -18,7 +18,7 @@ export default function IngredientRow({ row, showDelete, onDeleteClick, onEditCl
             onClick={() => onEditClick(row)}
             className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-orange-500 transition-colors"
           >
-            <BookOpen size={14} /> Edit Detail
+            <Pencil size={14} /> Edit Detail
           </button>
           {showDelete && (
             <button

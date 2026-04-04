@@ -1,25 +1,26 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import { IngredientAPI, StaffAPI } from "../../lib/api"; 
-import { Search, Calendar, User, Loader2, ClipboardList } from 'lucide-react';
+import { IngredientAPI, StaffAPI } from "../../lib/api";
+import { Search, Calendar, User, Loader2, ClipboardList, X, BookOpen } from 'lucide-react';
+import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function InventoryLog() {
   const [logs, setLogs] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
+  const [detailBatch, setDetailBatch] = useState(null);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStaff, setSelectedStaff] = useState("All");
-  const [selectedAction, setSelectedAction] = useState("All");
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      // Passing null to get all logs, or a specific ID if you wanted to filter by ingredient
-      const response = await IngredientAPI.log(null); 
+      const response = await IngredientAPI.log(null);
       if (response && Array.isArray(response.Data)) {
         setLogs(response.Data);
       }
@@ -41,24 +42,104 @@ export default function InventoryLog() {
     }
   };
 
+  const fetchIngredients = async () => {
+    try {
+      const response = await IngredientAPI.list({});
+      if (response && Array.isArray(response.Data)) setIngredients(response.Data);
+    } catch {
+      // unavailable
+    }
+  };
+
   useEffect(() => {
     fetchLogs();
     fetchStaff();
+    fetchIngredients();
   }, []);
 
-  // Filter Logic
-  const filteredLogs = logs.filter(log => {
-    const ingredientName = (log.ingredient_name || "").toLowerCase();
-    const matchesSearch = ingredientName.includes(searchQuery.toLowerCase());
-    const matchesStaff = selectedStaff === "All" || String(log.staff_id) === String(selectedStaff);
-    const matchesDate = !selectedDate || log.timestamp?.includes(selectedDate);
-    const matchesAction = selectedAction === "All" || (selectedAction === "in" ? log.action_type !== 2 : log.action_type === 2);
-    return matchesSearch && matchesStaff && matchesDate && matchesAction;
+  // Group logs by timestamp — each unique timestamp = one batch update session
+  const batches = (() => {
+    const map = new Map();
+    for (const log of logs) {
+      const key = log.timestamp;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(log);
+    }
+    // Convert to array sorted by timestamp desc (already ordered from API)
+    return Array.from(map.entries()).map(([timestamp, rows]) => ({
+      timestamp,
+      staff_id: rows[0].staff_id,
+      staff_name: rows[0].staff_name,
+      rows,
+    }));
+  })();
+
+  const filteredBatches = batches.filter(batch => {
+    const matchesSearch = batch.rows.some(r =>
+      (r.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const matchesStaff = selectedStaff === "All" || String(batch.staff_id) === String(selectedStaff);
+    const matchesDate = !selectedDate || batch.timestamp?.includes(selectedDate);
+    return matchesSearch && matchesStaff && matchesDate;
   });
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
+
+      {/* Detail Modal */}
+      {detailBatch && (() => {
+        const updatedMap = Object.fromEntries(detailBatch.rows.map(r => [String(r.ingredient_id), r]));
+        const grouped = {};
+        for (const ing of ingredients) {
+          const cat = String(ing.category);
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push(ing);
+        }
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+              <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300 shrink-0" />
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div>
+                  <h2 className="font-bold text-slate-800 text-lg">Stock Update Detail</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {detailBatch.staff_name} &mdash; {detailBatch.timestamp}
+                  </p>
+                </div>
+                <button onClick={() => setDetailBatch(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6 custom-scrollbar">
+                {Object.entries(grouped).map(([catId, items]) => (
+                  <div key={catId}>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2 pb-1 border-b border-orange-100">
+                      {CATEGORY_MAP[catId] || catId}
+                    </h3>
+                    <div className="space-y-0.5">
+                      {items.map((ing) => {
+                        const id = String(ing.ingredient_id || ing.id);
+                        const name = ing.ingredient_name || ing.name;
+                        const updated = updatedMap[id];
+                        return (
+                          <div key={id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            <span className="flex-1 text-sm text-slate-700 font-medium">{name}</span>
+                            <span className={`w-20 text-center text-sm font-bold ${updated ? 'text-orange-500' : 'text-slate-300'}`}>
+                              {updated ? updated.new_current : '—'}
+                            </span>
+                            <span className="w-10 text-xs text-slate-400 text-right shrink-0">{ing.unit}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
@@ -85,7 +166,7 @@ export default function InventoryLog() {
               <div className="shrink-0">
                 <h2 className="font-bold text-slate-800 text-lg italic leading-tight">Stock Records</h2>
                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
-                  {filteredLogs.length} records found
+                  {filteredBatches.length} records found
                 </p>
               </div>
 
@@ -107,64 +188,54 @@ export default function InventoryLog() {
                   <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
                     className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none min-w-[150px] cursor-pointer hover:border-slate-300">
                     <option value="All">Staff: All</option>
-                    {staffList.map((staff) => (<option key={staff.id || staff.staff_id} value={staff.id || staff.staff_id}>{staff.name || staff.username}</option>))}
+                    {staffList.map((staff) => (<option key={staff.staff_id} value={staff.staff_id}>{staff.name}</option>))}
                   </select>
                 </div>
-                <select value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none cursor-pointer hover:border-slate-300">
-                  <option value="All">Action: All</option>
-                  <option value="in">Stock In</option>
-                  <option value="out">Stock Out</option>
-                </select>
               </div>
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
                   <tr className="text-xs text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-3.5 font-semibold">Date/Time</th>
                     <th className="px-6 py-3.5 font-semibold">Staff</th>
-                    <th className="px-6 py-3.5 font-semibold">Action</th>
-                    <th className="px-6 py-3.5 font-semibold">Ingredient</th>
-                    <th className="px-6 py-3.5 font-semibold">Change</th>
+                    <th className="px-6 py-3.5 font-semibold text-center">Action</th>
                     <th className="px-6 py-3.5 font-semibold">Description</th>
+                    <th className="px-6 py-3.5 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr><td colSpan={6} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
-                  ) : filteredLogs.length > 0 ? (
-                    filteredLogs.map((log, index) => {
-                      const changeAmount = parseFloat(log.amount || 0);
-                      const isStockIn = log.action_type !== 2;
-                      return (
-                        <tr key={index} className="hover:bg-orange-50/40 transition-colors">
-                          <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap">{log.timestamp}</td>
-                          <td className="px-6 py-4 text-slate-800 font-semibold">{log.staff_name}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isStockIn ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                              {isStockIn ? 'Stock In' : 'Stock Out'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-slate-800 font-semibold">{log.ingredient_name}</td>
-                          <td className={`px-6 py-4 font-bold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
-                          </td>
-                          <td className="px-6 py-4 text-slate-500 text-sm">
-                            {log.ingredient_name} {isStockIn ? 'added:' : 'reduced:'}{' '}
-                            <span className={`font-semibold ${isStockIn ? 'text-emerald-600' : 'text-red-500'}`}>
-                              {isStockIn ? `+${changeAmount}` : `-${changeAmount}`} {log.unit}
-                            </span>
-                            {' '}(New total:{' '}
-                            <span className="font-semibold text-slate-700">{log.new_current} {log.unit}</span>)
-                          </td>
-                        </tr>
-                      );
-                    })
+                    <tr><td colSpan={5} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
+                  ) : filteredBatches.length > 0 ? (
+                    filteredBatches.map((batch, index) => (
+                      <tr key={index} className="hover:bg-orange-50/40 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
+                        <td className="px-6 py-4 text-slate-800 font-semibold">{batch.staff_name}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-600">
+                            STOCK UPDATE
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">
+                          <span className="font-semibold text-slate-700">{batch.staff_name}</span> updated stock at{" "}
+                          <span className="font-semibold text-slate-700">{batch.timestamp}</span>
+                          {" "}({batch.rows.length} ingredient{batch.rows.length > 1 ? "s" : ""})
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => setDetailBatch(batch)}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-orange-500 transition-colors"
+                          >
+                            <BookOpen size={14} /> Detail
+                          </button>
+                        </td>
+                      </tr>
+                    ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-20 text-center">
+                      <td colSpan={5} className="py-20 text-center">
                         <ClipboardList className="mx-auto mb-3 text-slate-200" size={40} />
                         <p className="text-slate-400 font-medium">No records found</p>
                       </td>

@@ -55,34 +55,34 @@ def add_ingredient(body: IngredientCreate, identity: dict = Depends(decode_token
 
 @router.put("/update-stock")
 def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    ingredient = db.query(Ingredient).filter(
-        Ingredient.id == body.ingredient_id,
-        Ingredient.restaurant_id == identity["restaurantId"],
-        Ingredient.is_active == 1,
-    ).first()
-    if not ingredient:
-        raise HTTPException(status_code=404, detail="Ingredient not found")
-
-    current = float(ingredient.stock_left)
-    new_stock = float(body.new_stock)
-    if new_stock < 0:
-        raise HTTPException(status_code=400, detail="Invalid stock value")
-    if new_stock == current:
-        return {"message": "No change", "Data": []}
-
+    now = datetime.now(bkk)
     try:
-        action_type = 1 if new_stock > current else 2
-        ingredient.stock_left = new_stock
-        ingredient.last_update = datetime.now(bkk)
-        db.add(IngredientHistory(
-            timestamp=datetime.now(bkk),
-            action_type=action_type,
-            amount=abs(new_stock - current),
-            ingredient_id=body.ingredient_id,
-            staff_id=body.staff_id or 0,
-            restaurant_id=identity["restaurantId"],
-            new_current=int(new_stock),
-        ))
+        for item in body.updates:
+            ingredient = db.query(Ingredient).filter(
+                Ingredient.id == item.ingredient_id,
+                Ingredient.restaurant_id == identity["restaurantId"],
+                Ingredient.is_active == 1,
+            ).first()
+            if not ingredient:
+                continue
+
+            current = float(ingredient.stock_left)
+            new_stock = float(item.new_stock)
+            if new_stock < 0 or new_stock == current:
+                continue
+
+            action_type = 1 if new_stock > current else 2
+            ingredient.stock_left = new_stock
+            ingredient.last_update = now
+            db.add(IngredientHistory(
+                timestamp=now,
+                action_type=action_type,
+                amount=abs(new_stock - current),
+                ingredient_id=item.ingredient_id,
+                staff_id=body.staff_id or 0,
+                restaurant_id=identity["restaurantId"],
+                new_current=int(new_stock),
+            ))
         db.commit()
         return {"message": "success", "Data": []}
     except Exception as e:

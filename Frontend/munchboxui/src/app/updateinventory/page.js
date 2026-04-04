@@ -67,16 +67,11 @@ export default function Home() {
     setShowUpdateModal(false);
     const staff = StaffSession.get();
     try {
-      await Promise.all(
-        updates.map(({ id, value }) =>
-          IngredientAPI.updateStock({
-            ingredient_id: parseInt(id),
-            new_stock: value,
-            staff_id: staff ? parseInt(staff.id) : null,
-          })
-        )
-      );
       if (updates.length > 0) {
+        await IngredientAPI.updateStock(
+          updates.map(({ id, value }) => ({ ingredient_id: parseInt(id), new_stock: value })),
+          staff ? parseInt(staff.id) : null,
+        );
         showToast("success", `Updated ${updates.length} ingredient${updates.length > 1 ? "s" : ""}.`);
         fetchIngredients();
       }
