@@ -251,11 +251,11 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
                     INSERT INTO predict
                         (ingredient_id, prediction_type, expected_usage,
                          upper_bound, lower_bound, daily_target_average,
-                         prediction_set, restaurant_id, timestamp)
+                         urgency_score, prediction_set, restaurant_id, timestamp)
                     VALUES
                         (:ingredient_id, :prediction_type, :expected_usage,
                          :upper_bound, :lower_bound, :daily_target_average,
-                         :prediction_set, :restaurant_id, :timestamp)
+                         :urgency_score, :prediction_set, :restaurant_id, :timestamp)
                 """),
                 {
                     "ingredient_id":        ingredient_id,
@@ -264,6 +264,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
                     "upper_bound":          None,
                     "lower_bound":          None,
                     "daily_target_average": daily_target_avg,
+                    "urgency_score":        int(rec.get("urgency_score", 0)),
                     "prediction_set":       predict_set_id,
                     "restaurant_id":        restaurant_id,
                     "timestamp":            now  # run time
@@ -613,12 +614,16 @@ def run_forecast_job(
         end_dt   = pd.to_datetime(end_date)
         today    = pd.Timestamp.today().normalize()
 
-        # Clamp start to today — can't forecast the past
-        effective_start = max(start_dt, today)
-        reorder_period  = (end_dt - effective_start).days
+        # Validate start/end ordering
+        if start_dt >= end_dt:
+            return {"error": "End date must be after start date."}
+        if end_dt <= today:
+            return {"error": "End date must be in the future."}
 
-        if reorder_period <= 0:
-            return {"error": "End date must be in the future and after start date."}
+        # Always forecast from TODAY to end_date so the full span is stored.
+        # start_date only controls where the depletion graph begins on the frontend —
+        # it does NOT shorten what gets stored in the DB.
+        reorder_period = (end_dt - today).days
 
         if reorder_period > MAX_FORECAST_DAYS:
             return {"error": f"Forecast window too large ({reorder_period} days). Maximum is {MAX_FORECAST_DAYS} days."}

@@ -21,6 +21,7 @@ class Predict(Base):
     upper_bound          = Column(DECIMAL(8, 2), nullable=True)
     lower_bound          = Column(DECIMAL(8, 2), nullable=True)
     daily_target_average = Column(DECIMAL(8, 2), nullable=True)
+    urgency_score        = Column(Integer, nullable=True)
     prediction_set       = Column(BigInteger, nullable=False)
     restaurant_id        = Column(BigInteger, nullable=False)
     timestamp            = Column(TIMESTAMP, nullable=False)

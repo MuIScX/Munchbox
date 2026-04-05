@@ -54,6 +54,10 @@ class PredictReportRequest(BaseModel):
 class PredictIngredientRequest(BaseModel):
     ingredient_id: Optional[int] = None
     days:          Optional[int] = None  # None = return all days
+    predict_set_id: Optional[int] = None  # None = use latest
+
+class PredictSetsRequest(BaseModel):
+    ingredient_id: int
 
 
 class PredictTrendRequest(BaseModel):

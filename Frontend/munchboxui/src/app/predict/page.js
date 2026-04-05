@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea,
@@ -15,7 +17,6 @@ import {
 import CategorySortPopover from "../components/CategorySortPopover";
 
 export default function PredictPage() {
-  const [forecastDays, setForecastDays]           = useState(7);
   const [report, setReport]                       = useState([]);
   const [loading, setLoading]                     = useState(true);
   const [generating, setGenerating]               = useState(false);
@@ -23,6 +24,26 @@ export default function PredictPage() {
   const [trendData, setTrendData]                 = useState([]);
   const [dailyForecast, setDailyForecast]         = useState([]);
   const [trendLoading, setTrendLoading]           = useState(false);
+  const [predictSets, setPredictSets]             = useState([]);
+  const [selectedSetId, setSelectedSetId]         = useState(null);
+  const [sliceStart, setSliceStart]               = useState(null);
+  const [sliceEnd, setSliceEnd]                   = useState(null);
+
+  // The selected set's full date range
+  const selectedSet = useMemo(() => predictSets.find((s) => s.predict_set_id === selectedSetId) ?? null, [predictSets, selectedSetId]);
+
+  // Effective display window: use slice if set, else full set range
+  const displayStart = sliceStart ?? selectedSet?.start_date ?? null;
+  const displayEnd   = sliceEnd   ?? selectedSet?.end_date   ?? null;
+
+  // forecastDays = number of days in the display window
+  const forecastDays = useMemo(() => {
+    if (displayStart && displayEnd) {
+      const days = Math.round((new Date(displayEnd) - new Date(displayStart)) / 86400000) + 1;
+      return days > 0 ? days : 1;
+    }
+    return dailyForecast.length || 7;
+  }, [displayStart, displayEnd, dailyForecast.length]);
   const [searchQuery, setSearchQuery]             = useState("");
   const [statusFilter, setStatusFilter]           = useState("All");
   const [toast, setToast]                         = useState(null);
@@ -34,7 +55,6 @@ export default function PredictPage() {
     end_date:   new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     strategy:   "2",
   });
-  const [historyDays, setHistoryDays]   = useState(7);
   const [sortBy, setSortBy]             = useState("urgency");
   const [showSortPopover, setShowSortPopover] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState(() => {
@@ -52,29 +72,41 @@ export default function PredictPage() {
   const [graphFilters, setGraphFilters] = useState({
     zoneColors:      true,
     reorderLine:     true,
-    historicalUsage: true,
     futureForecast:  true,
     suggestionRange: true,
     dailyTargetAvg:  true,
   });
   const showToast = (type, message) => setToast({ type, message });
 
-  // ── Fetch trend — accepts days explicitly to avoid stale closure ──
-  const fetchTrend = useCallback(async (ingredient_id, days) => {
+  // ── Fetch forecast for a specific predict_set ──
+  const fetchForecastForSet = useCallback(async (ingredient_id, set_id) => {
+    const res = await PredictAPI.dailyForecast(ingredient_id, set_id);
+    setDailyForecast(res?.Data || []);
+  }, []);
+
+  // ── Fetch trend — loads sets list and latest forecast ──
+  const fetchTrend = useCallback(async (ingredient_id) => {
     try {
       setTrendLoading(true);
       setTrendData([]);
       setDailyForecast([]);
+      setPredictSets([]);
+      setSelectedSetId(null);
 
-      const [trendRes, actualRes, forecastRes] = await Promise.all([
+      const [trendRes, actualRes, forecastRes, setsRes] = await Promise.all([
         PredictAPI.trend(ingredient_id),
         PredictAPI.actual(ingredient_id),
-        PredictAPI.dailyForecast(ingredient_id, days),
+        PredictAPI.dailyForecast(ingredient_id, null),
+        PredictAPI.sets(ingredient_id),
       ]);
 
       const trendRaw  = trendRes?.Data?.data || [];
       const actualRaw = actualRes?.Data      || [];
       setDailyForecast(forecastRes?.Data     || []);
+
+      const sets = setsRes?.Data || [];
+      setPredictSets(sets);
+      if (sets.length > 0) setSelectedSetId(sets[0].predict_set_id);
 
       const merged = {};
       trendRaw.forEach((d) => {
@@ -95,6 +127,7 @@ export default function PredictPage() {
     } catch {
       setTrendData([]);
       setDailyForecast([]);
+      setPredictSets([]);
     } finally {
       setTrendLoading(false);
     }
@@ -112,7 +145,7 @@ export default function PredictPage() {
         setSelectedIngredient((prev) => {
           const keep = prev ? data.find((r) => r.ingredient_id === prev.ingredient_id) : null;
           const next = keep ?? data[0];
-          fetchTrend(next.ingredient_id, days);
+          fetchTrend(next.ingredient_id);
           return next;
         });
       }
@@ -124,7 +157,7 @@ export default function PredictPage() {
   }, [fetchTrend]);
 
   useEffect(() => {
-    fetchReport(forecastDays);
+    fetchReport(null);
     IngredientAPI.list({}).then((res) => {
       setIngredientList(Array.isArray(res?.Data) ? res.Data : []);
     }).catch(() => {});
@@ -132,14 +165,9 @@ export default function PredictPage() {
 
   const handleSelectIngredient = (ing) => {
     setSelectedIngredient(ing);
-    fetchTrend(ing.ingredient_id, forecastDays);
+    fetchTrend(ing.ingredient_id);
   };
 
-  const handleChangeDays = (days) => {
-    setForecastDays(days);
-    fetchReport(days);
-    // fetchTrend is called inside fetchReport after data arrives
-  };
 
   const handleRequest = async () => {
     if (requestForm.end_date <= requestForm.start_date) {
@@ -157,10 +185,13 @@ export default function PredictPage() {
       });
       const total  = res?.Data?.total_processed ?? 0;
       const errors = res?.Data?.errors          ?? [];
-      if (total > 0)        showToast("success", `Generated forecasts for ${total} ingredient(s).`);
-      else if (errors.length) showToast("error", `Model failed: ${errors[0]?.error || "unknown error"}`);
+      if (total > 0) {
+        showToast("success", `Generated forecasts for ${total} ingredient(s).`);
+        setSliceStart(requestForm.start_date);
+        setSliceEnd(requestForm.end_date);
+      } else if (errors.length) showToast("error", `Model failed: ${errors[0]?.error || "unknown error"}`);
       else                   showToast("error", "No forecasts generated.");
-      await fetchReport(forecastDays);
+      await fetchReport(null);
     } catch (err) {
       showToast("error", err.message || "Failed to generate prediction.");
     } finally {
@@ -176,14 +207,13 @@ const filteredReport = useMemo(() => {
       return nameMatch && statusMatch;
     })
     .sort((a, b) => {
-      if (a.ingredient_id === selectedIngredient?.ingredient_id) return -1;
-      if (b.ingredient_id === selectedIngredient?.ingredient_id) return 1;
       if (sortBy === "urgency") {
-        // Low status first, then by biggest deficit (current_stock - expected_usage)
-        if (a.status !== b.status) return a.status - b.status; // 0 (Low) before 1 (OK)
-        const defA = a.current_stock - a.expected_usage;
-        const defB = b.current_stock - b.expected_usage;
-        return defA - defB; // most deficit first
+        // Use urgency_score if available (higher = more urgent), else fall back to deficit
+        const uA = a.urgency_score ?? null;
+        const uB = b.urgency_score ?? null;
+        if (uA !== null && uB !== null) return uB - uA;
+        if (a.status !== b.status) return a.status - b.status;
+        return (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage);
       }
       if (sortBy === "category") {
         const ai = categoryOrder.indexOf(String(a.category));
@@ -192,7 +222,7 @@ const filteredReport = useMemo(() => {
       }
       return 0;
     });
-}, [report, searchQuery, statusFilter, selectedIngredient, sortBy]);
+}, [report, searchQuery, statusFilter, sortBy, categoryOrder]);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -204,68 +234,50 @@ const filteredReport = useMemo(() => {
 
   // Stock depletion chart data
   const stockDepletionData = useMemo(() => {
-    if (!selectedIngredient) return [];
+    if (!selectedIngredient || !dailyForecast.length) return [];
     const current  = selectedIngredient.current_stock;
     const dailyAvg = selectedIngredient.daily_target_average ?? 0;
 
-    // Historical actual usage, last N days
-    const historyWindow = historyDays;
-    const actualDays = trendData
-      .filter((d) => d.date <= todayStr && d.actual_usage != null && d.actual_usage > 0)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-historyWindow);
+    // Filter to display window by date range
+    const windowStart = displayStart ?? dailyForecast[0]?.date;
+    const windowEnd   = displayEnd   ?? dailyForecast[dailyForecast.length - 1]?.date;
 
-    // Estimate starting stock by working backward from current
-    const totalActual = actualDays.reduce((s, d) => s + (d.actual_usage || 0), 0);
-    const startStock  = current + totalActual;
+    // Pre-period: days before display window — subtract to estimate stock at windowStart
+    let stock = current;
+    dailyForecast
+      .filter((d) => d.date > todayStr && d.date < windowStart)
+      .forEach((d) => { stock = Math.max(0, stock - (d.mean_demand ?? dailyAvg)); });
 
-    const points = [];
-    let cumUsage = 0;
+    // Display window
+    const windowDays = dailyForecast.filter((d) => d.date >= windowStart && d.date <= windowEnd);
+    const anchorDate = windowDays[0]?.date ?? windowStart;
+    const points = [{ date: anchorDate, stock_left: parseFloat(stock.toFixed(2)) }];
 
-    actualDays.forEach((day) => {
-      cumUsage += day.actual_usage || 0;
-      points.push({
-        date:             day.date,
-        stock_left:       parseFloat(Math.max(0, startStock - cumUsage).toFixed(2)),
-        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
-        section:          "historical",
-      });
+    windowDays.forEach((day) => {
+      stock = Math.max(0, stock - (day.mean_demand ?? dailyAvg));
+      points.push({ date: day.date, stock_left: parseFloat(stock.toFixed(2)) });
     });
 
-    // Bridge: today point (if not already covered)
-    if (points[points.length - 1]?.date !== todayStr) {
-      points.push({
-        date:             todayStr,
-        stock_left:       parseFloat(current.toFixed(2)),
-        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
-        section:          "today",
-      });
-    }
-
-    // Future forecast
-    dailyForecast.filter((day) => day.date > todayStr).slice(0, forecastDays).forEach((day) => {
-      const use = day.mean_demand != null ? day.mean_demand : dailyAvg;
-      cumUsage += use;
-      points.push({
-        date:             day.date,
-        stock_left:       parseFloat(Math.max(0, startStock - cumUsage).toFixed(2)),
-        cumulative_usage: parseFloat(cumUsage.toFixed(2)),
-        section:          "future",
-      });
-    });
-
-    return points.sort((a, b) => a.date.localeCompare(b.date));
-  }, [trendData, dailyForecast, selectedIngredient, forecastDays, historyDays, todayStr]);
+    return points;
+  }, [dailyForecast, selectedIngredient, displayStart, displayEnd, todayStr]);
 
   const yMaxDepletion = useMemo(() => {
     if (!stockDepletionData.length) return 100;
-    const vals = stockDepletionData.flatMap((d) => [d.stock_left, d.cumulative_usage]);
-    return Math.ceil(Math.max(...vals) * 1.15) || 100;
+    return Math.ceil(Math.max(...stockDepletionData.map((d) => d.stock_left)) * 1.15) || 100;
   }, [stockDepletionData]);
 
-  // Date when stock hits zero (in forecast window)
+  // Point where stock first crosses the reorder line — use the last point still above it
+  // Skip index 0 (anchor point) so we don't mark the start as reorder
+  const reorderCrossPoint = useMemo(() => {
+    if (!reorderPoint) return null;
+    const idx = stockDepletionData.findIndex((d, i) => i > 0 && d.stock_left <= reorderPoint);
+    if (idx <= 0) return null;
+    return stockDepletionData[idx - 1];
+  }, [stockDepletionData, reorderPoint]);
+
+  // Date when stock hits zero (skip anchor at index 0)
   const stockoutDate = useMemo(() => {
-    return stockDepletionData.find((d) => d.section === "future" && d.stock_left <= 0)?.date ?? null;
+    return stockDepletionData.find((d, i) => i > 0 && d.stock_left <= 0)?.date ?? null;
   }, [stockDepletionData]);
 
   const surplus = selectedIngredient
@@ -274,16 +286,20 @@ const filteredReport = useMemo(() => {
 
   // ── Forecast chart data (top chart — forecast only, no actual) ──
   const forecastChartData = useMemo(() => {
-    const dailyAvg = selectedIngredient?.daily_target_average ?? null;
-    return dailyForecast.slice(0, forecastDays).map((d) => ({
-      date:       d.date,
-      forecast:   d.mean_demand != null ? d.mean_demand : null,
-      band_low:   d.low_bound  ?? null,
-      band_range: (d.high_bound != null && d.low_bound != null)
-                    ? Math.max(0, d.high_bound - d.low_bound) : null,
-      daily_avg:  dailyAvg,
-    }));
-  }, [dailyForecast, forecastDays, selectedIngredient]);
+    const dailyAvg    = selectedIngredient?.daily_target_average ?? null;
+    const windowStart = displayStart ?? dailyForecast[0]?.date;
+    const windowEnd   = displayEnd   ?? dailyForecast[dailyForecast.length - 1]?.date;
+    return dailyForecast
+      .filter((d) => d.date >= windowStart && d.date <= windowEnd)
+      .map((d) => ({
+        date:       d.date,
+        forecast:   d.mean_demand != null ? d.mean_demand : null,
+        band_low:   d.low_bound  ?? null,
+        band_range: (d.high_bound != null && d.low_bound != null)
+                      ? Math.max(0, d.high_bound - d.low_bound) : null,
+        daily_avg:  dailyAvg,
+      }));
+  }, [dailyForecast, displayStart, displayEnd, selectedIngredient]);
 
   const hasForecastLine    = graphFilters.futureForecast  && forecastChartData.some((d) => d.forecast != null);
   const hasForecastBand    = graphFilters.suggestionRange && forecastChartData.some((d) => d.band_range != null);
@@ -344,15 +360,15 @@ const filteredReport = useMemo(() => {
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
     const isLow = d?.stock_left != null && d.stock_left <= reorderPoint;
-    const isForecast = d?.section === "future";
+    const isToday = label === todayStr;
     const [y,m,day] = (label || "").split("-");
     const dateStr = label ? `${day.padStart(2,"0")}/${m.padStart(2,"0")}/${y}` : label;
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[190px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
           {dateStr}
-          <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${isForecast ? "bg-indigo-50 text-indigo-500" : "bg-slate-100 text-slate-500"}`}>
-            {isForecast ? "Projected" : "Historical"}
+          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-500">
+            {isToday ? "Today" : "Projected"}
           </span>
         </p>
         {d?.stock_left != null && (
@@ -400,7 +416,7 @@ const filteredReport = useMemo(() => {
                 Prep Summary
               </button>
               <button
-                onClick={() => fetchReport(forecastDays)}
+                onClick={() => fetchReport(null)}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium hover:bg-slate-50 transition shadow-sm disabled:opacity-50"
               >
@@ -642,17 +658,62 @@ const filteredReport = useMemo(() => {
                         : "Predicted demand per day for the selected window"}
                     </p>
                   </div>
-                  {/* Forecast days input */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
-                    <span className="text-[10px] text-slate-400 font-medium">Forecast</span>
-                    <span className="text-slate-200 text-xs">|</span>
-                    <input
-                      type="number" min={1} max={30} value={forecastDays}
-                      onChange={(e) => { const v = Math.min(30, Math.max(1, parseInt(e.target.value) || 1)); handleChangeDays(v); }}
-                      className="w-8 text-xs font-semibold text-slate-600 bg-transparent outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[10px] text-slate-400">days</span>
-                  </div>
+                  {/* Prediction set selector */}
+                  {predictSets.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0 h-[30px]">
+                      <span className="text-[10px] text-slate-400 font-medium">Forecast set</span>
+                      <span className="text-slate-200 text-xs">|</span>
+                      <select
+                        value={selectedSetId ?? ""}
+                        onChange={(e) => {
+                          const id = Number(e.target.value);
+                          setSelectedSetId(id);
+                          setSliceStart(null);
+                          setSliceEnd(null);
+                          if (selectedIngredient) fetchForecastForSet(selectedIngredient.ingredient_id, id);
+                        }}
+                        className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                      >
+                        {predictSets.map((s) => {
+                          const fmt = (d) => { if (!d) return "?"; const [y,m,day] = d.split("-"); return `${day}/${m}/${y}`; };
+                          return (
+                            <option key={s.predict_set_id} value={s.predict_set_id}>
+                              {fmt(s.start_date)} – {fmt(s.end_date)}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+                  {selectedSet && (() => {
+                    const toDate = (s) => s ? new Date(s) : null;
+                    const toStr  = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+                    const minDate = toDate(selectedSet.start_date);
+                    const maxDate = toDate(selectedSet.end_date);
+                    return (
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0 h-[30px]">
+                        <span className="text-[10px] text-slate-400 font-medium">Range</span>
+                        <span className="text-slate-200 text-xs">|</span>
+                        <DatePicker
+                          selected={toDate(sliceStart ?? selectedSet.start_date)}
+                          onChange={(d) => setSliceStart(toStr(d))}
+                          minDate={minDate}
+                          maxDate={toDate(sliceEnd ?? selectedSet.end_date)}
+                          dateFormat="dd/MM/yyyy"
+                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                        />
+                        <span className="text-slate-300 text-xs">–</span>
+                        <DatePicker
+                          selected={toDate(sliceEnd ?? selectedSet.end_date)}
+                          onChange={(d) => setSliceEnd(toStr(d))}
+                          minDate={toDate(sliceStart ?? selectedSet.start_date)}
+                          maxDate={maxDate}
+                          dateFormat="dd/MM/yyyy"
+                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                        />
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
                     <span className="text-[10px] text-slate-400 font-medium">Model</span>
                     <span className="text-slate-200 text-xs">|</span>
@@ -747,17 +808,6 @@ const filteredReport = useMemo(() => {
                         : "Stock level projection based on forecast usage"}
                     </p>
                   </div>
-                  {/* History days input */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
-                    <span className="text-[10px] text-slate-400 font-medium">History</span>
-                    <span className="text-slate-200 text-xs">|</span>
-                    <input
-                      type="number" min={1} max={30} value={historyDays}
-                      onChange={(e) => { const v = Math.min(30, Math.max(1, parseInt(e.target.value) || 1)); setHistoryDays(v); }}
-                      className="w-8 text-xs font-semibold text-slate-600 bg-transparent outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[10px] text-slate-400">days</span>
-                  </div>
                 </div>
 
                 {/* Toggles */}
@@ -808,8 +858,10 @@ const filteredReport = useMemo(() => {
                             <ReferenceLine y={reorderPoint} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="6 4"
                               label={{ value: `Reorder: ${reorderPoint} ${selectedIngredient?.unit ?? ""}`, fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopLeft" }} />
                           )}
-                          <ReferenceLine x={todayStr} stroke="#cbd5e1" strokeWidth={1.5} strokeDasharray="4 3"
-                            label={{ value: "Today", fill: "#94a3b8", fontSize: 10, fontWeight: 600, position: "insideTopRight" }} />
+                          {reorderCrossPoint && (
+                            <ReferenceLine x={reorderCrossPoint.date} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 3"
+                              label={{ value: "Reorder", fill: "#f97316", fontSize: 10, fontWeight: 700, position: "insideTopRight" }} />
+                          )}
                           {stockoutDate && (
                             <ReferenceLine x={stockoutDate} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3"
                               label={{ value: "Stockout", fill: "#ef4444", fontSize: 10, fontWeight: 700, position: "insideTopRight" }} />

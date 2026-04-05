@@ -10,7 +10,7 @@ from app.services.forecaster import run_forecast_job
 
 from app.db import get_db
 from app.core.security import decode_token
-from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest
+from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest, PredictSetsRequest
 from app.models.predict import Predict, PredictSet
 from app.models.ingredient import Ingredient
 
@@ -86,30 +86,61 @@ def generate_predictions(body: PredictGenerateRequest, identity: dict = Depends(
         },
     }
 
-@router.post("/ingredient-forecast")
-def get_ingredient_forecast(body: PredictIngredientRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    """Return daily forecast rows (prediction_type=1) from the latest predict_set for an ingredient."""
+@router.post("/sets")
+def get_predict_sets(body: PredictSetsRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """Return all predict_sets for an ingredient with their date ranges."""
     restaurant_id = identity["restaurantId"]
 
-    # Step 1: Find the latest predict_set ID for this ingredient
-    latest_set = (
-        db.query(Predict.prediction_set)
+    rows = (
+        db.query(
+            Predict.prediction_set,
+            func.min(Predict.timestamp).label("start_date"),
+            func.max(Predict.timestamp).label("end_date"),
+        )
         .filter(
             Predict.ingredient_id   == body.ingredient_id,
             Predict.restaurant_id   == restaurant_id,
             Predict.prediction_type == 1,
         )
-        .order_by(Predict.timestamp.desc())
-        .first()
+        .group_by(Predict.prediction_set)
+        .order_by(Predict.prediction_set.desc())
+        .all()
     )
 
-    if not latest_set:
-        return {"message": "success", "Data": []}
+    return {"message": "success", "Data": [
+        {
+            "predict_set_id": r[0],
+            "start_date":     str(r[1].date()) if r[1] else None,
+            "end_date":       str(r[2].date()) if r[2] else None,
+        }
+        for r in rows
+    ]}
 
-    latest_set_id = latest_set[0]
 
-    # Step 2: Query daily rows ordered by date
-    q = (
+@router.post("/ingredient-forecast")
+def get_ingredient_forecast(body: PredictIngredientRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """Return daily forecast rows (prediction_type=1) from the specified or latest predict_set."""
+    restaurant_id = identity["restaurantId"]
+
+    # Use provided predict_set_id or fall back to latest
+    if body.predict_set_id is not None:
+        set_id = body.predict_set_id
+    else:
+        latest_set = (
+            db.query(Predict.prediction_set)
+            .filter(
+                Predict.ingredient_id   == body.ingredient_id,
+                Predict.restaurant_id   == restaurant_id,
+                Predict.prediction_type == 1,
+            )
+            .order_by(Predict.timestamp.desc())
+            .first()
+        )
+        if not latest_set:
+            return {"message": "success", "Data": []}
+        set_id = latest_set[0]
+
+    rows = (
         db.query(
             Predict.timestamp,
             Predict.expected_usage,
@@ -119,17 +150,12 @@ def get_ingredient_forecast(body: PredictIngredientRequest, identity: dict = Dep
         .filter(
             Predict.ingredient_id   == body.ingredient_id,
             Predict.restaurant_id   == restaurant_id,
-            Predict.prediction_set  == latest_set_id,
+            Predict.prediction_set  == set_id,
             Predict.prediction_type == 1,
         )
         .order_by(Predict.timestamp.asc())
+        .all()
     )
-
-    # Step 3: Slice to requested days if provided
-    if body.days is not None:
-        q = q.limit(body.days)
-
-    rows = q.all()
 
     return {"message": "success", "Data": [
         {
@@ -203,7 +229,7 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
 
     # Step 4: Get daily_target_average from summary rows
     summary_rows = (
-        db.query(Predict.ingredient_id, Predict.daily_target_average, Predict.prediction_set)
+        db.query(Predict.ingredient_id, Predict.daily_target_average, Predict.prediction_set, Predict.urgency_score)
         .join(latest_set_sub, (latest_set_sub.c.ingredient_id == Predict.ingredient_id)
               & (latest_set_sub.c.latest_set == Predict.prediction_set))
         .filter(
@@ -212,7 +238,7 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
         )
         .all()
     )
-    summary_map = {r.ingredient_id: r.daily_target_average for r in summary_rows}
+    summary_map = {r.ingredient_id: {"daily_target_average": r.daily_target_average, "urgency_score": r.urgency_score} for r in summary_rows}
 
     # Step 5: Join with ingredient info
     if not aggregated:
@@ -235,8 +261,10 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
         if not ing:
             continue
 
-        total_usage = agg["total_expected_usage"]
-        daily_avg   = summary_map.get(ing_id)
+        total_usage   = agg["total_expected_usage"]
+        summary       = summary_map.get(ing_id, {})
+        daily_avg     = summary.get("daily_target_average")
+        urgency_score = summary.get("urgency_score")
 
         # Recalculate daily_target_average for the sliced window if days filter applied
         if body.days is not None and agg["day_count"] > 0:
@@ -251,6 +279,7 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
             "lower_bound":          agg["total_lower_bound"],
             "forecast_days":        agg["day_count"],
             "daily_target_average": daily_avg,
+            "urgency_score":        urgency_score,
             "unit":                 ing.unit,
             "category":             ing.category,
             "status":               1 if float(ing.stock_left) >= total_usage else 0,
