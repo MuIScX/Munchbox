@@ -34,32 +34,36 @@ function computeAccuracy(actualData, trendData) {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (merged.length === 0) {
-    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
+    return { accuracy: null, mae: null, bias: null, days: 0, chartData: [], safeCount: 0, riskCount: 0 };
   }
 
-  // Asymmetric accuracy: predicted >= actual → 100% (safe, no stockout)
-  //                      predicted <  actual → predicted/actual × 100 (under-prepared)
-const dailyAcc = merged.map((d) => {
-  const error = Math.abs(d.predicted - d.actual) / d.actual;
-  if (error <= 0.20) return 100;
-  return Math.max(0, (1 - error) * 100);
-});
-
-
+  // Asymmetric accuracy (restaurant logic):
+  //   predicted >= actual → 100% (over-prepared is safe — stock left over, no shortfall)
+  //   predicted <  actual → predicted/actual × 100 (under-prepared is an error — risk of running out)
+  const dailyAcc = merged.map((d) =>
+    d.predicted >= d.actual ? 100 : Math.max(0, (d.predicted / d.actual) * 100)
+  );
 
   const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
   const biasArr   = merged.map((d) => d.predicted - d.actual);
+  const safeCount = merged.filter((d) => d.predicted >= d.actual).length;
+  const riskCount = merged.length - safeCount;
 
   const accuracy = dailyAcc.reduce((a, b) => a + b, 0) / merged.length;
   const mae      = absErrors.reduce((a, b) => a + b, 0) / merged.length;
   const bias     = biasArr.reduce((a, b) => a + b, 0) / merged.length;
 
+  // Attach surplus field (positive = over-predicted/safe, negative = shortfall/risk)
+  const chartData = merged.map((d) => ({ ...d, surplus: parseFloat((d.predicted - d.actual).toFixed(2)) }));
+
   return {
-    accuracy:  parseFloat(Math.min(100, accuracy).toFixed(2)),
-    mae:       parseFloat(mae.toFixed(2)),
-    bias:      parseFloat(bias.toFixed(2)),
-    days:      merged.length,
-    chartData: merged,
+    accuracy:   parseFloat(Math.min(100, accuracy).toFixed(2)),
+    mae:        parseFloat(mae.toFixed(2)),
+    bias:       parseFloat(bias.toFixed(2)),
+    days:       merged.length,
+    safeCount,
+    riskCount,
+    chartData,
   };
 }
 
@@ -82,18 +86,28 @@ function AccuracyBadge({ acc }) {
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
+  const isSafe = d?.surplus != null ? d.surplus >= 0 : null;
   return (
-    <div style={{ background: "white", borderRadius: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgb(0 0 0/0.10)", border: "1px solid #e2e8f0", minWidth: 180 }}>
+    <div style={{ background: "white", borderRadius: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgb(0 0 0/0.10)", border: "1px solid #e2e8f0", minWidth: 190 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{label}</p>
       {d?.actual != null && (
-        <p style={{ fontSize: 13, color: "#10b981", margin: "3px 0 0 0" }}>Actual: <b>{d.actual.toFixed(1)}</b> {unit}</p>
+        <p style={{ fontSize: 13, color: "#10b981", margin: "3px 0 0 0" }}>Actual usage: <b>{d.actual.toFixed(1)}</b> {unit}</p>
       )}
       {d?.predicted != null && (
         <p style={{ fontSize: 13, color: "#f97316", margin: "3px 0 0 0" }}>Predicted: <b>{d.predicted.toFixed(1)}</b> {unit}</p>
       )}
-      {d?.actual != null && d?.predicted != null && (
-        <p style={{ fontSize: 11, color: "#94a3b8", margin: "5px 0 0 0", borderTop: "1px solid #f1f5f9", paddingTop: 4 }}>
-          Error: {Math.abs(d.actual - d.predicted).toFixed(1)} {unit} ({(Math.abs(d.actual - d.predicted) / d.actual * 100).toFixed(1)}%)
+      {d?.surplus != null && (
+        <p style={{
+          fontSize: 11,
+          color: isSafe ? "#10b981" : "#ef4444",
+          fontWeight: 600,
+          margin: "5px 0 0 0",
+          borderTop: "1px solid #f1f5f9",
+          paddingTop: 4,
+        }}>
+          {isSafe
+            ? `Surplus: +${Math.abs(d.surplus).toFixed(1)} ${unit} — safe`
+            : `Shortfall: −${Math.abs(d.surplus).toFixed(1)} ${unit} — risk of running out`}
         </p>
       )}
     </div>
@@ -153,11 +167,14 @@ export default function AccuracyPage() {
   const summary = useMemo(() => {
     const loaded = ingredients.filter((i) => i._loaded && i.accuracy !== null);
     if (loaded.length === 0) return null;
-    const avgAcc = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
-    const avgMae = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
+    const avgAcc    = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
+    const avgMae    = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
     const totalDays = loaded.reduce((s, i) => s + i.days, 0);
-    const best = [...loaded].sort((a, b) => b.accuracy - a.accuracy)[0];
-    return { avgAcc, avgMae: parseFloat(avgMae.toFixed(2)), totalDays, best };
+    const best      = [...loaded].sort((a, b) => b.accuracy - a.accuracy)[0];
+    // count ingredients that are mostly safe (bias >= 0) vs at risk (bias < 0)
+    const safeIngredients = loaded.filter((i) => i.bias >= 0).length;
+    const riskIngredients = loaded.filter((i) => i.bias <  0).length;
+    return { avgAcc, avgMae: parseFloat(avgMae.toFixed(2)), totalDays, best, safeIngredients, riskIngredients, totalLoaded: loaded.length };
   }, [ingredients]);
 
   const filtered = useMemo(() =>
@@ -181,15 +198,34 @@ export default function AccuracyPage() {
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
               {/* Title row */}
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <Target size={20} className="text-orange-500" />
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Accuracy Report</h1>
-                    <p className="text-sm text-slate-400 mt-0.5">Compare predicted vs. actual ingredient usage to evaluate forecast performance</p>
+                    <p className="text-sm text-slate-400 mt-0.5">Compare predicted vs. actual ingredient usage — over-prediction is safe, under-prediction is a risk</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Context banner */}
+              <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                    <CheckCircle size={11} /> Predicted ≥ Actual = 100%
+                  </span>
+                  <span className="text-slate-300">·</span>
+                  <span>วัตถุดิบเหลือดีกว่าขาด — เตรียมเกินดีกว่าขาดของ</span>
+                </div>
+                <div className="mx-2 h-4 w-px bg-slate-200" />
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
+                    <AlertTriangle size={11} /> Predicted &lt; Actual = Error
+                  </span>
+                  <span className="text-slate-300">·</span>
+                  <span>ของไม่พอ — ความเสี่ยงที่ต้องแก้ไข</span>
                 </div>
               </div>
 
@@ -207,7 +243,7 @@ export default function AccuracyPage() {
                         <p className={`text-3xl font-bold mt-0.5 ${accuracyColor(summary.avgAcc).text}`}>
                           {summary.avgAcc.toFixed(1)}%
                         </p>
-                        <p className="text-xs text-emerald-500 font-medium mt-0.5">avg across {ingredients.filter(i => i._loaded && i.accuracy !== null).length} ingredients</p>
+                        <p className="text-xs text-emerald-500 font-medium mt-0.5">avg across {summary.totalLoaded} ingredients</p>
                       </>
                     ) : (
                       <div className="flex items-center gap-1.5 mt-1">
@@ -218,24 +254,26 @@ export default function AccuracyPage() {
                   </div>
                 </div>
 
-                {/* Avg MAE */}
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                    <Activity size={18} className="text-blue-600" />
+                {/* Safe vs At-risk */}
+                <div className="border border-slate-100 rounded-xl p-4 flex items-center gap-4 flex-1 bg-white">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <Activity size={18} className="text-slate-500" />
                   </div>
-                  <div>
-                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wide">Avg Error (MAE)</p>
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Ingredient Status</p>
                     {summary ? (
-                      <>
-                        <p className="text-3xl font-bold text-blue-900 mt-0.5">{summary.avgMae}</p>
-                        <p className="text-xs text-blue-500 font-medium mt-0.5">units/day avg deviation</p>
-                      </>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm font-bold text-emerald-600">{summary.safeIngredients} safe</span>
+                        <span className="text-slate-300">/</span>
+                        <span className={`text-sm font-bold ${summary.riskIngredients > 0 ? "text-red-500" : "text-slate-400"}`}>{summary.riskIngredients} at risk</span>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-1.5 mt-1">
-                        <Loader2 size={14} className="animate-spin text-blue-300" />
-                        <span className="text-xs text-blue-300">computing…</span>
+                        <Loader2 size={14} className="animate-spin text-slate-300" />
+                        <span className="text-xs text-slate-300">computing…</span>
                       </div>
                     )}
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">by avg prediction direction</p>
                   </div>
                 </div>
 
@@ -302,7 +340,7 @@ export default function AccuracyPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {selected?._loaded && selected.days > 0
-                    ? `${selected.days} days matched — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
+                    ? `${selected.days} days matched — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted — safe" : "under-predicted — risk of shortfall"})`
                     : "Comparing historical predictions vs actual usage on matching dates"}
                 </p>
               </div>
@@ -496,8 +534,9 @@ export default function AccuracyPage() {
                           {!row._loaded ? (
                             <span className="text-slate-200">—</span>
                           ) : row.bias !== null ? (
-                            <span className={row.bias > 0.5 ? "text-blue-500" : row.bias < -0.5 ? "text-red-400" : "text-slate-400"}>
+                            <span className={row.bias > 0.5 ? "text-emerald-600 font-semibold" : row.bias < -0.5 ? "text-red-500 font-semibold" : "text-slate-400"}>
                               {row.bias > 0 ? "+" : ""}{row.bias}
+                              {row.bias > 0.5 ? " ↑" : row.bias < -0.5 ? " ↓" : ""}
                             </span>
                           ) : (
                             <span className="text-slate-300">—</span>
@@ -528,8 +567,8 @@ export default function AccuracyPage() {
             {/* Legend for Bias */}
             <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-6 flex-wrap">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bias guide</p>
-              <span className="text-xs text-blue-500 font-medium">+Positive = over-predicted</span>
-              <span className="text-xs text-red-400 font-medium">−Negative = under-predicted</span>
+              <span className="text-xs text-emerald-600 font-semibold">+Positive ↑ = over-predicted — surplus stock, safe</span>
+              <span className="text-xs text-red-500 font-semibold">−Negative ↓ = under-predicted — risk of running out</span>
               <span className="text-xs text-slate-400">≈ 0 = well-calibrated</span>
             </div>
           </div>
