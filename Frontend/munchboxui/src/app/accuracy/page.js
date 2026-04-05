@@ -211,22 +211,15 @@ export default function AccuracyPage() {
               </div>
 
               {/* Context banner */}
-              <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
-                    <CheckCircle size={11} /> Predicted ≥ Actual = 100%
-                  </span>
-                  <span className="text-slate-300">·</span>
-                  <span>วัตถุดิบเหลือดีกว่าขาด — เตรียมเกินดีกว่าขาดของ</span>
-                </div>
-                <div className="mx-2 h-4 w-px bg-slate-200" />
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
-                    <AlertTriangle size={11} /> Predicted &lt; Actual = Error
-                  </span>
-                  <span className="text-slate-300">·</span>
-                  <span>ของไม่พอ — ความเสี่ยงที่ต้องแก้ไข</span>
-                </div>
+              <div className="flex items-center gap-4 mb-5 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
+                  <CheckCircle size={11} /> Predicted ≥ Actual = 100% — over-prepared is safe
+                </span>
+                <div className="h-4 w-px bg-slate-200" />
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+                  <AlertTriangle size={11} /> Predicted &lt; Actual = Error — risk of running short
+                </span>
+                <span className="text-xs text-slate-400 ml-auto">Surplus stock is acceptable. Stockout is not.</span>
               </div>
 
               {/* Summary stat cards */}
@@ -394,8 +387,10 @@ export default function AccuracyPage() {
                         dataKey="actual"
                         stroke="#10b981"
                         strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
+                        dot={selected.chartData.length <= 10
+                          ? { r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }
+                          : { r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 1.5 }}
+                        activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
                         connectNulls={false}
                         name="Actual"
                       />
@@ -406,8 +401,10 @@ export default function AccuracyPage() {
                         stroke="#f97316"
                         strokeWidth={2}
                         strokeDasharray="5 3"
-                        dot={false}
-                        activeDot={{ r: 5, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
+                        dot={selected.chartData.length <= 10
+                          ? { r: 5, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }
+                          : { r: 3, fill: "#f97316", stroke: "#fff", strokeWidth: 1.5 }}
+                        activeDot={{ r: 6, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
                         connectNulls={false}
                         name="Predicted"
                       />
@@ -440,7 +437,11 @@ export default function AccuracyPage() {
             ) : (
               <div className="flex flex-col items-center justify-center h-72 text-slate-400 gap-2">
                 <BarChart3 className="text-slate-200" size={36} />
-                <p className="text-sm">No overlap data — need both a prediction and actual sales on the same dates</p>
+                <p className="text-sm font-medium text-slate-500">No matching data found</p>
+                <p className="text-xs text-slate-400 text-center max-w-xs">
+                  Accuracy requires a forecast date that also has recorded actual sales.<br />
+                  Generate a prediction, then record sales on those dates.
+                </p>
               </div>
             )}
           </div>
