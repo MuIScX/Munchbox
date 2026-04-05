@@ -121,6 +121,8 @@ export default function AccuracyPage() {
   const [loading, setLoading]         = useState(true);
   const [toast, setToast]             = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [setChartData, setSetChartData]       = useState([]);
+  const [setChartLoading, setSetChartLoading] = useState(false);
 
   const showToast = (type, msg) => setToast({ type, message: msg });
 
@@ -163,6 +165,75 @@ export default function AccuracyPage() {
     load();
   }, []);
 
+  /* load per-date chart data whenever selected ingredient changes
+     Strategy: take the last 14 predict_sets, flatten all daily predictions
+     into a date-keyed map (latest set wins per date), then merge with all
+     actual sales → produces a time-series of {date, predicted, actual}
+     suitable for a two-line crossing chart like the report page. */
+  useEffect(() => {
+    if (!selected?.ingredient_id) return;
+    let cancelled = false;
+
+    const loadSetChart = async () => {
+      setSetChartLoading(true);
+      setSetChartData([]);
+      try {
+        const [setsRes, actualRes] = await Promise.all([
+          PredictAPI.sets(selected.ingredient_id),
+          PredictAPI.actual(selected.ingredient_id),
+        ]);
+
+        // API returns descending — take 14 most recent, reverse to chronological
+        const sets = (setsRes?.Data || []).slice(0, 14).reverse();
+        const actualByDate = {};
+        (actualRes?.Data || []).forEach((d) => { actualByDate[d.date] = d.actual_usage; });
+
+        if (!sets.length || cancelled) { setSetChartData([]); return; }
+
+        // Fetch all set forecasts in parallel
+        const forecasts = await Promise.all(
+          sets.map((s) =>
+            PredictAPI.dailyForecast(selected.ingredient_id, s.predict_set_id)
+              .catch(() => ({ Data: [] }))
+          )
+        );
+        if (cancelled) return;
+
+        // Flatten: date → predicted (later sets overwrite earlier ones for same date)
+        const predictedByDate = {};
+        sets.forEach((_, i) => {
+          (forecasts[i]?.Data || []).forEach((d) => {
+            if (d.date && d.mean_demand != null) {
+              predictedByDate[d.date] = d.mean_demand;
+            }
+          });
+        });
+
+        // Union of all dates (predicted ∪ actual), sorted chronologically
+        const allDates = [...new Set([
+          ...Object.keys(predictedByDate),
+          ...Object.keys(actualByDate),
+        ])].sort();
+
+        const points = allDates.map((date) => ({
+          date,
+          predicted: predictedByDate[date] != null ? parseFloat(predictedByDate[date].toFixed(2)) : null,
+          actual:    actualByDate[date]    != null ? parseFloat(actualByDate[date].toFixed(2))    : null,
+          surplus:   predictedByDate[date] != null && actualByDate[date] != null
+            ? parseFloat((predictedByDate[date] - actualByDate[date]).toFixed(2))
+            : null,
+        }));
+
+        if (!cancelled) setSetChartData(points);
+      } catch { /* silent */ } finally {
+        if (!cancelled) setSetChartLoading(false);
+      }
+    };
+
+    loadSetChart();
+    return () => { cancelled = true; };
+  }, [selected?.ingredient_id]);
+
   /* summary stats computed from loaded ingredients */
   const summary = useMemo(() => {
     const loaded = ingredients.filter((i) => i._loaded && i.accuracy !== null);
@@ -181,9 +252,6 @@ export default function AccuracyPage() {
     ingredients.filter((i) =>
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
-
-  /* format date for X axis */
-  const fmtDate = (v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -322,19 +390,19 @@ export default function AccuracyPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-semibold text-slate-700 text-sm">
-                    {selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient"}
+                    {selected ? `${selected.ingredient_name} — Forecast History` : "Select an ingredient"}
                   </h3>
                   {selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
-                  {selected && !selected._loaded && (
+                  {setChartLoading && (
                     <div className="flex items-center gap-1 text-xs text-slate-400">
-                      <Loader2 size={11} className="animate-spin" /> loading…
+                      <Loader2 size={11} className="animate-spin" /> loading runs…
                     </div>
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {selected?._loaded && selected.days > 0
-                    ? `${selected.days} days matched — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted — safe" : "under-predicted — risk of shortfall"})`
-                    : "Comparing historical predictions vs actual usage on matching dates"}
+                  {setChartData.length > 0
+                    ? `${setChartData.length} days · last 14 forecast runs merged — actual vs predicted over time`
+                    : "Actual vs predicted daily usage across the last 14 forecast runs"}
                 </p>
               </div>
 
@@ -364,22 +432,27 @@ export default function AccuracyPage() {
               <div className="flex items-center justify-center h-72">
                 <Loader2 className="animate-spin text-orange-400" size={28} />
               </div>
-            ) : selected?._loaded && selected.chartData?.length > 0 ? (
+            ) : setChartLoading ? (
+              <div className="flex items-center justify-center h-72 gap-2 text-slate-400">
+                <Loader2 className="animate-spin text-orange-300" size={22} />
+                <span className="text-sm">Loading forecast history…</span>
+              </div>
+            ) : setChartData.length > 0 ? (
               <>
                 <div className="h-80 px-2 pt-4 pb-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={selected.chartData} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
+                    <ComposedChart data={setChartData} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis
                         dataKey="date"
-                        tick={{ fontSize: 11, fill: "#94a3b8" }}
+                        tick={{ fontSize: 10, fill: "#94a3b8" }}
                         axisLine={false}
                         tickLine={false}
-                        interval={Math.max(0, Math.ceil(selected.chartData.length / 8) - 1)}
-                        tickFormatter={fmtDate}
+                        interval={Math.max(0, Math.ceil(setChartData.length / 8) - 1)}
+                        tickFormatter={(v) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }}
                       />
                       <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<ChartTooltip unit={selected.unit ?? ""} />} />
+                      <Tooltip content={<ChartTooltip unit={selected?.unit ?? ""} />} />
 
                       {/* Actual usage — emerald solid line */}
                       <Line
@@ -387,13 +460,14 @@ export default function AccuracyPage() {
                         dataKey="actual"
                         stroke="#10b981"
                         strokeWidth={2.5}
-                        dot={selected.chartData.length <= 10
-                          ? { r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }
-                          : { r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 1.5 }}
+                        dot={setChartData.length <= 14
+                          ? { r: 4, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }
+                          : false}
                         activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
                         connectNulls={false}
                         name="Actual"
                       />
+
                       {/* Predicted — orange dashed line */}
                       <Line
                         type="monotone"
@@ -401,9 +475,9 @@ export default function AccuracyPage() {
                         stroke="#f97316"
                         strokeWidth={2}
                         strokeDasharray="5 3"
-                        dot={selected.chartData.length <= 10
-                          ? { r: 5, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }
-                          : { r: 3, fill: "#f97316", stroke: "#fff", strokeWidth: 1.5 }}
+                        dot={setChartData.length <= 14
+                          ? { r: 4, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }
+                          : false}
                         activeDot={{ r: 6, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
                         connectNulls={false}
                         name="Predicted"
@@ -422,25 +496,22 @@ export default function AccuracyPage() {
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
                     Predicted
                   </div>
-                  {selected?.accuracy !== null && (
+                  <span className="text-xs text-slate-400">
+                    · Predicted above actual = safe &nbsp;·&nbsp; Predicted below actual = risk
+                  </span>
+                  {selected?.accuracy != null && (
                     <div className="ml-auto">
                       <AccuracyBadge acc={selected.accuracy} />
                     </div>
                   )}
                 </div>
               </>
-            ) : selected && !selected._loaded ? (
-              <div className="flex items-center justify-center h-72 gap-2 text-slate-400">
-                <Loader2 className="animate-spin text-orange-300" size={22} />
-                <span className="text-sm">Loading data…</span>
-              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-72 text-slate-400 gap-2">
                 <BarChart3 className="text-slate-200" size={36} />
-                <p className="text-sm font-medium text-slate-500">No matching data found</p>
+                <p className="text-sm font-medium text-slate-500">No forecast runs found</p>
                 <p className="text-xs text-slate-400 text-center max-w-xs">
-                  Accuracy requires a forecast date that also has recorded actual sales.<br />
-                  Generate a prediction, then record sales on those dates.
+                  Generate a prediction first, then come back after recording sales on those dates.
                 </p>
               </div>
             )}
