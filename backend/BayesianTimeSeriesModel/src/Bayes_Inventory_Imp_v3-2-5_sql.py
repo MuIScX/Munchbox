@@ -244,7 +244,7 @@ def save_forecast_to_sql(final_payload, ingredient_id, restaurant_id, db_engine)
             )
             print(f"[SQL] Inserted {len(daily_rows)} daily forecast rows.")
 
-            # 3. Insert summary row (prediction_type = 2) — timestamp = run time
+            # 3. Insert summary recommendation row (prediction_type = 2)   
             daily_target_avg = round(rec["expected_usage"] / len(future_view), 2) if future_view else None
             conn.execute(
                 text("""
@@ -383,47 +383,27 @@ def _run_model(historical, forecast_days, draws, tune, cores, chains):
 # 4. OPTIMIZATION
 # ============================================================
 
-def optimal_quantity_financial(forecast_matrix, buy_price, sell_price, strategy='balanced'):
+def optimal_quantity_service_level(forecast_matrix, strategy='balanced'):
     """
-    Newsvendor model to find the optimal order quantity.
-    strategy: 'conservative' | 'balanced' | 'aggressive'
+    Service-Level model to find the optimal order quantity.
+    The model will based on targeting the specific percentile of the demand curve.
     """
-    print(f"\n--- Optimizing (Buy: {buy_price} THB, Sell: {sell_price} THB, Strategy: {strategy}) ---")
-
-    Co = buy_price
-    Cu = max(0.1, sell_price - buy_price)
-
+    print(f"\n--- Optimizing based on Service Level (Strategy: {strategy}) ---")
+    
     if strategy == 'aggressive':
-        Cu *= 1.5
-        print(">> Prioritizing Availability (Risking Waste)")
+        target_percentile = 95
+        print(f">> Aggressive Mode: Targeting {target_percentile}% Service Level (Minimizing Stockouts)")
     elif strategy == 'conservative':
-        Co *= 1.5
-        print(">> Prioritizing Cash Flow (Risking Stockouts)")
+        target_percentile = 50
+        print(f">> Conservative Mode: Targeting {target_percentile}% Service Level (Minimizing Waste)")
     else:
-        print(">> Standard Economic Optimization")
+        target_percentile = 75 
+        print(f">> Balanced Mode: Targeting {target_percentile}% Service Level")
 
-    total_demand = forecast_matrix.sum(axis=1)
-    min_q, max_q = int(total_demand.min()), int(total_demand.max())
-
-    if min_q >= max_q:
-        return min_q
-
-    possible_quantities = np.arange(min_q, max_q + 1)
-    demands  = total_demand[:, np.newaxis]
-    orders   = possible_quantities[np.newaxis, :]
-    overage  = np.maximum(0, orders - demands)
-    underage = np.maximum(0, demands - orders)
-
-    expected_strategic_loss = (overage * Co) + (underage * Cu)
-    best_index = np.argmin(expected_strategic_loss.mean(axis=0))
-    optimal_q  = possible_quantities[best_index]
-
-    real_loss     = ((overage * buy_price) + (underage * sell_price)).mean(axis=0)
-    min_loss_baht = real_loss[best_index]
+    total_demand_per_scenario = forecast_matrix.sum(axis=1)
+    optimal_q = int(np.percentile(total_demand_per_scenario, target_percentile))
 
     print(f"--- Optimization Done: Recommending {optimal_q} units ---")
-    print(f"--- Estimated Financial Risk: {min_loss_baht:.2f} THB ---")
-
     return optimal_q
 
 
@@ -431,29 +411,12 @@ def optimal_quantity_financial(forecast_matrix, buy_price, sell_price, strategy=
 # 5. CHART / OUTPUT HELPERS
 # ============================================================
 
-def chart_data_json(historical_demand, forecast_dist, reorder_period, db_stock):
-    """
-    Build chart payload for the frontend HCD dashboard.
-
-    future_view dates are anchored to TODAY, not the last sale date.
-    This prevents stale data from old sales pushing forecasts into the past.
-
-    Returns:
-        {
-            "historical_performance": [...],  # last reorder_period days of actual sales
-            "future_view": [...]              # next reorder_period days from today
-        }
-    """
-    today       = pd.Timestamp.today().normalize()
-    last_date   = historical_demand.index.max()
-
-    # Always forecast starting from today, even if last sale was months ago
-    anchor_date    = max(last_date, today)
+def chart_data_json(historical_demand, forecast_dist, reorder_period, db_stock, effective_start):
+    # Anchor dates to the requested start date
     forecast_dates = pd.to_datetime([
-        anchor_date + pd.DateOffset(days=i) for i in range(1, reorder_period + 1)
+        effective_start + pd.DateOffset(days=i) for i in range(reorder_period)
     ])
 
-    # --- Future view ---
     value_days  = np.moveaxis(forecast_dist, -1, 0)
     future_list = [
         {
@@ -465,8 +428,8 @@ def chart_data_json(historical_demand, forecast_dist, reorder_period, db_stock):
         for i, day_vals in enumerate(value_days)
     ]
 
-    # --- Historical performance (reverse-simulate stock levels) ---
-    recent_history  = historical_demand.iloc[-reorder_period:]
+    hist_days = min(reorder_period, len(historical_demand))
+    recent_history  = historical_demand.iloc[-hist_days:]
     rev_demand      = recent_history.values[::-1]
     dates_rev       = recent_history.index[::-1]
     hist_stock      = float(db_stock)
@@ -567,7 +530,6 @@ def plot_forecast_results_explained(historical_demand, forecast_dist, optimal_or
     plt.tight_layout()
     plt.show()
 
-
 # ============================================================
 # 6. MAIN PIPELINE FUNCTION
 # ============================================================
@@ -584,54 +546,11 @@ def run_forecast_job(
     save_to_db:      bool  = True,
     plot:            bool  = False,
     return_chart:    bool  = False,
+    **kwargs
 ) -> dict:
-    """
-    Full Bayesian forecasting pipeline. Callable from API, Celery, or CLI.
 
-    Args:
-        restaurant_id:   Required. Scopes all DB queries.
-        sell_price:      Required. Revenue per unit sold.
-        start_date:      Forecast window start (pandas-parseable string).
-        end_date:        Forecast window end (pandas-parseable string).
-        strategy:        "1" Conservative | "2" Balanced | "3" Aggressive.
-        ingredient_name: Partial name search. Used if ingredient_id not given.
-        ingredient_id:   Exact ID lookup. Takes priority over name.
-        buy_price:       Cost override. Falls back to DB cost, then 100.0 THB.
-        save_to_db:      Persist results to predict_set + predict tables.
-        plot:            Render matplotlib dashboard (LOCAL only).
-        return_chart:    Include chart_data in the returned payload.
-
-    Returns:
-        dict: Final JSON payload, or {"error": "..."} on failure.
-    """
-
-    # --- Guards ---
     if ingredient_name is None and ingredient_id is None:
         return {"error": "Provide either ingredient_name or ingredient_id."}
-
-    try:
-        start_dt = pd.to_datetime(start_date)
-        end_dt   = pd.to_datetime(end_date)
-        today    = pd.Timestamp.today().normalize()
-
-        # Validate start/end ordering
-        if start_dt >= end_dt:
-            return {"error": "End date must be after start date."}
-        if end_dt <= today:
-            return {"error": "End date must be in the future."}
-
-        # Always forecast from TODAY to end_date so the full span is stored.
-        # start_date only controls where the depletion graph begins on the frontend —
-        # it does NOT shorten what gets stored in the DB.
-        reorder_period = (end_dt - today).days
-
-        if reorder_period > MAX_FORECAST_DAYS:
-            return {"error": f"Forecast window too large ({reorder_period} days). Maximum is {MAX_FORECAST_DAYS} days."}
-
-    except Exception as e:
-        return {"error": f"Failed to parse dates: {e}"}
-
-    print(f"[SYSTEM] Starting forecast job — {reorder_period} days for restaurant {restaurant_id}...", file=sys.stderr)
 
     # --- 1. Fetch data ---
     daily_demand, unit, db_cost, db_stock, lead_time, ing_id = get_data_from_sql(
@@ -645,55 +564,102 @@ def run_forecast_job(
     if len(daily_demand) < 3:
         return {"error": "Insufficient historical data (minimum 3 days required) for forecasting."}
 
+    # --- 1.5 Time Dimension Alignment ---
+    pymc_start_date = daily_demand.index.max() + pd.Timedelta(days=1)
+    
+    try:
+        start_dt = pd.to_datetime(start_date)
+        end_dt   = pd.to_datetime(end_date)
+        today    = pd.Timestamp.today().normalize()
+
+        effective_start = max(start_dt, today)
+        if effective_start < pymc_start_date:
+            effective_start = pymc_start_date
+
+        # Added + 1 to make the date range right-inclusive
+        reorder_period  = (end_dt - effective_start).days + 1
+
+        if reorder_period <= 0:
+            return {"error": "End date must be exactly on or after the start date."}
+        if reorder_period > MAX_FORECAST_DAYS:
+            return {"error": f"Forecast window too large ({reorder_period} days). Maximum is {MAX_FORECAST_DAYS} days."}
+
+    except Exception as e:
+        return {"error": f"Failed to parse dates: {e}"}
+
+    print(f"[SYSTEM] Starting forecast job — {reorder_period} days for restaurant {restaurant_id}...", file=sys.stderr)
+
     # --- 2. Setup ---
     strategy_map       = {'1': 'conservative', '2': 'balanced', '3': 'aggressive'}
-    selected_strat     = strategy_map.get(strategy, 'balanced')
-    resolved_buy_price = buy_price if buy_price else (db_cost if db_cost > 0 else 100.0)
+    selected_strat     = strategy_map.get(str(strategy), 'balanced')
 
     # --- 3. Run forecast ---
-    effective_forecast_amt = reorder_period + lead_time
+    gap_days = (effective_start - pymc_start_date).days
+    total_pymc_days = gap_days + reorder_period + lead_time
 
     if DEVICE == 'CLOUD':
-        raw_forecast_dist, trace = run_bayesian_forecast_cloud(daily_demand, effective_forecast_amt)
+        raw_forecast_dist, trace = run_bayesian_forecast_cloud(daily_demand, total_pymc_days)
     else:
-        raw_forecast_dist, trace = run_bayesian_forecast(daily_demand, effective_forecast_amt)
+        raw_forecast_dist, trace = run_bayesian_forecast(daily_demand, total_pymc_days)
 
-    # --- 4. Optimize (post-lead-time window) ---
-    forecasted_dist_shift = raw_forecast_dist[:, lead_time:]
-    optimal_order = optimal_quantity_financial(
-        forecasted_dist_shift, resolved_buy_price, sell_price, strategy=selected_strat
+    # --- 3.5 Gap Drain Calculation ---
+    if gap_days > 0:
+        expected_gap_demand = float(np.mean(raw_forecast_dist[:, :gap_days].sum(axis=1)))
+        stock_at_start_date = max(0.0, float(db_stock) - expected_gap_demand)
+    else:
+        stock_at_start_date = float(db_stock)
+
+    # --- 4. Service Level Optimization ---
+    math_start_idx = gap_days + lead_time
+    math_end_idx   = gap_days + lead_time + reorder_period
+    forecasted_dist_shift = raw_forecast_dist[:, math_start_idx : math_end_idx]
+    
+    optimal_order = optimal_quantity_service_level(
+        forecasted_dist_shift, strategy=selected_strat
     )
 
-    # --- 5. UI slice (days 1 → reorder_period) ---
-    forecast_dist_ui = raw_forecast_dist[:, :reorder_period]
+    # --- 5. UI slice (Exact dates requested) ---
+    forecast_dist_ui = raw_forecast_dist[:, gap_days : gap_days + reorder_period]
 
     # --- 6. Final order quantity ---
-    expected_lead_time_demand   = float(np.mean(raw_forecast_dist[:, :lead_time].sum(axis=1)))
-    projected_stock_at_delivery = max(0, float(db_stock) - expected_lead_time_demand)
+    expected_lead_time_demand   = float(np.mean(raw_forecast_dist[:, gap_days : math_start_idx].sum(axis=1)))
+    projected_stock_at_delivery = max(0.0, stock_at_start_date - expected_lead_time_demand)
+    
     optimal_order_buffered      = int(optimal_order * 1.1)
     final_order                 = max(0, int(optimal_order_buffered - projected_stock_at_delivery))
 
     # --- 7. Risk metrics ---
     mean_total_demand_ui = float(np.mean(forecast_dist_ui.sum(axis=-1)))
     mean_daily_demand    = mean_total_demand_ui / reorder_period
-    days_of_coverage     = float(db_stock) / mean_daily_demand if mean_daily_demand > 0 else 999.0
+    days_of_coverage     = stock_at_start_date / mean_daily_demand if mean_daily_demand > 0 else 999.0
     risk_priority        = "High" if days_of_coverage < lead_time else "Normal"
+
+    # --- 7.5 Silent Shadow Confidence Score ---
+    total_demand_std = float(np.std(forecast_dist_ui.sum(axis=-1)))
+    if mean_total_demand_ui > 0:
+        cv = total_demand_std / mean_total_demand_ui
+        variance_score = max(0, min(100, int((1.0 - cv) * 100)))
+    else:
+        variance_score = 0 
+    history_days = len(daily_demand)
+    history_penalty = 40 if history_days < 7 else 20 if history_days < 14 else 10 if history_days < 30 else 0
+    shadow_confidence_score = max(0, variance_score - history_penalty)
 
     # --- 8. Stockout detection ---
     mean_daily_forecast = forecast_dist_ui.mean(axis=0)
-    current_inv         = float(db_stock)
+    current_inv         = stock_at_start_date 
     stockout_day_idx    = -1
     for d in range(reorder_period):
         current_inv -= mean_daily_forecast[d]
         if current_inv <= 0 and stockout_day_idx == -1:
             stockout_day_idx = d
 
-    # --- 9. Status classification ---
+    # --- 9. Integer Urgency Score ---
     if stockout_day_idx != -1 and stockout_day_idx <= lead_time:
         urgency_score    = 100
         inventory_status = "CRITICAL"
-    elif optimal_order > db_stock:
-        urgency_score    = min(99, int((lead_time / max(0.1, days_of_coverage)) * 100))
+    elif optimal_order > stock_at_start_date: 
+        urgency_score    = int(min(99, (lead_time / max(0.1, days_of_coverage)) * 100))
         inventory_status = "REORDER"
     else:
         urgency_score    = 0
@@ -705,9 +671,9 @@ def run_forecast_job(
         "risk_priority":   risk_priority,
         "recommendation": {
             "optimal_target_qty": optimal_order_buffered,
-            "current_stock":      float(db_stock),
+            "current_stock":      round(stock_at_start_date, 2), 
             "to_purchase_qty":    final_order,
-            "urgency_score":      urgency_score,
+            "urgency_score":      int(urgency_score),
             "inventory_status":   inventory_status,
             "days_of_coverage":   round(days_of_coverage, 1),
             "lead_time_days":     lead_time,
@@ -717,25 +683,22 @@ def run_forecast_job(
         }
     }
 
-    # --- 11. Chart data (opt-in) ---
+    # --- 11, 12, 13. Chart Data and DB Save ---
     if return_chart:
         final_payload["chart_data"] = chart_data_json(
-            daily_demand, forecast_dist_ui, reorder_period, db_stock
+            daily_demand, forecast_dist_ui, reorder_period, stock_at_start_date, effective_start
         )
 
-    # --- 12. Plot (LOCAL debug only) ---
     if plot:
         plot_forecast_results_explained(
             daily_demand, forecast_dist_ui, optimal_order,
-            ingredient_name or str(ing_id), reorder_period, unit, db_stock, lead_time
+            ingredient_name or str(ing_id), reorder_period, unit, stock_at_start_date, lead_time, effective_start
         )
 
-    # --- 13. Save to DB ---
     if save_to_db:
         if not return_chart:
-            # chart_data needed to build daily rows — generate temporarily
             final_payload["chart_data"] = chart_data_json(
-                daily_demand, forecast_dist_ui, reorder_period, db_stock
+                daily_demand, forecast_dist_ui, reorder_period, stock_at_start_date, effective_start
             )
         save_forecast_to_sql(final_payload, ing_id, restaurant_id, db_engine)
         if not return_chart:
