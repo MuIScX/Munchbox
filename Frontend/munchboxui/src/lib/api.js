@@ -162,16 +162,22 @@ shareMenu: (start_date, end_date) =>
     request("/report/trend/ingredient", "POST", { ingredient_id, ...dateRange }),
 }
  
+export const SaleAPI = {
+  record: (items = [], sale_date = null) => request("/sale/record", "POST", { items, sale_date }),
+};
 
 export const PredictAPI = {
   report: (days = null) => request("/predict/report", "POST", { days }),
   trend: (ingredient_id) => request("/predict/trend", "POST", { ingredient_id }),
-  actual: (ingredient_id) => request("/predict/actual", "POST", { ingredient_id }),
+  actual: (ingredient_id, days = null) => request("/predict/actual", "POST", { ingredient_id, days }),
   dailyForecast: (ingredient_id, predict_set_id = null) =>
     request("/predict/ingredient-forecast", "POST", { ingredient_id, predict_set_id }),
   sets: (ingredient_id) => request("/predict/sets", "POST", { ingredient_id }),
   generate: (payload) => request("/predict/generate", "POST", payload, 0),
   generateMenu: (payload) => request("/predict/generate-menu", "POST", payload, 0),
+  ingredient: (ingredient_id, days = null) => request("/predict/ingredient", "POST", { ingredient_id, days }),
+  status: (ingredient_id, days = null) => request("/predict/status", "POST", { ingredient_id, days }),
+  record: (predict_set_id, predictions) => request("/predict/record", "POST", { predict_set_id, predictions }),
 }
 
 export const ImportAPI = {

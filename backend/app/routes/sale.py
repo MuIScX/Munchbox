@@ -17,6 +17,12 @@ def record_sale(body: SaleRecordRequest, identity: dict = Depends(decode_token),
     total_item = 0
     success_count = 0
 
+    # Use provided date or default to today (UTC), always at midnight
+    if body.sale_date:
+        timestamp = datetime(body.sale_date.year, body.sale_date.month, body.sale_date.day)
+    else:
+        timestamp = datetime.utcnow()
+
     for item in body.items:
         if item.amount <= 0:
             continue
@@ -28,7 +34,7 @@ def record_sale(body: SaleRecordRequest, identity: dict = Depends(decode_token),
         if not menu:
             continue
         db.add(SaleData(
-            timestamp=datetime.utcnow(),
+            timestamp=timestamp,
             amount=item.amount,
             menu_id=item.menu_id,
             restaurant_id=restaurant_id,

@@ -39,9 +39,14 @@ function computeAccuracy(actualData, trendData) {
 
   // Asymmetric accuracy: predicted >= actual → 100% (safe, no stockout)
   //                      predicted <  actual → predicted/actual × 100 (under-prepared)
-  const dailyAcc  = merged.map((d) =>
-    d.predicted >= d.actual ? 100 : (d.predicted / d.actual) * 100
-  );
+const dailyAcc = merged.map((d) => {
+  const error = Math.abs(d.predicted - d.actual) / d.actual;
+  if (error <= 0.20) return 100;
+  return Math.max(0, (1 - error) * 100);
+});
+
+
+
   const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
   const biasArr   = merged.map((d) => d.predicted - d.actual);
 

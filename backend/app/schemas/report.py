@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-
+from datetime import date
 
 class SaleItem(BaseModel):
     menu_id: int
@@ -9,7 +9,7 @@ class SaleItem(BaseModel):
 
 class SaleRecordRequest(BaseModel):
     items: List[SaleItem] = []
-
+    sale_date: Optional[date] = None
 
 class ReportMenuRequest(BaseModel):
     menu_id: Optional[int] = None
