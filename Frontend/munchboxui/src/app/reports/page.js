@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Sidebar from "../components/Sidebar";
 import { ReportAPI, MenuAPI } from "../../lib/api";
 import { Loader2, BarChart2 } from "lucide-react";
@@ -14,11 +16,10 @@ const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
 const now = new Date();
-const todayStr = now.toISOString().split("T")[0];
 
 export default function ViewReports() {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [shareAllTime, setShareAllTime] = useState(true);
 
   const [loading, setLoading] = useState(true);
@@ -33,23 +34,27 @@ export default function ViewReports() {
   const [tableData, setTableData] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState("All");
 
+  const toStr = (d) => d ? d.toISOString().split("T")[0] : null;
+  const startStr = toStr(startDate);
+  const endStr   = toStr(endDate);
+
   const dateRange = shareAllTime
     ? { start_date: null, end_date: null }
-    : { start_date: startDate || null, end_date: endDate || null };
+    : { start_date: startStr, end_date: endStr };
 
-  const handleStartDateChange = (val) => {
-    setStartDate(val);
-    setShareAllTime(!val && !endDate);
+  const handleStartDateChange = (date) => {
+    setStartDate(date);
+    setShareAllTime(!date && !endDate);
   };
 
-  const handleEndDateChange = (val) => {
-    setEndDate(val);
-    setShareAllTime(!startDate && !val);
+  const handleEndDateChange = (date) => {
+    setEndDate(date);
+    setShareAllTime(!startDate && !date);
   };
 
   const handleClearDates = () => {
-    setStartDate("");
-    setEndDate("");
+    setStartDate(null);
+    setEndDate(null);
     setShareAllTime(true);
   };
 
@@ -119,10 +124,24 @@ export default function ViewReports() {
             });
             setSalesTrendData(Object.entries(monthMap).map(([name, order]) => ({ name, order })));
           } else {
-            setSalesTrendData(res.Data.map(item => ({
-              name: new Date(item.day).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-              order: item.sale_amount || 0,
-            })));
+            // Build a map from API data
+            const dataMap = {};
+            res.Data.forEach(item => { dataMap[item.day] = item.sale_amount || 0; });
+            // Fill every date in range with 0 if missing
+            const filled = [];
+            if (startDate && endDate) {
+              const cur = new Date(startDate);
+              const end = new Date(endDate);
+              cur.setHours(0,0,0,0); end.setHours(0,0,0,0);
+              while (cur <= end) {
+                const key = cur.toISOString().split("T")[0];
+                filled.push({ name: key.split("-").reverse().join("/"), order: dataMap[key] ?? 0 });
+                cur.setDate(cur.getDate() + 1);
+              }
+            } else {
+              res.Data.forEach(item => filled.push({ name: item.day.split("-").reverse().join("/"), order: item.sale_amount || 0 }));
+            }
+            setSalesTrendData(filled);
           }
         } else setSalesTrendData([]);
       } catch { setSalesTrendData([]); }
@@ -162,23 +181,37 @@ const formatCurrency = (val) =>
                 <div className="flex items-center gap-3 flex-wrap">
                   <div>
                     <label className="block text-xs text-slate-400 font-medium mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      max={endDate || todayStr}
-                      onChange={(e) => handleStartDateChange(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
+                    <DatePicker
+                      selected={startDate}
+                      onChange={handleStartDateChange}
+                      selectsStart
+                      startDate={startDate}
+                      endDate={endDate}
+                      maxDate={endDate || new Date()}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      showYearDropdown
+                      showMonthDropdown
+                      dropdownMode="select"
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 w-32"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-400 font-medium mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      min={startDate}
-                      max={todayStr}
-                      onChange={(e) => handleEndDateChange(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400"
+                    <DatePicker
+                      selected={endDate}
+                      onChange={handleEndDateChange}
+                      selectsEnd
+                      startDate={startDate}
+                      endDate={endDate}
+                      minDate={startDate}
+                      maxDate={new Date()}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      showYearDropdown
+                      showMonthDropdown
+                      dropdownMode="select"
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 w-32"
                     />
                   </div>
                   {!shareAllTime && (
@@ -210,8 +243,8 @@ const formatCurrency = (val) =>
               trendLoading={trendLoading}
               globalLoading={loading}
               shareAllTime={shareAllTime}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={startStr}
+              endDate={endStr}
               tableData={tableData}
               formatCurrency={formatCurrency}
             />
@@ -236,8 +269,8 @@ const formatCurrency = (val) =>
               tableData={tableData}
               formatCurrency={formatCurrency}
               shareAllTime={shareAllTime}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={startStr}
+              endDate={endStr}
             />
           </div>
 

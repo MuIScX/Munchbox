@@ -243,7 +243,7 @@ const filteredReport = useMemo(() => {
     }
 
     // Future forecast
-    dailyForecast.slice(0, forecastDays).forEach((day) => {
+    dailyForecast.filter((day) => day.date > todayStr).slice(0, forecastDays).forEach((day) => {
       const use = day.mean_demand != null ? day.mean_demand : dailyAvg;
       cumUsage += use;
       points.push({
@@ -314,8 +314,8 @@ const filteredReport = useMemo(() => {
   const ForecastTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
-    const [,m,day] = (label || "").split("-");
-    const dateStr = label ? `${parseInt(day)}/${parseInt(m)}` : label;
+    const [y,m,day] = (label || "").split("-");
+    const dateStr = label ? `${day.padStart(2,"0")}/${m.padStart(2,"0")}/${y}` : label;
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[180px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
@@ -345,8 +345,8 @@ const filteredReport = useMemo(() => {
     const d = payload[0]?.payload;
     const isLow = d?.stock_left != null && d.stock_left <= reorderPoint;
     const isForecast = d?.section === "future";
-    const [,m,day] = (label || "").split("-");
-    const dateStr = label ? `${parseInt(day)}/${parseInt(m)}` : label;
+    const [y,m,day] = (label || "").split("-");
+    const dateStr = label ? `${day.padStart(2,"0")}/${m.padStart(2,"0")}/${y}` : label;
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-3 min-w-[190px]">
         <p className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
@@ -705,7 +705,7 @@ const filteredReport = useMemo(() => {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={forecastChartData.length <= 14 ? 0 : Math.ceil(forecastChartData.length / 8)} tickFormatter={(v) => { const [y,m,d] = v.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yForecastMax]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 12, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <Tooltip content={<ForecastTooltip />} />
                           {hasForecastBand && <Area type="monotone" dataKey="band_low"   stackId="fb" stroke="none" fill="transparent" legendType="none" />}
@@ -801,7 +801,7 @@ const filteredReport = useMemo(() => {
                             </>
                           )}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [,m,d] = v.split("-"); return `${parseInt(d)}/${parseInt(m)}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} interval={stockDepletionData.length <= 21 ? 1 : Math.ceil(stockDepletionData.length / 8)} tickFormatter={(v) => { const [y,m,d] = v.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }} label={{ value: "Date →", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, yMaxDepletion]} allowDataOverflow label={{ value: selectedIngredient?.unit ?? "Qty", angle: -90, position: "insideLeft", offset: 12, fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} />
                           <Tooltip content={<DepletionTooltip />} />
                           {graphFilters.reorderLine && reorderPoint > 0 && (

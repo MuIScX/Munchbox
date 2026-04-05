@@ -42,7 +42,7 @@ export default function SalesReportTable({
 
         <div className="min-w-[90px] text-center">
           <p className="text-sm font-semibold text-gray-800">
-            {shareAllTime ? "All Time" : `${startDate || "—"} to ${endDate || "—"}`}
+            {shareAllTime ? "All Time" : `${startDate ? startDate.split("-").reverse().join("/") : "—"} to ${endDate ? endDate.split("-").reverse().join("/") : "—"}`}
           </p>
         </div>
       </div>

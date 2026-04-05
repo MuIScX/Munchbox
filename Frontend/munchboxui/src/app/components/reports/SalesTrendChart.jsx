@@ -30,9 +30,10 @@ export default function SalesTrendChart({
   tableData = [],
   formatCurrency,
 }) {
+  const fmtDate = (s) => { if (!s) return "—"; const [y,m,d] = s.split("-"); return `${d}/${m}/${y}`; };
   const trendLabel = shareAllTime
     ? "All Time"
-    : `${startDate || "—"} to ${endDate || "—"}`;
+    : `${fmtDate(startDate)} to ${fmtDate(endDate)}`;
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
