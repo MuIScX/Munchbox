@@ -34,7 +34,13 @@ export default function ViewReports() {
   const [tableData, setTableData] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState("All");
 
-  const toStr = (d) => d ? d.toISOString().split("T")[0] : null;
+  const toStr = (d) => {
+    if (!d) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const startStr = toStr(startDate);
   const endStr   = toStr(endDate);
 
@@ -134,7 +140,7 @@ export default function ViewReports() {
               const end = new Date(endDate);
               cur.setHours(0,0,0,0); end.setHours(0,0,0,0);
               while (cur <= end) {
-                const key = cur.toISOString().split("T")[0];
+                const key = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}-${String(cur.getDate()).padStart(2,"0")}`;
                 filled.push({ name: key.split("-").reverse().join("/"), order: dataMap[key] ?? 0 });
                 cur.setDate(cur.getDate() + 1);
               }
