@@ -1,3 +1,8 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
 # Ignore all .DS_Store files (MacOS based file)
 .DS_Store
 .env.production

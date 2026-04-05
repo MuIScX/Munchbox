@@ -10,7 +10,7 @@ from app.services.forecaster import run_forecast_job
 
 from app.db import get_db
 from app.core.security import decode_token
-from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest, PredictSetsRequest
+from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest, PredictSetsRequest, PrepSummaryRequest
 from app.models.predict import Predict, PredictSet
 from app.models.ingredient import Ingredient
 
@@ -389,6 +389,141 @@ def get_actual_usage(body: PredictIngredientRequest, identity: dict = Depends(de
     return {"message": "success", "Data": [
         {"date": str(r[0]), "actual_usage": float(r[1])} for r in rows
     ]}
+
+
+@router.post("/prep-summary")
+def prep_summary(body: PrepSummaryRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """Return all active ingredients with expected_usage summed over the given date range (latest predict_set).
+    Ingredients without prediction data in that range are included but marked has_data=False."""
+    restaurant_id = identity["restaurantId"]
+
+    ingredients = (
+        db.query(Ingredient)
+        .filter(Ingredient.restaurant_id == restaurant_id, Ingredient.is_active == 1)
+        .all()
+    )
+    if not ingredients:
+        return {"message": "success", "Data": []}
+
+    ingredient_ids = [i.id for i in ingredients]
+
+    # Calculate how many days the requested range spans
+    from datetime import date as date_type
+    if body.start_date and body.end_date:
+        start_dt  = date_type.fromisoformat(body.start_date)
+        end_dt    = date_type.fromisoformat(body.end_date)
+        requested_days = (end_dt - start_dt).days + 1
+    else:
+        requested_days = None
+
+    # Step 1: for every (ingredient, set) count how many type-1 rows fall in the requested range
+    from collections import defaultdict
+    counts_q = (
+        db.query(
+            Predict.ingredient_id,
+            Predict.prediction_set,
+            func.count(Predict.id).label("day_count"),
+        )
+        .filter(
+            Predict.restaurant_id   == restaurant_id,
+            Predict.prediction_type == 1,
+            Predict.ingredient_id.in_(ingredient_ids),
+        )
+    )
+    if body.start_date:
+        counts_q = counts_q.filter(func.date(Predict.timestamp) >= body.start_date)
+    if body.end_date:
+        counts_q = counts_q.filter(func.date(Predict.timestamp) <= body.end_date)
+    counts_q = counts_q.group_by(Predict.ingredient_id, Predict.prediction_set)
+
+    # Step 2: per ingredient, keep only sets that FULLY cover the requested range,
+    # then pick the newest (highest set id). If no set fully covers → no data.
+    set_counts = defaultdict(list)
+    for r in counts_q.all():
+        set_counts[r.ingredient_id].append((r.day_count, r.prediction_set))
+
+    best_sets = {}
+    for ing_id, entries in set_counts.items():
+        # Only consider sets that cover every day in the range
+        if requested_days is not None:
+            full_coverage = [e for e in entries if e[0] >= requested_days]
+        else:
+            full_coverage = entries  # no range filter — any set is fine
+        if not full_coverage:
+            continue  # no set covers the full range → will be marked no data
+        # Among qualifying sets, pick the newest (highest set id)
+        full_coverage.sort(key=lambda x: x[1], reverse=True)
+        best_sets[ing_id] = {"set_id": full_coverage[0][1], "day_count": full_coverage[0][0]}
+
+    # Step 3: sum expected_usage from the chosen set within the requested range
+    # Also fetch urgency_score from the type-2 summary row (same source as /report endpoint)
+    urgency_map = {}
+    if best_sets:
+        summary_rows = (
+            db.query(Predict.ingredient_id, Predict.prediction_set, Predict.urgency_score)
+            .filter(
+                Predict.restaurant_id   == restaurant_id,
+                Predict.prediction_type == 2,
+                Predict.ingredient_id.in_(list(best_sets.keys())),
+            )
+            .all()
+        )
+        for sr in summary_rows:
+            best = best_sets.get(sr.ingredient_id)
+            if best and sr.prediction_set == best["set_id"]:
+                urgency_map[sr.ingredient_id] = int(sr.urgency_score) if sr.urgency_score is not None else None
+
+    pred_map = {}
+    for ing_id, best in best_sets.items():
+        agg_q = (
+            db.query(func.sum(Predict.expected_usage))
+            .filter(
+                Predict.restaurant_id   == restaurant_id,
+                Predict.prediction_type == 1,
+                Predict.ingredient_id   == ing_id,
+                Predict.prediction_set  == best["set_id"],
+            )
+        )
+        if body.start_date:
+            agg_q = agg_q.filter(func.date(Predict.timestamp) >= body.start_date)
+        if body.end_date:
+            agg_q = agg_q.filter(func.date(Predict.timestamp) <= body.end_date)
+        total = agg_q.scalar()
+        if total is not None:
+            pred_map[ing_id] = {"total_expected": float(total), "day_count": best["day_count"], "urgency_score": urgency_map.get(ing_id)}
+
+    result = []
+    for ing in ingredients:
+        pred = pred_map.get(ing.id)
+        if pred:
+            total  = round(pred["total_expected"], 2)
+            status = 1 if float(ing.stock_left) >= total else 0
+            result.append({
+                "ingredient_id":   ing.id,
+                "ingredient_name": ing.name,
+                "current_stock":   float(ing.stock_left),
+                "expected_usage":  total,
+                "day_count":       pred["day_count"],
+                "unit":            ing.unit,
+                "category":        ing.category,
+                "urgency_score":   pred.get("urgency_score"),
+                "status":          status,
+                "has_data":        True,
+            })
+        else:
+            result.append({
+                "ingredient_id":   ing.id,
+                "ingredient_name": ing.name,
+                "current_stock":   float(ing.stock_left),
+                "expected_usage":  None,
+                "day_count":       0,
+                "unit":            ing.unit,
+                "category":        ing.category,
+                "status":          None,
+                "has_data":        False,
+            })
+
+    return {"message": "success", "Data": result}
 
 
 @router.post("/trend")

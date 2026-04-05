@@ -173,6 +173,8 @@ export const PredictAPI = {
   dailyForecast: (ingredient_id, predict_set_id = null) =>
     request("/predict/ingredient-forecast", "POST", { ingredient_id, predict_set_id }),
   sets: (ingredient_id) => request("/predict/sets", "POST", { ingredient_id }),
+  prepSummary: (start_date = null, end_date = null) =>
+    request("/predict/prep-summary", "POST", { start_date, end_date }),
   generate: (payload) => request("/predict/generate", "POST", payload, 0),
   generateMenu: (payload) => request("/predict/generate-menu", "POST", payload, 0),
   ingredient: (ingredient_id, days = null) => request("/predict/ingredient", "POST", { ingredient_id, days }),

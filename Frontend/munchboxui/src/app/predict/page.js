@@ -68,7 +68,32 @@ export default function PredictPage() {
     } catch {}
     return Object.keys(CATEGORY_MAP);
   });
-  const [prepSummaryOpen, setPrepSummaryOpen] = useState(false);
+  const [prepSummaryOpen, setPrepSummaryOpen]     = useState(false);
+  const [prepSortBy, setPrepSortBy]               = useState("urgency");
+  const [showPrepSortPopover, setShowPrepSortPopover] = useState(false);
+  const [prepSummaryData, setPrepSummaryData]     = useState([]);
+  const [prepSummaryLoading, setPrepSummaryLoading] = useState(false);
+  const [prepSummaryError, setPrepSummaryError]   = useState(null);
+  const [prepStart, setPrepStart]                 = useState(() => new Date(Date.now() + 1 * 86400000));
+  const [prepEnd, setPrepEnd]                     = useState(() => new Date(Date.now() + 7 * 86400000));
+
+  const toDateStr = (d) => d
+    ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+    : null;
+
+  const fetchPrepSummary = useCallback(async (start, end) => {
+    try {
+      setPrepSummaryLoading(true);
+      setPrepSummaryError(null);
+      const res = await PredictAPI.prepSummary(toDateStr(start), toDateStr(end));
+      setPrepSummaryData(Array.isArray(res?.Data) ? res.Data : []);
+    } catch (err) {
+      setPrepSummaryError(err.message || "Failed to load prep summary");
+      setPrepSummaryData([]);
+    } finally {
+      setPrepSummaryLoading(false);
+    }
+  }, []);
   const [graphFilters, setGraphFilters] = useState({
     zoneColors:      true,
     reorderLine:     true,
@@ -159,7 +184,9 @@ export default function PredictPage() {
   useEffect(() => {
     fetchReport(null);
     IngredientAPI.list({}).then((res) => {
-      setIngredientList(Array.isArray(res?.Data) ? res.Data : []);
+      const list = Array.isArray(res?.Data) ? res.Data : [];
+      setIngredientList(list);
+      if (list.length > 0) setRequestForm((f) => ({ ...f, ingredient_id: String(list[0].id) }));
     }).catch(() => {});
   }, []);
 
@@ -409,7 +436,7 @@ const filteredReport = useMemo(() => {
                 <p className="text-xs text-slate-400 mt-0.5">Bayesian time-series prediction for ingredient usage</p>
               </div>
               <button
-                onClick={() => setPrepSummaryOpen(true)}
+                onClick={() => { setPrepSummaryOpen(true); fetchPrepSummary(prepStart, prepEnd); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition shadow-sm"
               >
                 <ClipboardList size={13} />
@@ -890,83 +917,194 @@ const filteredReport = useMemo(() => {
       </main>
 
       {/* ── Prep Summary Modal ── */}
-      {prepSummaryOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
-                <ClipboardList size={15} className="text-orange-500" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-base font-bold text-slate-800">Prep Summary</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Ingredients needed for the next {forecastDays} days</p>
-              </div>
-              <button onClick={() => setPrepSummaryOpen(false)} className="text-slate-400 hover:text-slate-600 transition p-1">
-                <X size={18} />
-              </button>
-            </div>
+      {prepSummaryOpen && (() => {
+        const prepDays    = (prepStart && prepEnd)
+          ? Math.round((prepEnd - prepStart) / 86400000) + 1
+          : null;
+        // An ingredient "has data" only if it covers every day in the requested range
+        const withData    = prepSummaryData.filter((r) => r.has_data).sort((a, b) => {
+          if (prepSortBy === "category") {
+            const ai = categoryOrder.indexOf(String(a.category));
+            const bi = categoryOrder.indexOf(String(b.category));
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          }
+          // urgency: match main page — urgency_score desc, then status, then deficit
+          const uA = a.urgency_score ?? null;
+          const uB = b.urgency_score ?? null;
+          if (uA !== null && uB !== null) return uB - uA;
+          if (a.status !== b.status) return a.status - b.status;
+          return (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage);
+        });
+        const withoutData = prepSummaryData.filter((r) => !r.has_data);
 
-            <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-2">
-              {report.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">No prediction data available.</p>
-              ) : (
-                <>
-                  {/* Reorder needed */}
-                  {report.filter((r) => r.status === 0).length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-[10px] font-bold text-red-500 uppercase tracking-wide mb-1.5">Need to Order</p>
-                      {report.filter((r) => r.status === 0).sort((a, b) => (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage)).map((r) => {
-                        const needed = Math.ceil(r.expected_usage - r.current_stock);
-                        return (
-                          <div key={r.ingredient_id} className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
-                              <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"} · Stock: {r.current_stock} {r.unit}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-bold text-red-600">+{needed} {r.unit}</p>
-                              <p className="text-[10px] text-red-400">to order</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl w-[560px] h-[850px] max-h-[85vh] flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                  <ClipboardList size={15} className="text-orange-500" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-base font-bold text-slate-800">Prep Summary</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {prepStart && prepEnd
+                      ? `Ingredients needed for ${prepStart.getDate().toString().padStart(2,"0")}/${(prepStart.getMonth()+1).toString().padStart(2,"0")}/${prepStart.getFullYear()} – ${prepEnd.getDate().toString().padStart(2,"0")}/${(prepEnd.getMonth()+1).toString().padStart(2,"0")}/${prepEnd.getFullYear()}`
+                      : "All available prediction data"}
+                  </p>
+                </div>
+                <button onClick={() => setPrepSummaryOpen(false)} className="text-slate-400 hover:text-slate-600 transition p-1">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Date range + sort */}
+              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 h-[30px]">
+                  <span className="text-[10px] text-slate-400 font-medium">Range</span>
+                  <span className="text-slate-200 text-xs">|</span>
+                  <DatePicker
+                    selected={prepStart}
+                    onChange={(d) => { setPrepStart(d); fetchPrepSummary(d, prepEnd); }}
+                    maxDate={prepEnd ?? undefined}
+                    dateFormat="dd/MM/yyyy"
+                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                  />
+                  <span className="text-slate-300 text-xs">–</span>
+                  <DatePicker
+                    selected={prepEnd}
+                    onChange={(d) => { setPrepEnd(d); fetchPrepSummary(prepStart, d); }}
+                    minDate={prepStart ?? undefined}
+                    dateFormat="dd/MM/yyyy"
+                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 w-[210px]">
+                  <div className="flex-1 flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 h-[30px]">
+                    <ArrowUpDown size={11} className="text-slate-400 shrink-0" />
+                    <select
+                      value={prepSortBy}
+                      onChange={(e) => { setPrepSortBy(e.target.value); setShowPrepSortPopover(false); }}
+                      className="w-full text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+                    >
+                      <option value="urgency">Top Urgency</option>
+                      <option value="category">Category</option>
+                    </select>
+                  </div>
+                  {prepSortBy === "category" && (
+                    <div className="relative shrink-0">
+                      <button
+                        onClick={() => setShowPrepSortPopover(v => !v)}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors h-[30px] ${showPrepSortPopover ? "bg-orange-500 border-orange-500 text-white" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                      >
+                        <ArrowUpDown size={11} /> Order
+                      </button>
+                      <CategorySortPopover
+                        isOpen={showPrepSortPopover}
+                        onClose={() => setShowPrepSortPopover(false)}
+                        categoryOrder={categoryOrder}
+                        onChange={(newOrder) => {
+                          setCategoryOrder(newOrder);
+                          localStorage.setItem("inventory_category_order", JSON.stringify(newOrder));
+                        }}
+                        categoryMap={CATEGORY_MAP}
+                      />
                     </div>
                   )}
+                </div>
+                <button
+                  onClick={() => {
+                    const s = new Date(Date.now() + 1 * 86400000);
+                    const e = new Date(Date.now() + 7 * 86400000);
+                    setPrepStart(s); setPrepEnd(e); fetchPrepSummary(s, e);
+                  }}
+                  className="ml-auto text-[10px] text-slate-400 hover:text-slate-600 font-medium underline"
+                >
+                  Reset
+                </button>
+              </div>
 
-                  {/* Sufficient stock */}
-                  {report.filter((r) => r.status === 1).length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mb-1.5">Stock Sufficient</p>
-                      {report.filter((r) => r.status === 1).map((r) => {
-                        const surplus = (r.current_stock - r.expected_usage).toFixed(1);
-                        return (
-                          <div key={r.ingredient_id} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 mb-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              {/* Content */}
+              <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-2">
+                {prepSummaryLoading ? (
+                  <div className="flex items-center justify-center py-12 gap-3">
+                    <Loader2 className="animate-spin text-orange-400" size={20} />
+                    <p className="text-sm text-slate-400">Loading…</p>
+                  </div>
+                ) : prepSummaryError ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <AlertTriangle size={20} className="text-red-400" />
+                    <p className="text-sm text-red-500 font-medium">{prepSummaryError}</p>
+                  </div>
+                ) : prepSummaryData.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-8">No prediction data available.</p>
+                ) : (
+                  <>
+                    {/* Ingredients with data */}
+                    {withData.length > 0 && (
+                      <div className="mb-2">
+                        {prepSortBy === "category"
+                          ? categoryOrder.map((catId) => {
+                              const items = withData.filter((r) => String(r.category) === catId);
+                              if (items.length === 0) return null;
+                              return (
+                                <div key={catId} className="mb-2">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 pb-1 border-b border-orange-100 mb-1.5">
+                                    {CATEGORY_MAP[catId] || catId}
+                                  </p>
+                                  {items.map((r) => (
+                                    <div key={r.ingredient_id} className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-4 py-2.5 mb-1.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                                      <p className="text-sm font-semibold text-slate-700 truncate flex-1">{r.ingredient_name}</p>
+                                      <p className="text-sm font-bold text-slate-700 shrink-0">{r.expected_usage} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })
+                          : withData.map((r) => (
+                              <div key={r.ingredient_id} className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-4 py-2.5 mb-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
+                                  <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"}</p>
+                                </div>
+                                <p className="text-sm font-bold text-slate-700 shrink-0">{r.expected_usage} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
+                              </div>
+                            ))
+                        }
+                      </div>
+                    )}
+
+                    {/* No prediction data */}
+                    {withoutData.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">No Prediction Data</p>
+                        {withoutData.map((r) => (
+                          <div key={r.ingredient_id} className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-1.5 opacity-60">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
-                              <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"} · Stock: {r.current_stock} {r.unit}</p>
+                              <p className="text-sm font-semibold text-slate-500 truncate">{r.ingredient_name}</p>
+                              <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"}</p>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-bold text-emerald-600">+{surplus} {r.unit}</p>
-                              <p className="text-[10px] text-emerald-500">surplus</p>
-                            </div>
+                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full shrink-0">No data</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
-            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
-              <span>{report.filter((r) => r.status === 0).length} need ordering · {report.filter((r) => r.status === 1).length} sufficient</span>
-              <span>Forecast window: {forecastDays} days</span>
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
+                <span>{withData.length} ingredient{withData.length !== 1 ? "s" : ""} · {withoutData.length} no data</span>
+                {prepDays && <span>{prepDays} days</span>}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Request Prediction Modal ── */}
       {modalOpen && (
@@ -985,6 +1123,11 @@ const filteredReport = useMemo(() => {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Ingredient</label>
+                {!requestForm.ingredient_id && (
+                  <p className="text-xs text-red-500 font-medium mb-1.5 flex items-center gap-1">
+                    <AlertTriangle size={11} /> This procedure will take a long time to complete
+                  </p>
+                )}
                 <select
                   value={requestForm.ingredient_id}
                   onChange={(e) => setRequestForm((f) => ({ ...f, ingredient_id: e.target.value }))}
