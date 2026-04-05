@@ -112,6 +112,80 @@ function ChartTooltip({ active, payload, label, unit }) {
   );
 }
 
+/* ─── fuzzy chart data builder (runs per selected ingredient) ───
+   Strategy: collect ALL daily predictions across ALL predict_sets,
+   then greedily match each predicted date to the nearest actual date
+   within ±MAX_DAYS_DIFF. Each actual date is used at most once.
+   This gives a chart even when predicted dates don't exactly align
+   with recorded sales dates.                                        ─── */
+const MAX_DAYS_DIFF = 7;
+
+async function buildFuzzyChartData(ingredientId) {
+  const [setsRes, actualRes] = await Promise.all([
+    PredictAPI.sets(ingredientId),
+    PredictAPI.actual(ingredientId),
+  ]);
+
+  const sets      = setsRes?.Data || [];
+  const actualArr = (actualRes?.Data || []).sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!sets.length || !actualArr.length) return [];
+
+  // Fetch all set daily forecasts in parallel
+  const forecasts = await Promise.all(
+    sets.map((s) =>
+      PredictAPI.dailyForecast(ingredientId, s.predict_set_id).catch(() => ({ Data: [] }))
+    )
+  );
+
+  // Collect all predicted dates across all sets; later sets overwrite earlier for same date
+  const predByDate = {};
+  sets.forEach((_, i) => {
+    (forecasts[i]?.Data || []).forEach((d) => {
+      if (d.date && d.mean_demand != null) predByDate[d.date] = d.mean_demand;
+    });
+  });
+
+  const predictions = Object.entries(predByDate)
+    .map(([date, predicted]) => ({ date, predicted }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!predictions.length) return [];
+
+  // Greedy nearest-date matching — each actual used at most once
+  const usedActual = new Set();
+
+  const matched = predictions.map((pred) => {
+    const pTime = new Date(pred.date).getTime();
+    let bestDate = null;
+    let bestDiff = Infinity;
+
+    for (const act of actualArr) {
+      if (usedActual.has(act.date)) continue;
+      const diff = Math.abs(new Date(act.date).getTime() - pTime) / 86400000;
+      if (diff <= MAX_DAYS_DIFF && diff < bestDiff) {
+        bestDiff = diff;
+        bestDate = act.date;
+      }
+    }
+
+    if (!bestDate) return null;
+    usedActual.add(bestDate);
+
+    const actual  = actualArr.find((a) => a.date === bestDate).actual_usage;
+    const surplus = parseFloat((pred.predicted - actual).toFixed(2));
+    return {
+      date:      pred.date,
+      predicted: parseFloat(pred.predicted.toFixed(2)),
+      actual:    parseFloat(actual.toFixed(2)),
+      surplus,
+      approx:    bestDiff > 0, // true = nearest-date approximation was used
+    };
+  }).filter(Boolean);
+
+  return matched;
+}
+
 /* ─── main page ─── */
 export default function AccuracyPage() {
   const [ingredients, setIngredients] = useState([]);
@@ -119,6 +193,8 @@ export default function AccuracyPage() {
   const [loading, setLoading]         = useState(true);
   const [toast, setToast]             = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [fuzzyChart, setFuzzyChart]         = useState([]);
+  const [fuzzyLoading, setFuzzyLoading]     = useState(false);
 
   const showToast = (type, msg) => setToast({ type, message: msg });
 
@@ -176,13 +252,28 @@ export default function AccuracyPage() {
     };
   }, [ingredients]);
 
+  // Load fuzzy chart data when selected ingredient changes
+  useEffect(() => {
+    if (!selected?.ingredient_id) return;
+    let cancelled = false;
+    setFuzzyLoading(true);
+    setFuzzyChart([]);
+    buildFuzzyChartData(selected.ingredient_id)
+      .then((pts) => { if (!cancelled) setFuzzyChart(pts); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setFuzzyLoading(false); });
+    return () => { cancelled = true; };
+  }, [selected?.ingredient_id]);
+
   const filtered = useMemo(() =>
     ingredients.filter((i) =>
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
 
-  const chartData = selected?.chartData ?? [];
-  const showDots  = chartData.length <= 30;
+  // Use fuzzy chart when it has data, fall back to exact-match chart
+  const chartData = fuzzyChart.length > 0 ? fuzzyChart : (selected?.chartData ?? []);
+  const isFuzzy   = fuzzyChart.length > 0 && (selected?.chartData ?? []).length < fuzzyChart.length;
+  const showDots  = chartData.length <= 60;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -298,16 +389,21 @@ export default function AccuracyPage() {
                     {selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient"}
                   </h3>
                   {selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
-                  {selected && !selected._loaded && (
+                  {(selected && !selected._loaded) || fuzzyLoading ? (
                     <span className="flex items-center gap-1 text-xs text-slate-400">
                       <Loader2 size={11} className="animate-spin" /> loading…
+                    </span>
+                  ) : null}
+                  {isFuzzy && !fuzzyLoading && (
+                    <span className="text-[10px] text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 font-medium">
+                      ±{MAX_DAYS_DIFF}d approx
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {selected?._loaded && selected.days > 0
-                    ? `${selected.days} days of overlap data — MAE ${selected.mae} ${selected.unit ?? ""}/day · Bias ${selected.bias > 0 ? "+" : ""}${selected.bias} (${selected.bias > 0 ? "over-predicted" : "under-predicted"})`
-                    : "Comparing historical predictions vs actual usage on matching dates"}
+                  {chartData.length > 0
+                    ? `${chartData.length} data points${isFuzzy ? ` (nearest actual within ±${MAX_DAYS_DIFF} days)` : " (exact date match)"}${selected?._loaded && selected.mae != null ? ` — MAE ${selected.mae} ${selected.unit ?? ""}/day` : ""}`
+                    : "Comparing historical predictions vs actual usage"}
                 </p>
               </div>
 
@@ -337,10 +433,10 @@ export default function AccuracyPage() {
               <div className="flex items-center justify-center h-72">
                 <Loader2 className="animate-spin text-orange-400" size={28} />
               </div>
-            ) : selected && !selected._loaded ? (
+            ) : fuzzyLoading ? (
               <div className="flex items-center justify-center h-72 gap-2 text-slate-400">
                 <Loader2 className="animate-spin text-orange-300" size={22} />
-                <span className="text-sm">Loading data…</span>
+                <span className="text-sm">Finding nearest matches…</span>
               </div>
             ) : chartData.length > 0 ? (
               <>
@@ -397,6 +493,9 @@ export default function AccuracyPage() {
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
                     Predicted (daily avg)
                   </div>
+                  {isFuzzy && (
+                    <span className="text-xs text-slate-400">· Actual matched to nearest date within ±{MAX_DAYS_DIFF} days</span>
+                  )}
                   {selected?.accuracy != null && (
                     <div className="ml-auto"><AccuracyBadge acc={selected.accuracy} /></div>
                   )}
