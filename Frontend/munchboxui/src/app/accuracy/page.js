@@ -298,18 +298,6 @@ export default function AccuracyPage() {
                 </div>
               </div>
 
-              {/* Context rule banner */}
-              <div className="flex items-center gap-4 mb-5 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
-                  <CheckCircle size={11} /> Predicted ≥ Actual = 100% — over-prepared is safe
-                </span>
-                <div className="h-4 w-px bg-slate-200" />
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-3 py-1">
-                  <AlertTriangle size={11} /> Predicted &lt; Actual = Error — risk of running short
-                </span>
-                <span className="text-xs text-slate-400 ml-auto">Surplus stock is acceptable. Stockout is not.</span>
-              </div>
-
               {/* Stat cards */}
               <div className="flex gap-4">
                 {/* Overall accuracy */}
