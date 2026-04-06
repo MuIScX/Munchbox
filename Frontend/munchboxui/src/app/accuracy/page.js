@@ -112,6 +112,22 @@ function ChartTooltip({ active, payload, label, unit }) {
   );
 }
 
+/* ─── all-ingredient accuracy tooltip ─── */
+function AllAccuracyTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const acc = payload[0]?.value;
+  return (
+    <div style={{ background: "white", borderRadius: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgb(0 0 0/0.10)", border: "1px solid #e2e8f0", minWidth: 160 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{label}</p>
+      {acc != null && (
+        <p style={{ fontSize: 13, color: "#f97316", margin: "3px 0 0 0" }}>
+          Avg Accuracy: <b>{acc.toFixed(1)}%</b>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ─── fuzzy chart data builder (runs per selected ingredient) ───
    Strategy: collect ALL daily predictions across ALL predict_sets,
    then greedily match each predicted date to the nearest actual date
@@ -219,6 +235,9 @@ export default function AccuracyPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [fuzzyChart, setFuzzyChart]         = useState([]);
   const [fuzzyLoading, setFuzzyLoading]     = useState(false);
+  const [accSearchQuery, setAccSearchQuery] = useState("");
+  const [accSearchOpen, setAccSearchOpen]   = useState(false);
+  const [accAll, setAccAll]                 = useState(false);
 
   const showToast = (type, msg) => setToast({ type, message: msg });
 
@@ -276,6 +295,11 @@ export default function AccuracyPage() {
     };
   }, [ingredients]);
 
+  // Sync search box with selected ingredient
+  useEffect(() => {
+    if (!accAll && selected?.ingredient_name) setAccSearchQuery(selected.ingredient_name);
+  }, [selected?.ingredient_id, accAll]);
+
   // Load fuzzy chart data when selected ingredient changes
   useEffect(() => {
     if (!selected?.ingredient_id) return;
@@ -294,9 +318,30 @@ export default function AccuracyPage() {
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
 
+  const allIngredientChart = useMemo(() => {
+    if (!accAll) return [];
+    const byDate = {};
+    for (const ing of ingredients) {
+      if (!ing._loaded || !ing.chartData?.length) continue;
+      for (const pt of ing.chartData) {
+        if (!byDate[pt.date]) byDate[pt.date] = [];
+        const acc = pt.predicted >= pt.actual ? 100 : Math.max(0, (pt.predicted / pt.actual) * 100);
+        byDate[pt.date].push(acc);
+      }
+    }
+    return Object.entries(byDate)
+      .map(([date, accs]) => ({
+        date,
+        accuracy: parseFloat((accs.reduce((a, b) => a + b, 0) / accs.length).toFixed(2)),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [accAll, ingredients]);
+
   // Use fuzzy chart when it has data, fall back to exact-match chart
-  const chartData = fuzzyChart.length > 0 ? fuzzyChart : (selected?.chartData ?? []);
-  const isFuzzy   = fuzzyChart.length > 0 && (selected?.chartData ?? []).length < fuzzyChart.length;
+  const chartData = accAll
+    ? allIngredientChart
+    : (fuzzyChart.length > 0 ? fuzzyChart : (selected?.chartData ?? []));
+  const isFuzzy   = !accAll && fuzzyChart.length > 0 && (selected?.chartData ?? []).length < fuzzyChart.length;
   const showDots  = chartData.length <= 60;
 
   return (
@@ -395,47 +440,87 @@ export default function AccuracyPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Chart header */}
             <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center gap-4">
+              {/* Title / subtitle (LEFT, fills space) */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-semibold text-slate-700 text-sm">
-                    {selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient"}
+                    {accAll
+                      ? "All Ingredients — Average Daily Accuracy"
+                      : (selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient")}
                   </h3>
-                  {selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
-                  {(selected && !selected._loaded) || fuzzyLoading ? (
+                  {!accAll && selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
+                  {!accAll && ((selected && !selected._loaded) || fuzzyLoading) ? (
                     <span className="flex items-center gap-1 text-xs text-slate-400">
                       <Loader2 size={11} className="animate-spin" /> loading…
                     </span>
                   ) : null}
-                  {isFuzzy && !fuzzyLoading && (
+                  {!accAll && isFuzzy && !fuzzyLoading && (
                     <span className="text-[10px] text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 font-medium">
                       ±{MAX_DAYS_DIFF}d approx
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {chartData.length > 0
-                    ? `${chartData.length} data points${isFuzzy ? ` (nearest actual within ±${MAX_DAYS_DIFF} days)` : " (exact date match)"}${selected?._loaded && selected.mae != null ? ` — MAE ${selected.mae} ${selected.unit ?? ""}/day` : ""}`
-                    : "Comparing historical predictions vs actual usage"}
+                  {accAll
+                    ? `${allIngredientChart.length} days — avg accuracy across all ingredients`
+                    : (chartData.length > 0
+                      ? `${chartData.length} data points${isFuzzy ? ` (nearest actual within ±${MAX_DAYS_DIFF} days)` : " (exact date match)"}${selected?._loaded && selected.mae != null ? ` — MAE ${selected.mae} ${selected.unit ?? ""}/day` : ""}`
+                      : "Comparing historical predictions vs actual usage")}
                 </p>
               </div>
 
-              {/* Ingredient selector */}
+              {/* Search + All checkbox (RIGHT) */}
               {ingredients.length > 0 && (
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-                  <span className="text-xs text-slate-400 font-medium">Ingredient</span>
-                  <span className="text-slate-300">|</span>
-                  <select
-                    value={selected?.ingredient_id || ""}
-                    onChange={(e) => {
-                      const ing = ingredients.find((i) => String(i.ingredient_id) === e.target.value);
-                      if (ing) setSelected(ing);
-                    }}
-                    className="text-sm font-semibold text-slate-700 bg-transparent outline-none cursor-pointer max-w-[160px]"
-                  >
-                    {ingredients.map((i) => (
-                      <option key={i.ingredient_id} value={i.ingredient_id}>{i.ingredient_name}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="relative w-48">
+                    <div className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition ${accAll ? "bg-slate-100 border-slate-200 opacity-50 cursor-not-allowed" : "bg-slate-50 border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent"}`}>
+                      <Search size={13} className="text-slate-400 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search ingredient..."
+                        value={accSearchQuery}
+                        disabled={accAll}
+                        onChange={(e) => { setAccSearchQuery(e.target.value); setAccSearchOpen(true); }}
+                        onFocus={() => { if (!accAll) setAccSearchOpen(true); }}
+                        onBlur={() => setTimeout(() => setAccSearchOpen(false), 150)}
+                        className={`bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400 ${accAll ? "cursor-not-allowed" : ""}`}
+                      />
+                    </div>
+                    {accSearchOpen && (() => {
+                      const suggestions = ingredients
+                        .filter(i => (i.ingredient_name || "").toLowerCase().includes(accSearchQuery.toLowerCase()))
+                        .slice(0, 5);
+                      if (suggestions.length === 0) return null;
+                      return (
+                        <div className="absolute top-full mt-1 right-0 left-auto bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden w-48">
+                          {suggestions.map(i => (
+                            <button
+                              key={i.ingredient_id}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSelected(i);
+                                setAccSearchQuery(i.ingredient_name);
+                                setAccSearchOpen(false);
+                                setAccAll(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors"
+                            >
+                              {i.ingredient_name}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={accAll}
+                      onChange={(e) => setAccAll(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 cursor-pointer"
+                    />
+                    <span className="text-xs font-semibold text-slate-600">All Ingredient</span>
+                  </label>
                 </div>
               )}
             </div>
@@ -445,6 +530,52 @@ export default function AccuracyPage() {
               <div className="flex items-center justify-center h-72">
                 <Loader2 className="animate-spin text-orange-400" size={28} />
               </div>
+            ) : accAll ? (
+              allIngredientChart.length > 0 ? (
+                <>
+                  <div className="h-80 px-2 pt-4 pb-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={allIngredientChart} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11, fill: "#94a3b8" }}
+                          axisLine={false}
+                          tickLine={false}
+                          interval={Math.max(0, Math.ceil(allIngredientChart.length / 8) - 1)}
+                          tickFormatter={fmtDate}
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                        <Tooltip content={<AllAccuracyTooltip />} />
+                        <Line
+                          type="monotone"
+                          dataKey="accuracy"
+                          stroke="#f97316"
+                          strokeWidth={2.5}
+                          dot={allIngredientChart.length <= 60 ? { r: 4, fill: "#f97316", stroke: "#fff", strokeWidth: 2 } : false}
+                          activeDot={{ r: 6, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
+                          connectNulls={false}
+                          name="Avg Accuracy"
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex items-center gap-6 px-6 py-3 border-t border-slate-100 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2.5" /></svg>
+                      Avg accuracy (all ingredients)
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-72 gap-2">
+                  <BarChart3 className="text-slate-200" size={36} />
+                  <p className="text-sm font-medium text-slate-500">No data available yet</p>
+                  <p className="text-xs text-slate-400 text-center max-w-xs">
+                    Accuracy data is still loading for all ingredients.
+                  </p>
+                </div>
+              )
             ) : fuzzyLoading ? (
               <div className="flex items-center justify-center h-72 gap-2 text-slate-400">
                 <Loader2 className="animate-spin text-orange-300" size={22} />
