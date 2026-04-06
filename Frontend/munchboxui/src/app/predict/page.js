@@ -57,6 +57,7 @@ export default function PredictPage() {
     return dailyForecast.length || 7;
   }, [displayStart, displayEnd, dailyForecast.length]);
   const [searchQuery, setSearchQuery]             = useState("");
+  const [showSuggestions, setShowSuggestions]     = useState(false);
   const [statusFilter, setStatusFilter]           = useState("All");
   const [toast, setToast]                         = useState(null);
   const [modalOpen, setModalOpen]                 = useState(false);
@@ -514,16 +515,45 @@ const filteredReport = useMemo(() => {
 
             {/* ── Left panel: ingredient list ── */}
             <div className="w-64 shrink-0 flex flex-col gap-3">
-              {/* Search */}
+              {/* Search with dropdown */}
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search ingredient…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none shadow-sm"
-                />
+                <div className="flex items-center gap-2 border-2 border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:border-orange-400 transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search ingredient…"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(""); setShowSuggestions(false); }} className="text-slate-300 hover:text-slate-500 shrink-0">
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+                {showSuggestions && searchQuery && (() => {
+                  const suggestions = mergedList
+                    .filter(ing => (ing.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase()))
+                    .slice(0, 6);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                      {suggestions.map(ing => (
+                        <button
+                          key={ing.ingredient_id}
+                          onMouseDown={(e) => { e.preventDefault(); handleSelectIngredient(ing); setSearchQuery(ing.ingredient_name); setShowSuggestions(false); }}
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors flex items-center gap-2"
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${ing.hasPrediction ? (ing.status === 0 ? "bg-red-400" : "bg-emerald-400") : "bg-slate-300"}`} />
+                          {ing.ingredient_name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Status filter pills */}
@@ -1088,14 +1118,14 @@ const filteredReport = useMemo(() => {
 
               {/* Search + Date range + sort */}
               <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
-                <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
                   <input
                     type="text"
                     placeholder="Search ingredient…"
                     value={prepSearch}
                     onChange={(e) => setPrepSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 h-[30px] bg-white border border-slate-200 rounded-lg text-xs text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none"
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                   />
                 </div>
                 <div className="flex items-center gap-2">
