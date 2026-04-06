@@ -1,39 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   ShoppingCart, TrendingUp, AlertTriangle, CheckCircle,
-  Package, UtensilsCrossed, Loader2, RefreshCw, BarChart2,
-  ClipboardList,
+  Package, UtensilsCrossed, Loader2, RefreshCw, BarChart2, AlertCircle,
+  ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import { ReportAPI, PredictAPI, MenuAPI } from "../../lib/api";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
+function safeNum(val) {
+  const n = Number(val);
+  return isFinite(n) ? n : 0;
+}
+
 function shortCurrency(val) {
-  if (val >= 1_000_000) return `฿${(val / 1_000_000).toFixed(2)}M`;
-  if (val >= 1_000) return `฿${(val / 1_000).toFixed(1)}K`;
-  return `฿${Number(val).toLocaleString()}`;
+  const n = safeNum(val);
+  if (n >= 1_000_000) return `฿${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `฿${(n / 1_000).toFixed(1)}K`;
+  return `฿${Math.round(n).toLocaleString()}`;
 }
 
 const formatTHB = (val) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(val);
+  new Intl.NumberFormat("th-TH", {
+    style: "currency", currency: "THB", maximumFractionDigits: 0,
+  }).format(safeNum(val));
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function todayStr() {
+function dateStr(offset = 0) {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  d.setDate(d.getDate() + offset);
+  return fmtDate(d);
 }
 
 function formatDisplayDate() {
@@ -42,464 +47,615 @@ function formatDisplayDate() {
   });
 }
 
+function LiveClock() {
+  const [time, setTime] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const h = String(time.getHours()).padStart(2, "0");
+  const m = String(time.getMinutes()).padStart(2, "0");
+  const s = String(time.getSeconds()).padStart(2, "0");
+  return (
+    <span className="font-mono text-sm font-semibold text-slate-600 tabular-nums tracking-widest">
+      {h}<span className="opacity-40 animate-pulse">:</span>{m}<span className="opacity-40 animate-pulse">:</span>{s}
+    </span>
+  );
+}
+
+// Delta vs yesterday
+function Delta({ today, yesterday }) {
+  if (!yesterday || yesterday === 0) {
+    return <span className="text-xs text-slate-300 flex items-center gap-0.5"><Minus size={10} /> No data</span>;
+  }
+  const pct = ((today - yesterday) / yesterday) * 100;
+  const abs = Math.abs(pct).toFixed(0);
+  if (pct > 0) {
+    return (
+      <span className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
+        <ArrowUp size={11} /> {abs}% vs yesterday
+      </span>
+    );
+  }
+  if (pct < 0) {
+    return (
+      <span className="text-xs font-semibold text-red-500 flex items-center gap-0.5">
+        <ArrowDown size={11} /> {abs}% vs yesterday
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs text-slate-400 flex items-center gap-0.5">
+      <Minus size={10} /> Same as yesterday
+    </span>
+  );
+}
+
 function MiniTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 10, padding: "8px 12px", boxShadow: "0 4px 12px rgb(0 0 0 / 0.10)" }}>
-      <p style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", margin: 0 }}>{payload[0].value}</p>
-      <p style={{ fontSize: 10, color: "#94a3b8", margin: "2px 0 0 0" }}>{label}</p>
+    <div className="bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-lg">
+      <p className="text-sm font-bold text-slate-800">{safeNum(payload[0].value).toLocaleString()} orders</p>
+      <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
     </div>
   );
 }
 
+function SectionError({ onRetry }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-28 gap-2">
+      <AlertCircle size={20} className="text-red-300" />
+      <p className="text-sm text-slate-400 italic">Failed to load</p>
+      {onRetry && (
+        <button onClick={onRetry} className="text-xs text-orange-500 hover:text-orange-600 underline font-medium">
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Skeleton({ className }) {
+  return <div className={`bg-slate-100 rounded animate-pulse ${className}`} />;
+}
+
 export default function DashboardPage() {
-  const today = todayStr();
+  const mountedRef = useRef(true);
 
+  // KPI — today + yesterday
   const [ordersToday, setOrdersToday] = useState(0);
+  const [ordersYest, setOrdersYest] = useState(null);
   const [revenueToday, setRevenueToday] = useState(0);
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [okStockCount, setOkStockCount] = useState(0);
+  const [revenueYest, setRevenueYest] = useState(null);
   const [kpiLoading, setKpiLoading] = useState(true);
+  const [kpiError, setKpiError] = useState(false);
 
-  const [trendData, setTrendData] = useState([]);
-  const [trendLoading, setTrendLoading] = useState(true);
-
-  const [predictReport, setPredictReport] = useState([]);
-  const [predictLoading, setPredictLoading] = useState(true);
-
+  // Predict / stock
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [reorderList, setReorderList] = useState([]);
+  const [predictLoading, setPredictLoading] = useState(true);
+  const [predictError, setPredictError] = useState(false);
+
+  // Menus
   const [unreadyMenus, setUnreadyMenus] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState(false);
 
-  const fetchAll = async () => {
-    // KPIs
-    setKpiLoading(true);
-    Promise.allSettled([
-      ReportAPI.orders(null, { start_date: today, end_date: today }),
-      ReportAPI.revenue(null, { start_date: today, end_date: today }),
-    ]).then(([ordersRes, revenueRes]) => {
-      if (ordersRes.status === "fulfilled" && Array.isArray(ordersRes.value?.Data))
-        setOrdersToday(ordersRes.value.Data.reduce((a, c) => a + (c.total_orders || 0), 0));
-      if (revenueRes.status === "fulfilled" && Array.isArray(revenueRes.value?.Data))
-        setRevenueToday(revenueRes.value.Data.reduce((a, c) => a + (c.revenue || 0), 0));
-      setKpiLoading(false);
-    });
+  // Trend
+  const [trendData, setTrendData] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(true);
+  const [trendError, setTrendError] = useState(false);
+  const [trendStart, setTrendStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 29);
+    return fmtDate(d);
+  });
+  const [trendEnd, setTrendEnd] = useState(() => fmtDate(new Date()));
 
-    // Predict report — used for Low/OK counts, prep checklist, stock overview, reorder list
-    setPredictLoading(true);
-    try {
-      const res = await PredictAPI.report(null);
-      if (Array.isArray(res?.Data)) {
-        const data = res.Data;
-        setPredictReport(data);
-        setLowStockCount(data.filter((r) => r.status === 0).length);
-        setOkStockCount(data.filter((r) => r.status === 1).length);
-        setReorderList(
-          data
-            .filter((r) => r.status === 0)
-            .sort((a, b) => (b.urgency_score ?? 0) - (a.urgency_score ?? 0))
-            .slice(0, 5)
-        );
-      }
-    } catch {}
-    setPredictLoading(false);
+  const isAnyLoading = kpiLoading || predictLoading || menuLoading || trendLoading;
 
-    // Sales trend (last 30 days)
+  const fetchTrend = async (start, end) => {
+    if (!mountedRef.current) return;
     setTrendLoading(true);
+    setTrendError(false);
     try {
-      const end = new Date();
-      const start = new Date();
-      start.setDate(start.getDate() - 29);
-      const fmt = (d) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const res = await ReportAPI.trendMenu(null, { start_date: fmt(start), end_date: fmt(end) });
+      const res = await ReportAPI.trendMenu(null, { start_date: start, end_date: end });
+      if (!mountedRef.current) return;
       if (Array.isArray(res?.Data)) {
-        const monthMap = {};
+        const map = {};
+        const startD = new Date(start + "T00:00:00");
+        const endD = new Date(end + "T00:00:00");
+        for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+          const key = fmtDate(d);
+          map[key] = {
+            name: new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            order: 0,
+          };
+        }
         res.Data.forEach((item) => {
           const d = new Date(item.day);
-          const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-          monthMap[key] = (monthMap[key] || 0) + (item.sale_amount || 0);
+          if (isNaN(d.getTime())) return;
+          const key = fmtDate(d);
+          if (map[key]) map[key].order += safeNum(item.sale_amount);
         });
-        setTrendData(Object.entries(monthMap).map(([name, order]) => ({ name, order })));
+        setTrendData(Object.values(map));
+      } else {
+        setTrendError(true);
       }
-    } catch {}
-    setTrendLoading(false);
-
-    // Unready menus
-    setMenuLoading(true);
-    try {
-      const res = await MenuAPI.list({});
-      if (Array.isArray(res?.Data)) {
-        setUnreadyMenus(
-          res.Data.filter((m) => !((m.readiness ?? 0) === 1 && m.ingredient_count > 0))
-        );
-      }
-    } catch {}
-    setMenuLoading(false);
+    } catch {
+      if (mountedRef.current) setTrendError(true);
+    } finally {
+      if (mountedRef.current) setTrendLoading(false);
+    }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  const fetchAll = async () => {
+    if (!mountedRef.current) return;
+    const today = dateStr(0);
+    const yesterday = dateStr(-1);
 
-  // Prep checklist — ingredients with daily_target_average, sorted by urgency
-  const prepList = useMemo(() =>
-    predictReport
-      .filter((r) => r.daily_target_average != null && r.daily_target_average > 0)
-      .sort((a, b) => (a.status === b.status ? 0 : a.status === 0 ? -1 : 1))
-      .slice(0, 7),
-    [predictReport]
-  );
+    // ── KPIs (today + yesterday in parallel) ──
+    setKpiLoading(true);
+    setKpiError(false);
+    try {
+      const [todayOrders, todayRev, yesterdayOrders, yesterdayRev] = await Promise.allSettled([
+        ReportAPI.orders(null, { start_date: today, end_date: today }),
+        ReportAPI.revenue(null, { start_date: today, end_date: today }),
+        ReportAPI.orders(null, { start_date: yesterday, end_date: yesterday }),
+        ReportAPI.revenue(null, { start_date: yesterday, end_date: yesterday }),
+      ]);
+      if (!mountedRef.current) return;
 
-  // Stock overview — all ingredients sorted by stock deficit ratio
-  const stockOverview = useMemo(() =>
-    predictReport
-      .filter((r) => r.expected_usage != null && r.expected_usage > 0)
-      .sort((a, b) => {
-        const ratioA = a.current_stock / a.expected_usage;
-        const ratioB = b.current_stock / b.expected_usage;
-        return ratioA - ratioB;
-      })
-      .slice(0, 8),
-    [predictReport]
-  );
+      if (todayOrders.status === "fulfilled" && Array.isArray(todayOrders.value?.Data))
+        setOrdersToday(todayOrders.value.Data.reduce((a, c) => a + safeNum(c.total_orders), 0));
+      if (todayRev.status === "fulfilled" && Array.isArray(todayRev.value?.Data))
+        setRevenueToday(todayRev.value.Data.reduce((a, c) => a + safeNum(c.revenue), 0));
+      if (yesterdayOrders.status === "fulfilled" && Array.isArray(yesterdayOrders.value?.Data))
+        setOrdersYest(yesterdayOrders.value.Data.reduce((a, c) => a + safeNum(c.total_orders), 0));
+      if (yesterdayRev.status === "fulfilled" && Array.isArray(yesterdayRev.value?.Data))
+        setRevenueYest(yesterdayRev.value.Data.reduce((a, c) => a + safeNum(c.revenue), 0));
+
+      if (todayOrders.status === "rejected" && todayRev.status === "rejected")
+        setKpiError(true);
+    } catch {
+      if (mountedRef.current) setKpiError(true);
+    } finally {
+      if (mountedRef.current) setKpiLoading(false);
+    }
+
+    // ── Predict / Stock ──
+    setPredictLoading(true);
+    setPredictError(false);
+    try {
+      const res = await PredictAPI.report(null);
+      if (!mountedRef.current) return;
+      if (Array.isArray(res?.Data)) {
+        const data = res.Data;
+        const lowItems = data.filter((r) => r.status === 0);
+        setLowStockCount(lowItems.length);
+        setReorderList(
+          lowItems
+            .sort((a, b) => safeNum(b.urgency_score) - safeNum(a.urgency_score))
+            .slice(0, 6)
+        );
+      } else {
+        setPredictError(true);
+      }
+    } catch {
+      if (mountedRef.current) setPredictError(true);
+    } finally {
+      if (mountedRef.current) setPredictLoading(false);
+    }
+
+    // ── Menus ──
+    setMenuLoading(true);
+    setMenuError(false);
+    try {
+      const res = await MenuAPI.list({});
+      if (!mountedRef.current) return;
+      if (Array.isArray(res?.Data)) {
+        setUnreadyMenus(res.Data.filter((m) => !((m.readiness ?? 0) === 1 && m.ingredient_count > 0)));
+      } else {
+        setMenuError(true);
+      }
+    } catch {
+      if (mountedRef.current) setMenuError(true);
+    } finally {
+      if (mountedRef.current) setMenuLoading(false);
+    }
+
+    fetchTrend(trendStart, trendEnd);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchAll();
+    return () => { mountedRef.current = false; };
+  }, []);
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-[#f8f7f5] overflow-hidden">
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="p-6 overflow-y-auto h-full space-y-4">
+        <div className="p-6 overflow-y-auto h-full space-y-5">
 
           {/* ── Header ── */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
-            <div className="px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                  <BarChart2 size={20} className="text-orange-500" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-slate-800 tracking-tight">{getGreeting()} 👋</h1>
-                  <p className="text-sm text-slate-400 mt-0.5">{formatDisplayDate()}</p>
-                </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0">
+                <BarChart2 size={18} className="text-white" />
               </div>
-              <button
-                onClick={fetchAll}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium hover:bg-slate-50 transition shadow-sm"
-              >
-                <RefreshCw size={13} />
-                Refresh
-              </button>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
+                <p className="text-xs text-slate-400 mt-0.5">{formatDisplayDate()}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <LiveClock />
+              </div>
+            <button
+              onClick={fetchAll}
+              disabled={isAnyLoading}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium hover:bg-slate-50 transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={13} className={isAnyLoading ? "animate-spin" : ""} />
+              Refresh
+            </button>
             </div>
           </div>
 
-          {/* ── Row 1: KPI Cards ── */}
-          <div className="grid grid-cols-4 gap-4 shrink-0">
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <ShoppingCart size={18} className="text-amber-600" />
+          {/* ── KPI Row ── */}
+          <div className="grid grid-cols-4 gap-4">
+
+            {/* Orders Today */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                  <ShoppingCart size={15} className="text-orange-500" />
+                </div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Orders Today</p>
               </div>
-              <div>
-                <p className="text-xs text-amber-600 font-bold uppercase tracking-wide">Orders Today</p>
-                {kpiLoading
-                  ? <div className="h-8 w-16 bg-slate-100 rounded animate-pulse mt-1" />
-                  : <p className="text-3xl font-bold text-slate-800 mt-0.5">{ordersToday.toLocaleString()}</p>}
-                <p className="text-xs text-slate-400 mt-0.5">total orders</p>
-              </div>
+              {kpiLoading
+                ? <><Skeleton className="h-9 w-20 mb-2" /><Skeleton className="h-3.5 w-28" /></>
+                : kpiError
+                  ? <p className="text-slate-400 italic text-sm">—</p>
+                  : <>
+                    <p className="text-4xl font-bold text-slate-800 leading-none mb-1.5">
+                      {ordersToday.toLocaleString()}
+                    </p>
+                    <Delta today={ordersToday} yesterday={ordersYest} />
+                  </>
+              }
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                <TrendingUp size={18} className="text-blue-600" />
+            {/* Revenue Today */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                  <TrendingUp size={15} className="text-blue-500" />
+                </div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Revenue Today</p>
               </div>
-              <div>
-                <p className="text-xs text-blue-600 font-bold uppercase tracking-wide">Revenue Today</p>
-                {kpiLoading
-                  ? <div className="h-8 w-20 bg-slate-100 rounded animate-pulse mt-1" />
-                  : <p className="text-3xl font-bold text-slate-800 mt-0.5" title={formatTHB(revenueToday)}>{shortCurrency(revenueToday)}</p>}
-                <p className="text-xs text-slate-400 mt-0.5">in THB</p>
-              </div>
+              {kpiLoading
+                ? <><Skeleton className="h-9 w-24 mb-2" /><Skeleton className="h-3.5 w-28" /></>
+                : kpiError
+                  ? <p className="text-slate-400 italic text-sm">—</p>
+                  : <>
+                    <p
+                      className="text-4xl font-bold text-slate-800 leading-none mb-1.5 truncate"
+                      title={formatTHB(revenueToday)}
+                    >
+                      {shortCurrency(revenueToday)}
+                    </p>
+                    <Delta today={revenueToday} yesterday={revenueYest} />
+                  </>
+              }
             </div>
 
-            <div className="bg-red-50 border border-red-100 rounded-2xl shadow-sm p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle size={18} className="text-red-500" />
+            {/* Low Stock */}
+            <div className={`border rounded-2xl shadow-sm p-5 ${
+              !predictLoading && !predictError && lowStockCount > 0
+                ? "bg-red-50 border-red-200"
+                : "bg-white border-slate-200"
+            }`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  !predictLoading && !predictError && lowStockCount > 0 ? "bg-red-100" : "bg-slate-100"
+                }`}>
+                  <AlertTriangle size={15} className={
+                    !predictLoading && !predictError && lowStockCount > 0 ? "text-red-500" : "text-slate-400"
+                  } />
+                </div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Low Stock</p>
               </div>
-              <div>
-                <p className="text-xs text-red-500 font-bold uppercase tracking-wide">Low Stock</p>
-                {predictLoading
-                  ? <div className="h-8 w-10 bg-red-100 rounded animate-pulse mt-1" />
-                  : <p className="text-3xl font-bold text-red-700 mt-0.5">{lowStockCount}</p>}
-                <p className="text-xs text-red-400 mt-0.5">need reorder</p>
-              </div>
+              {predictLoading
+                ? <><Skeleton className="h-9 w-12 mb-2" /><Skeleton className="h-3.5 w-24" /></>
+                : predictError
+                  ? <p className="text-slate-400 italic text-sm">—</p>
+                  : <>
+                    <p className={`text-4xl font-bold leading-none mb-1.5 ${
+                      lowStockCount > 0 ? "text-red-700" : "text-slate-800"
+                    }`}>
+                      {lowStockCount}
+                    </p>
+                    <p className={`text-xs font-medium ${
+                      lowStockCount > 0 ? "text-red-500" : "text-slate-400"
+                    }`}>
+                      {lowStockCount > 0 ? "need reorder now" : "all stocked up"}
+                    </p>
+                  </>
+              }
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                <CheckCircle size={18} className="text-emerald-600" />
+            {/* Menus Can't Serve */}
+            <div className={`border rounded-2xl shadow-sm p-5 ${
+              !menuLoading && !menuError && unreadyMenus.length > 0
+                ? "bg-amber-50 border-amber-200"
+                : "bg-white border-slate-200"
+            }`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  !menuLoading && !menuError && unreadyMenus.length > 0 ? "bg-amber-100" : "bg-slate-100"
+                }`}>
+                  <UtensilsCrossed size={15} className={
+                    !menuLoading && !menuError && unreadyMenus.length > 0 ? "text-amber-600" : "text-slate-400"
+                  } />
+                </div>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Can't Serve</p>
               </div>
-              <div>
-                <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Stock OK</p>
-                {predictLoading
-                  ? <div className="h-8 w-10 bg-emerald-100 rounded animate-pulse mt-1" />
-                  : <p className="text-3xl font-bold text-emerald-700 mt-0.5">{okStockCount}</p>}
-                <p className="text-xs text-emerald-500 mt-0.5">sufficient</p>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Row 2: Trend + Prep Checklist ── */}
-          <div className="grid grid-cols-3 gap-4">
-
-            {/* Sales Trend */}
-            <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <div className="mb-4">
-                <h2 className="text-base font-bold italic text-slate-800">Sales Trend</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Last 30 days — orders per day</p>
-              </div>
-              {trendLoading ? (
-                <div className="flex items-center justify-center h-44">
-                  <Loader2 className="animate-spin text-orange-400" size={22} />
-                </div>
-              ) : trendData.length > 0 ? (
-                <div className="h-44 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.45} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false}
-                        interval={Math.ceil(trendData.length / 7)} />
-                      <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                      <Tooltip content={<MiniTooltip />} />
-                      <Area type="monotone" dataKey="order" stroke="#3b82f6" strokeWidth={2.5}
-                        fill="url(#dashGrad)" dot={false}
-                        activeDot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-44 text-slate-300 italic text-sm">No trend data</div>
-              )}
-            </div>
-
-            {/* Today's Prep Checklist */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
-                  <ClipboardList size={13} className="text-orange-500" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold italic text-slate-800">Today's Prep</h2>
-                  <p className="text-xs text-slate-400">Daily avg usage to prepare</p>
-                </div>
-              </div>
-              {predictLoading ? (
-                <div className="flex items-center justify-center flex-1 h-32">
-                  <Loader2 className="animate-spin text-orange-400" size={20} />
-                </div>
-              ) : prepList.length > 0 ? (
-                <div className="space-y-2 overflow-y-auto flex-1">
-                  {prepList.map((r) => {
-                    const isLow = r.status === 0;
-                    return (
-                      <div key={r.ingredient_id}
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2 border ${
-                          isLow
-                            ? "bg-red-50 border-red-100"
-                            : "bg-slate-50 border-slate-100"
-                        }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
-                        <p className="text-xs font-semibold text-slate-700 truncate flex-1">{r.ingredient_name}</p>
-                        <div className="text-right shrink-0">
-                          <p className={`text-xs font-bold ${isLow ? "text-red-600" : "text-slate-600"}`}>
-                            {r.daily_target_average} <span className="font-normal text-slate-400">{r.unit}</span>
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center flex-1 text-slate-300 italic text-sm">No prep data</div>
-              )}
+              {menuLoading
+                ? <><Skeleton className="h-9 w-12 mb-2" /><Skeleton className="h-3.5 w-24" /></>
+                : menuError
+                  ? <p className="text-slate-400 italic text-sm">—</p>
+                  : <>
+                    <p className={`text-4xl font-bold leading-none mb-1.5 ${
+                      unreadyMenus.length > 0 ? "text-amber-700" : "text-slate-800"
+                    }`}>
+                      {unreadyMenus.length}
+                    </p>
+                    <p className={`text-xs font-medium ${
+                      unreadyMenus.length > 0 ? "text-amber-600" : "text-slate-400"
+                    }`}>
+                      {unreadyMenus.length > 0 ? "menus blocked" : "all ready to serve"}
+                    </p>
+                  </>
+              }
             </div>
           </div>
 
-          {/* ── Row 3: Stock Level Overview (full width) ── */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                  <Package size={13} className="text-blue-500" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold italic text-slate-800">Stock Level Overview</h2>
-                  <p className="text-xs text-slate-400">Current stock vs expected usage — most critical first</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400" />
-                  <span>Sufficient</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-red-400" />
-                  <span>Low stock</span>
-                </div>
-              </div>
-            </div>
-
-            {predictLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="animate-spin text-orange-400" size={22} />
-              </div>
-            ) : stockOverview.length > 0 ? (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                {stockOverview.map((r) => {
-                  const isLow = r.status === 0;
-                  const ratio = Math.min((r.current_stock / r.expected_usage) * 100, 100);
-                  const pct = isNaN(ratio) ? 0 : Math.round(ratio);
-                  return (
-                    <div key={r.ingredient_id}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
-                          <p className="text-xs font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span className="text-[10px] text-slate-400">
-                            {r.current_stock} / {Math.ceil(r.expected_usage)} {r.unit}
-                          </span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                            isLow ? "bg-red-50 text-red-500" : "bg-emerald-50 text-emerald-600"
-                          }`}>
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all ${isLow ? "bg-red-400" : "bg-emerald-400"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-32 text-slate-300 italic text-sm">No stock data</div>
-            )}
-          </div>
-
-          {/* ── Row 4: Reorder Alerts + Unready Menus ── */}
+          {/* ── Action Alerts ── */}
           <div className="grid grid-cols-2 gap-4">
 
-            {/* Reorder Alerts */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                  <Package size={13} className="text-red-500" />
+            {/* Reorder Now */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <Package size={13} className="text-red-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">Reorder Now</h2>
+                    <p className="text-[11px] text-slate-400">Ingredients running low — sorted by urgency</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold italic text-slate-800">Reorder Alerts</h2>
-                  <p className="text-xs text-slate-400">Top urgent ingredients needing stock</p>
-                </div>
-                {lowStockCount > 0 && (
-                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-100">
-                    {lowStockCount} low
+                {!predictLoading && !predictError && lowStockCount > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                    {lowStockCount} items
                   </span>
                 )}
               </div>
-              {predictLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <Loader2 className="animate-spin text-orange-400" size={20} />
-                </div>
-              ) : reorderList.length > 0 ? (
-                <div className="space-y-2">
-                  {reorderList.map((r) => {
-                    const needed = Math.ceil(r.expected_usage - r.current_stock);
-                    return (
-                      <div key={r.ingredient_id}
-                        className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
-                          <p className="text-[10px] text-slate-400">Stock: {r.current_stock} {r.unit}</p>
+
+              <div className="px-5 pb-5">
+                {predictLoading ? (
+                  <div className="space-y-2.5 pt-1">
+                    {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : predictError ? (
+                  <SectionError onRetry={fetchAll} />
+                ) : reorderList.length > 0 ? (
+                  <div className="space-y-2 pt-1">
+                    {reorderList.map((r) => {
+                      const needed = Math.max(0, Math.ceil(safeNum(r.expected_usage) - safeNum(r.current_stock)));
+                      return (
+                        <div key={r.ingredient_id}
+                          className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">
+                              {r.ingredient_name || "Unknown"}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              Current: {safeNum(r.current_stock)} {r.unit || ""}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold text-red-600">+{needed} {r.unit || ""}</p>
+                            <p className="text-[10px] text-red-400">to order</p>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-red-600">+{needed} {r.unit}</p>
-                          <p className="text-[10px] text-red-400">to order</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-32 gap-2">
-                  <CheckCircle size={28} className="text-emerald-300" />
-                  <p className="text-sm italic text-slate-400">All ingredients are sufficient!</p>
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-28 gap-2 pt-1">
+                    <CheckCircle size={26} className="text-emerald-300" />
+                    <p className="text-sm text-slate-400 italic">All ingredients are stocked</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Unready Menus */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <UtensilsCrossed size={13} className="text-amber-600" />
+            {/* Unable to Serve */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                    <UtensilsCrossed size={13} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">Unable to Serve</h2>
+                    <p className="text-[11px] text-slate-400">Menus blocked from today's service</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold italic text-slate-800">Unable to Serve</h2>
-                  <p className="text-xs text-slate-400">Menus not ready for service</p>
-                </div>
-                {unreadyMenus.length > 0 && (
-                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                {!menuLoading && !menuError && unreadyMenus.length > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
                     {unreadyMenus.length} menus
                   </span>
                 )}
               </div>
-              {menuLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <Loader2 className="animate-spin text-orange-400" size={20} />
-                </div>
-              ) : unreadyMenus.length > 0 ? (
-                <div className="space-y-2 overflow-y-auto max-h-[220px]">
-                  {unreadyMenus.map((m) => {
-                    const id = m.menu_id || m.id;
-                    const name = m.menu_name || m.name || "Unknown";
-                    const isReady = (m.readiness ?? 0) === 1 && m.ingredient_count > 0;
-                    const typeVal = m.menu_type || m.type;
-                    return (
-                      <div key={id}
-                        className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700 truncate">{name}</p>
-                          <p className="text-[10px] text-slate-400">{TYPE_MAP[typeVal] || "—"}</p>
+
+              <div className="px-5 pb-5">
+                {menuLoading ? (
+                  <div className="space-y-2.5 pt-1">
+                    {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : menuError ? (
+                  <SectionError onRetry={fetchAll} />
+                ) : unreadyMenus.length > 0 ? (
+                  <div className="space-y-2 pt-1 overflow-y-auto max-h-[260px]">
+                    {unreadyMenus.map((m) => {
+                      const id = m.menu_id || m.id;
+                      const name = m.menu_name || m.name || "Unknown";
+                      const typeVal = m.menu_type || m.type;
+                      const noIngredients = !m.ingredient_count || m.ingredient_count === 0;
+                      return (
+                        <div key={id}
+                          className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 min-w-0">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
+                            <p className="text-[11px] text-slate-400">{TYPE_MAP[typeVal] || "—"}</p>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap bg-amber-100 text-amber-700 border-amber-200">
+                            {noIngredients ? "No recipe" : "Low stock"}
+                          </span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
-                          isReady
-                            ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                            : "text-red-500 bg-red-50 border-red-200"
-                        }`}>
-                          {isReady ? "Ready" : "Not Ready"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-32 gap-2">
-                  <CheckCircle size={28} className="text-emerald-300" />
-                  <p className="text-sm italic text-slate-400">All menus ready to serve!</p>
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-28 gap-2 pt-1">
+                    <CheckCircle size={26} className="text-emerald-300" />
+                    <p className="text-sm text-slate-400 italic">All menus ready to serve</p>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* ── 7-Day Sales Trend ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">Sales Trend</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">Orders per day</p>
+              </div>
+            </div>
+
+            {/* Date pickers */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-400">From</span>
+                <input
+                  type="date"
+                  value={trendStart}
+                  max={trendEnd}
+                  onChange={(e) => {
+                    setTrendStart(e.target.value);
+                    fetchTrend(e.target.value, trendEnd);
+                  }}
+                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-orange-300 cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-400">To</span>
+                <input
+                  type="date"
+                  value={trendEnd}
+                  min={trendStart}
+                  max={fmtDate(new Date())}
+                  onChange={(e) => {
+                    setTrendEnd(e.target.value);
+                    fetchTrend(trendStart, e.target.value);
+                  }}
+                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-orange-300 cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center gap-1 ml-1">
+                {[
+                  { label: "7D", days: 6 },
+                  { label: "30D", days: 29 },
+                  { label: "90D", days: 89 },
+                ].map(({ label, days }) => {
+                  const s = fmtDate(new Date(new Date().setDate(new Date().getDate() - days)));
+                  const e = fmtDate(new Date());
+                  const active = trendStart === s && trendEnd === e;
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => { setTrendStart(s); setTrendEnd(e); fetchTrend(s, e); }}
+                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition ${
+                        active
+                          ? "bg-orange-500 text-white"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {trendLoading ? (
+              <div className="flex items-center justify-center h-36">
+                <Loader2 className="animate-spin text-orange-400" size={20} />
+              </div>
+            ) : trendError ? (
+              <SectionError onRetry={() => fetchTrend(trendStart, trendEnd)} />
+            ) : trendData.length > 0 ? (
+              <div className="h-36 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="weekGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={Math.max(0, Math.ceil(trendData.length / 6) - 1)}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<MiniTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="order"
+                      stroke="#f97316"
+                      strokeWidth={2.5}
+                      fill="url(#weekGrad)"
+                      dot={trendData.length <= 14 ? { r: 3, fill: "#f97316", stroke: "#fff", strokeWidth: 2 } : false}
+                      activeDot={{ r: 5, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-36 text-slate-300 italic text-sm">
+                No data for this period
+              </div>
+            )}
           </div>
 
         </div>
