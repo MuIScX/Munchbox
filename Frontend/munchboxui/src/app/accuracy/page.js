@@ -12,54 +12,28 @@ import {
   Activity, TrendingUp, BarChart3, Package, Minus,
 } from "lucide-react";
 
-/* ─── accuracy computation ─── */
-function computeAccuracy(actualData, trendData) {
-  const actualMap = {};
-  (actualData || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
-
-  // type-1 rows = daily forecast rows (one per predicted date)
-  const predPoints = (trendData?.data || [])
-    .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
-    .map((d) => ({
-      date:      (d.timestamp || "").split(" ")[0],
-      predicted: d.expected_usage,
-    }));
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const merged = predPoints
-    .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
-    .filter((d) => d.actual !== null && d.actual > 0 && d.date <= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  if (merged.length === 0) {
+/* ─── derive table stats from /accuracy response ─── */
+function computeStatsFromData(data) {
+  if (!data || data.length === 0) {
     return { accuracy: null, mae: null, bias: null, days: 0, chartData: [] };
   }
 
-  // Asymmetric (restaurant logic):
-  //   predicted >= actual → 100% (over-prepared is safe)
-  //   predicted <  actual → predicted/actual × 100 (risk of running out)
-  const dailyAcc = merged.map((d) =>
-    d.predicted >= d.actual ? 100 : Math.max(0, (d.predicted / d.actual) * 100)
-  );
+  const accuracy = data.reduce((s, d) => s + d.accuracy, 0) / data.length;
+  const mae      = data.reduce((s, d) => s + Math.abs(d.actual_usage - d.predicted_usage), 0) / data.length;
+  const bias     = data.reduce((s, d) => s + (d.predicted_usage - d.actual_usage), 0) / data.length;
 
-  const absErrors = merged.map((d) => Math.abs(d.actual - d.predicted));
-  const biasArr   = merged.map((d) => d.predicted - d.actual);
-
-  const accuracy = dailyAcc.reduce((a, b) => a + b, 0) / merged.length;
-  const mae      = absErrors.reduce((a, b) => a + b, 0) / merged.length;
-  const bias     = biasArr.reduce((a, b) => a + b, 0) / merged.length;
-
-  const chartData = merged.map((d) => ({
-    ...d,
-    surplus: parseFloat((d.predicted - d.actual).toFixed(2)),
+  const chartData = data.map((d) => ({
+    date:      d.date,
+    actual:    d.actual_usage,
+    predicted: d.predicted_usage,
+    surplus:   parseFloat((d.predicted_usage - d.actual_usage).toFixed(2)),
   }));
 
   return {
     accuracy:  parseFloat(Math.min(100, accuracy).toFixed(2)),
     mae:       parseFloat(mae.toFixed(2)),
     bias:      parseFloat(bias.toFixed(2)),
-    days:      merged.length,
+    days:      data.length,
     chartData,
   };
 }
@@ -85,7 +59,7 @@ function fmtDate(v) {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-/* ─── chart tooltip ─── */
+/* ─── per-ingredient chart tooltip ─── */
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -132,17 +106,20 @@ function AllAccuracyTooltip({ active, payload, label }) {
 
 /* ─── main page ─── */
 export default function AccuracyPage() {
-  const [ingredients, setIngredients] = useState([]);
-  const [selected, setSelected]       = useState(null);
-  const [loading, setLoading]         = useState(true);
-  const [toast, setToast]             = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [ingredients, setIngredients]       = useState([]);
+  const [selected, setSelected]             = useState(null);
+  const [loading, setLoading]               = useState(true);
+  const [toast, setToast]                   = useState(null);
+  const [searchQuery, setSearchQuery]       = useState("");
   const [accSearchQuery, setAccSearchQuery] = useState("");
   const [accSearchOpen, setAccSearchOpen]   = useState(false);
   const [accAll, setAccAll]                 = useState(false);
+  const [allChartData, setAllChartData]     = useState([]);
+  const [allChartLoading, setAllChartLoading] = useState(false);
 
   const showToast = (type, msg) => setToast({ type, message: msg });
 
+  /* ── initial load: ingredient list + progressive accuracy per ingredient ── */
   useEffect(() => {
     const load = async () => {
       try {
@@ -160,11 +137,8 @@ export default function AccuracyPage() {
         // Load accuracy per ingredient progressively
         for (const ing of list) {
           try {
-            const [actualRes, trendRes] = await Promise.all([
-              PredictAPI.actual(ing.ingredient_id),
-              PredictAPI.trend(ing.ingredient_id),
-            ]);
-            const stats = computeAccuracy(actualRes?.Data, trendRes?.Data);
+            const res   = await PredictAPI.accuracy(ing.ingredient_id);
+            const stats = computeStatsFromData(res?.Data);
             setIngredients((prev) =>
               prev.map((i) => i.ingredient_id === ing.ingredient_id ? { ...i, ...stats, _loaded: true } : i)
             );
@@ -181,16 +155,33 @@ export default function AccuracyPage() {
     load();
   }, []);
 
+  /* ── fetch all-ingredient accuracy when that mode is enabled ── */
+  useEffect(() => {
+    if (!accAll) return;
+    const fetchAll = async () => {
+      setAllChartLoading(true);
+      try {
+        const res = await PredictAPI.accuracy(null);
+        setAllChartData(res?.Data || []);
+      } catch {
+        showToast("error", "Failed to load all-ingredient accuracy.");
+      } finally {
+        setAllChartLoading(false);
+      }
+    };
+    fetchAll();
+  }, [accAll]);
+
   const summary = useMemo(() => {
     const loaded = ingredients.filter((i) => i._loaded && i.accuracy !== null);
     if (!loaded.length) return null;
-    const avgAcc  = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
-    const avgMae  = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
+    const avgAcc = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
+    const avgMae = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
     const totalDays = loaded.reduce((s, i) => s + i.days, 0);
-    const best    = [...loaded].sort((a, b) => b.accuracy - a.accuracy)[0];
+    const best   = [...loaded].sort((a, b) => b.accuracy - a.accuracy)[0];
     return {
       avgAcc,
-      avgMae:     parseFloat(avgMae.toFixed(2)),
+      avgMae:      parseFloat(avgMae.toFixed(2)),
       totalDays,
       best,
       totalLoaded: loaded.length,
@@ -202,34 +193,12 @@ export default function AccuracyPage() {
     if (!accAll && selected?.ingredient_name) setAccSearchQuery(selected.ingredient_name);
   }, [selected?.ingredient_id, accAll]);
 
-
   const filtered = useMemo(() =>
     ingredients.filter((i) =>
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
 
-  const allIngredientChart = useMemo(() => {
-    if (!accAll) return [];
-    const today = new Date().toISOString().split("T")[0];
-    const byDate = {};
-    for (const ing of ingredients) {
-      if (!ing._loaded || !ing.chartData?.length) continue;
-      for (const pt of ing.chartData) {
-        if (pt.date > today) continue;
-        if (!byDate[pt.date]) byDate[pt.date] = [];
-        const acc = pt.predicted >= pt.actual ? 100 : Math.max(0, (pt.predicted / pt.actual) * 100);
-        byDate[pt.date].push(acc);
-      }
-    }
-    return Object.entries(byDate)
-      .map(([date, accs]) => ({
-        date,
-        accuracy: parseFloat((accs.reduce((a, b) => a + b, 0) / accs.length).toFixed(2)),
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [accAll, ingredients]);
-
-  const chartData = accAll ? allIngredientChart : (selected?.chartData ?? []);
+  const chartData = accAll ? allChartData : (selected?.chartData ?? []);
   const showDots  = chartData.length <= 60;
 
   return (
@@ -244,7 +213,6 @@ export default function AccuracyPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
             <div className="p-6">
-              {/* Title */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                   <Target size={20} className="text-orange-500" />
@@ -257,7 +225,6 @@ export default function AccuracyPage() {
 
               {/* Stat cards */}
               <div className="flex gap-4">
-                {/* Overall accuracy */}
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-4 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
                     <Target size={18} className="text-emerald-600" />
@@ -273,7 +240,6 @@ export default function AccuracyPage() {
                   </div>
                 </div>
 
-                {/* Avg MAE */}
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                     <Activity size={18} className="text-blue-600" />
@@ -289,7 +255,6 @@ export default function AccuracyPage() {
                   </div>
                 </div>
 
-                {/* Days analyzed */}
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center gap-4 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center shrink-0">
                     <BarChart3 size={18} className="text-slate-500" />
@@ -305,7 +270,6 @@ export default function AccuracyPage() {
                   </div>
                 </div>
 
-                {/* Best performer */}
                 <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-4 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                     <TrendingUp size={18} className="text-orange-500" />
@@ -328,7 +292,6 @@ export default function AccuracyPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Chart header */}
             <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center gap-4">
-              {/* Title / subtitle (LEFT, fills space) */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-semibold text-slate-700 text-sm">
@@ -337,22 +300,22 @@ export default function AccuracyPage() {
                       : (selected ? `${selected.ingredient_name} — Actual vs. Predicted` : "Select an ingredient")}
                   </h3>
                   {!accAll && selected?._loaded && <AccuracyBadge acc={selected.accuracy} />}
-                  {!accAll && selected && !selected._loaded ? (
+                  {!accAll && selected && !selected._loaded && (
                     <span className="flex items-center gap-1 text-xs text-slate-400">
                       <Loader2 size={11} className="animate-spin" /> loading…
                     </span>
-                  ) : null}
+                  )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {accAll
-                    ? `${allIngredientChart.length} days — avg accuracy across all ingredients`
+                    ? `${allChartData.length} days — avg accuracy across all ingredients (closest-before prediction)`
                     : (chartData.length > 0
-                      ? `${chartData.length} data points (exact date match)${selected?._loaded && selected.mae != null ? ` — MAE ${selected.mae} ${selected.unit ?? ""}/day` : ""}`
+                      ? `${chartData.length} data points${selected?._loaded && selected.mae != null ? ` — MAE ${selected.mae} ${selected.unit ?? ""}/day` : ""}`
                       : "Comparing historical predictions vs actual usage")}
                 </p>
               </div>
 
-              {/* Search + All checkbox (RIGHT) */}
+              {/* Search + All checkbox */}
               {ingredients.length > 0 && (
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="relative w-48">
@@ -414,18 +377,22 @@ export default function AccuracyPage() {
                 <Loader2 className="animate-spin text-orange-400" size={28} />
               </div>
             ) : accAll ? (
-              allIngredientChart.length > 0 ? (
+              allChartLoading ? (
+                <div className="flex items-center justify-center h-72">
+                  <Loader2 className="animate-spin text-orange-400" size={28} />
+                </div>
+              ) : allChartData.length > 0 ? (
                 <>
                   <div className="h-80 px-2 pt-4 pb-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={allIngredientChart} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
+                      <ComposedChart data={allChartData} margin={{ top: 10, right: 28, left: -14, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 11, fill: "#94a3b8" }}
                           axisLine={false}
                           tickLine={false}
-                          interval={Math.max(0, Math.ceil(allIngredientChart.length / 8) - 1)}
+                          interval={Math.max(0, Math.ceil(allChartData.length / 8) - 1)}
                           tickFormatter={fmtDate}
                         />
                         <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
@@ -435,7 +402,7 @@ export default function AccuracyPage() {
                           dataKey="accuracy"
                           stroke="#f97316"
                           strokeWidth={2.5}
-                          dot={allIngredientChart.length <= 60 ? { r: 4, fill: "#f97316", stroke: "#fff", strokeWidth: 2 } : false}
+                          dot={allChartData.length <= 60 ? { r: 4, fill: "#f97316", stroke: "#fff", strokeWidth: 2 } : false}
                           activeDot={{ r: 6, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
                           connectNulls={false}
                           name="Avg Accuracy"
@@ -455,7 +422,7 @@ export default function AccuracyPage() {
                   <BarChart3 className="text-slate-200" size={36} />
                   <p className="text-sm font-medium text-slate-500">No data available yet</p>
                   <p className="text-xs text-slate-400 text-center max-w-xs">
-                    Accuracy data is still loading for all ingredients.
+                    No historical predictions with matching actual sales found.
                   </p>
                 </div>
               )
@@ -512,7 +479,7 @@ export default function AccuracyPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                    Predicted (daily avg)
+                    Predicted (closest-before)
                   </div>
                   {selected?.accuracy != null && (
                     <div className="ml-auto"><AccuracyBadge acc={selected.accuracy} /></div>
@@ -524,7 +491,7 @@ export default function AccuracyPage() {
                 <BarChart3 className="text-slate-200" size={36} />
                 <p className="text-sm font-medium text-slate-500">No overlap data</p>
                 <p className="text-xs text-slate-400 text-center max-w-xs">
-                  Accuracy requires a forecast date that also has recorded actual sales on the same day.
+                  Accuracy requires a forecast that was run before the date, with recorded actual sales on the same day.
                 </p>
               </div>
             )}
@@ -570,7 +537,7 @@ export default function AccuracyPage() {
                     return (
                       <tr
                         key={row.ingredient_id}
-                        onClick={() => setSelected(row)}
+                        onClick={() => { setSelected(row); setAccAll(false); }}
                         className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
                       >
                         <td className="px-6 py-3">

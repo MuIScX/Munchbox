@@ -68,3 +68,9 @@ class PredictTrendRequest(BaseModel):
 class PrepSummaryRequest(BaseModel):
     start_date: Optional[str] = None
     end_date:   Optional[str] = None
+
+
+class PredictAccuracyRequest(BaseModel):
+    ingredient_id: Optional[int] = None
+    start_date:    Optional[str] = None
+    end_date:      Optional[str] = None

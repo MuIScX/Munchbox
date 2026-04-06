@@ -10,7 +10,7 @@ from app.services.forecaster import run_forecast_job
 
 from app.db import get_db
 from app.core.security import decode_token
-from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest, PredictSetsRequest, PrepSummaryRequest
+from app.schemas.report import PredictRecordRequest,PredictReportRequest, PredictIngredientRequest, PredictTrendRequest, PredictGenerateRequest, PredictSetsRequest, PrepSummaryRequest, PredictAccuracyRequest
 from app.models.predict import Predict, PredictSet
 from app.models.ingredient import Ingredient
 
@@ -578,3 +578,151 @@ def predicted_trend(body: PredictTrendRequest, identity: dict = Depends(decode_t
             for r in rows
         ],
     }}
+
+
+@router.post("/accuracy")
+def get_accuracy(body: PredictAccuracyRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    """
+    Return historical accuracy data.
+
+    Per-ingredient (ingredient_id provided):
+        [{date, actual_usage, predicted_usage, accuracy}]
+
+    All-ingredients (ingredient_id=null):
+        [{date, accuracy}]  — avg accuracy across all ingredients per day
+
+    For each date, uses the prediction made closest BEFORE that date
+    (i.e. from the predict_set whose run timestamp is the latest one still < the forecasted date).
+
+    Accuracy formula:
+        predicted = max(0, predicted)
+        if actual == 0 and predicted == 0 → 100%
+        if actual == 0 and predicted >  0 → 0%
+        else → clamp(1 - |actual - predicted| / actual, 0, 1)
+    """
+    from datetime import date as date_type
+
+    restaurant_id = identity["restaurantId"]
+    today         = str(date_type.today())
+    end_date      = body.end_date or today
+
+    # ── Step 1: subquery — type-1 predictions with their run timestamps ──
+    # Only include runs that happened BEFORE the forecasted date.
+    pred_q = (
+        db.query(
+            Predict.ingredient_id.label("ingredient_id"),
+            func.date(Predict.timestamp).label("pred_date"),
+            Predict.expected_usage.label("expected_usage"),
+            PredictSet.timestamp.label("run_ts"),
+        )
+        .join(PredictSet, Predict.prediction_set == PredictSet.id)
+        .filter(
+            Predict.prediction_type == 1,
+            Predict.restaurant_id   == restaurant_id,
+            PredictSet.timestamp    <  Predict.timestamp,   # run before forecasted date
+            func.date(Predict.timestamp) <= end_date,
+        )
+    )
+    if body.ingredient_id is not None:
+        pred_q = pred_q.filter(Predict.ingredient_id == body.ingredient_id)
+    if body.start_date:
+        pred_q = pred_q.filter(func.date(Predict.timestamp) >= body.start_date)
+
+    pred_sub = pred_q.subquery()
+
+    # ── Step 2: per (ingredient, date) keep only the closest-before run ──
+    max_run_sub = (
+        db.query(
+            pred_sub.c.ingredient_id,
+            pred_sub.c.pred_date,
+            func.max(pred_sub.c.run_ts).label("max_run_ts"),
+        )
+        .group_by(pred_sub.c.ingredient_id, pred_sub.c.pred_date)
+        .subquery()
+    )
+
+    best_preds = (
+        db.query(
+            pred_sub.c.ingredient_id,
+            pred_sub.c.pred_date,
+            pred_sub.c.expected_usage,
+        )
+        .join(
+            max_run_sub,
+            (pred_sub.c.ingredient_id == max_run_sub.c.ingredient_id) &
+            (pred_sub.c.pred_date     == max_run_sub.c.pred_date)     &
+            (pred_sub.c.run_ts        == max_run_sub.c.max_run_ts),
+        )
+        .all()
+    )
+
+    if not best_preds:
+        return {"message": "success", "Data": []}
+
+    # Build prediction map: {(ingredient_id, date_str): expected_usage}
+    pred_map = {}
+    for r in best_preds:
+        pred_map[(int(r.ingredient_id), str(r.pred_date))] = float(r.expected_usage)
+
+    # ── Step 3: actual usage from sale_data × recipe ──
+    sql_filters = "AND DATE(S.timestamp) <= :end_date"
+    params      = {"restaurant_id": restaurant_id, "end_date": end_date}
+
+    if body.ingredient_id is not None:
+        sql_filters += " AND R.ingredient_id = :ingredient_id"
+        params["ingredient_id"] = body.ingredient_id
+    if body.start_date:
+        sql_filters += " AND DATE(S.timestamp) >= :start_date"
+        params["start_date"] = body.start_date
+
+    actual_rows = db.execute(
+        text(f"""
+            SELECT DATE(S.timestamp) AS date, R.ingredient_id, SUM(S.amount * R.amount) AS daily_usage
+            FROM sale_data S
+            JOIN recipe R ON S.menu_id = R.menu_id
+            WHERE S.restaurant_id = :restaurant_id {sql_filters}
+            GROUP BY DATE(S.timestamp), R.ingredient_id
+        """),
+        params,
+    ).fetchall()
+
+    actual_map = {(int(r.ingredient_id), str(r.date)): float(r.daily_usage) for r in actual_rows}
+
+    # ── Step 4: accuracy formula ──
+    def compute_acc(actual: float, predicted: float) -> float:
+        predicted = max(0.0, predicted)
+        if actual == 0 and predicted == 0:
+            return 1.0
+        if actual == 0:
+            return 0.0
+        return max(0.0, 1.0 - abs(actual - predicted) / actual)
+
+    # ── Step 5: build response ──
+    if body.ingredient_id is not None:
+        result = []
+        for (ing_id, date_str), predicted in pred_map.items():
+            actual = actual_map.get((ing_id, date_str), 0.0)
+            result.append({
+                "date":             date_str,
+                "actual_usage":     actual,
+                "predicted_usage":  predicted,
+                "accuracy":         round(compute_acc(actual, predicted) * 100, 2),
+            })
+        result.sort(key=lambda x: x["date"])
+        return {"message": "success", "Data": result}
+
+    else:
+        # Average accuracy per day across all ingredients
+        by_date: dict[str, list[float]] = {}
+        for (ing_id, date_str), predicted in pred_map.items():
+            actual = actual_map.get((ing_id, date_str), 0.0)
+            by_date.setdefault(date_str, []).append(compute_acc(actual, predicted))
+
+        result = [
+            {
+                "date":     date_str,
+                "accuracy": round(sum(accs) / len(accs) * 100, 2),
+            }
+            for date_str, accs in sorted(by_date.items())
+        ]
+        return {"message": "success", "Data": result}

@@ -180,6 +180,8 @@ export const PredictAPI = {
   ingredient: (ingredient_id, days = null) => request("/predict/ingredient", "POST", { ingredient_id, days }),
   status: (ingredient_id, days = null) => request("/predict/status", "POST", { ingredient_id, days }),
   record: (predict_set_id, predictions) => request("/predict/record", "POST", { predict_set_id, predictions }),
+  accuracy: (ingredient_id = null, start_date = null, end_date = null) =>
+    request("/predict/accuracy", "POST", { ingredient_id, start_date, end_date }),
 }
 
 export const ImportAPI = {
