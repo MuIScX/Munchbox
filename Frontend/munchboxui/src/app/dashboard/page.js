@@ -9,7 +9,7 @@ import {
 import {
   ShoppingCart, TrendingUp, AlertTriangle, CheckCircle, Package,
   UtensilsCrossed, Loader2, RefreshCw, BarChart2, AlertCircle,
-  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen,
+  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen, Calendar,
 } from "lucide-react";
 import { ReportAPI, PredictAPI, MenuAPI, StaffAPI, IngredientAPI } from "../../lib/api";
 
@@ -38,7 +38,6 @@ function dateOffset(offset = 0) {
 function formatDisplayDate() {
   return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
-
 function accuracyColor(acc) {
   if (acc === null) return "text-slate-400";
   if (acc >= 85) return "text-emerald-600";
@@ -135,6 +134,28 @@ function KpiCard({ icon: Icon, iconColor, iconBg, label, loading, error, value, 
   );
 }
 
+/* ── Days Ahead Pill Selector ── */
+function DaysSelector({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <Calendar size={11} className="text-slate-400" />
+      {[3, 7, 14, 30].map((d) => (
+        <button
+          key={d}
+          onClick={() => onChange(d)}
+          className={`text-[11px] font-bold px-2 py-1 rounded-lg transition-all ${
+            value === d
+              ? "bg-orange-500 text-white shadow-sm"
+              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+          }`}
+        >
+          {d}d
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main Page ── */
 export default function DashboardPage() {
   const mountedRef = useRef(true);
@@ -147,11 +168,11 @@ export default function DashboardPage() {
   const [kpiLoading, setKpiLoading] = useState(true);
   const [kpiError, setKpiError] = useState(false);
 
-  /* Stock */
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [reorderList, setReorderList] = useState([]);
-  const [predictLoading, setPredictLoading] = useState(true);
-  const [predictError, setPredictError] = useState(false);
+  /* Prep Summary (replaces old predict report for low stock) */
+  const [daysAhead, setDaysAhead] = useState(7);
+  const [prepSummary, setPrepSummary] = useState([]);
+  const [prepLoading, setPrepLoading] = useState(true);
+  const [prepError, setPrepError] = useState(false);
 
   /* Menus */
   const [totalMenus, setTotalMenus] = useState(0);
@@ -179,7 +200,31 @@ export default function DashboardPage() {
   const [trendStart, setTrendStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return fmtDate(d); });
   const [trendEnd, setTrendEnd] = useState(() => fmtDate(new Date()));
 
-  const isAnyLoading = kpiLoading || predictLoading || menuLoading || staffLoading || ingredientLoading || trendLoading;
+  const isAnyLoading = kpiLoading || prepLoading || menuLoading || staffLoading || ingredientLoading || trendLoading;
+
+  /* ── Fetch Prep Summary ── */
+  const fetchPrepSummary = async (days) => {
+    if (!mountedRef.current) return;
+    setPrepLoading(true);
+    setPrepError(false);
+    try {
+      const start = new Date();
+      start.setDate(start.getDate() + 1);
+      const end = new Date();
+      end.setDate(end.getDate() + days);
+      const fmt = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const res = await PredictAPI.prepSummary(fmt(start), fmt(end));
+      if (!mountedRef.current) return;
+      const data = Array.isArray(res?.Data) ? res.Data : [];
+      // Only items with prediction data AND status = low (0)
+      setPrepSummary(data.filter((r) => r.has_data && r.status === 0));
+    } catch {
+      if (mountedRef.current) setPrepError(true);
+    } finally {
+      if (mountedRef.current) setPrepLoading(false);
+    }
+  };
 
   /* ── Fetch Sales Trend ── */
   const fetchTrend = async (start, end) => {
@@ -214,7 +259,7 @@ export default function DashboardPage() {
     const today = dateOffset(0);
     const yesterday = dateOffset(-1);
 
-    /* KPIs — today + yesterday */
+    /* KPIs */
     setKpiLoading(true); setKpiError(false);
     Promise.allSettled([
       ReportAPI.orders(null, { start_date: today, end_date: today }),
@@ -262,18 +307,12 @@ export default function DashboardPage() {
       .catch(() => { if (mountedRef.current) setMenuError(true); })
       .finally(() => { if (mountedRef.current) setMenuLoading(false); });
 
-    /* Stock + Accuracy */
-    setPredictLoading(true); setPredictError(false);
+    /* Accuracy via predict report */
+    setAccuracyLoading(true);
     PredictAPI.report(null).then(async (res) => {
       if (!mountedRef.current) return;
       if (Array.isArray(res?.Data)) {
         const data = res.Data;
-        const lowItems = data.filter((r) => r.status === 0);
-        setLowStockCount(lowItems.length);
-        setReorderList(lowItems.sort((a, b) => safeNum(b.urgency_score) - safeNum(a.urgency_score)).slice(0, 6));
-
-        /* Accuracy — fetch per ingredient, build chart + summary */
-        setAccuracyLoading(true);
         const sample = data.slice(0, 10);
         const results = await Promise.allSettled(
           sample.map((ing) => Promise.all([
@@ -282,16 +321,13 @@ export default function DashboardPage() {
           ]))
         );
         if (!mountedRef.current) return;
-
         const dateMap = {};
         let totalAcc = 0, countAcc = 0;
-
         results.forEach((r) => {
           if (r.status !== "fulfilled") return;
           const [actualRes, trendRes] = r.value;
           const actualMap = {};
           (actualRes?.Data || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
-
           (trendRes?.Data?.data || [])
             .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
             .forEach((d) => {
@@ -306,7 +342,6 @@ export default function DashboardPage() {
               dateMap[date].count += 1;
             });
         });
-
         setAccuracy(countAcc > 0 ? parseFloat((totalAcc / countAcc).toFixed(1)) : null);
         setAccuracyChartData(
           Object.entries(dateMap)
@@ -317,12 +352,12 @@ export default function DashboardPage() {
             }))
             .sort((a, b) => a.date.localeCompare(b.date))
         );
-        setAccuracyLoading(false);
-      } else { setPredictError(true); }
-    }).catch(() => { if (mountedRef.current) setPredictError(true); })
-      .finally(() => { if (mountedRef.current) setPredictLoading(false); });
+      }
+    }).catch(() => {})
+      .finally(() => { if (mountedRef.current) setAccuracyLoading(false); });
 
-    /* Sales Trend */
+    /* Prep Summary + Sales Trend */
+    fetchPrepSummary(daysAhead);
     fetchTrend(trendStart, trendEnd);
   };
 
@@ -331,6 +366,9 @@ export default function DashboardPage() {
     fetchAll();
     return () => { mountedRef.current = false; };
   }, []);
+
+  /* low stock count from prep summary */
+  const lowStockCount = prepSummary.length;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -388,14 +426,14 @@ export default function DashboardPage() {
 
             <KpiCard
               icon={AlertTriangle}
-              iconBg={!predictLoading && lowStockCount > 0 ? "bg-red-100" : "bg-slate-100"}
-              iconColor={!predictLoading && lowStockCount > 0 ? "text-red-500" : "text-slate-400"}
+              iconBg={!prepLoading && lowStockCount > 0 ? "bg-red-100" : "bg-slate-100"}
+              iconColor={!prepLoading && lowStockCount > 0 ? "text-red-500" : "text-slate-400"}
               label="Low Stock"
-              loading={predictLoading} error={predictError}
+              loading={prepLoading} error={prepError}
               value={lowStockCount}
               sub={
                 <span className={`text-xs font-medium ${lowStockCount > 0 ? "text-red-400" : "text-slate-400"}`}>
-                  {lowStockCount > 0 ? "ingredients need reorder" : "all ingredients sufficient"}
+                  {lowStockCount > 0 ? `need reorder (${daysAhead}d forecast)` : "all ingredients sufficient"}
                 </span>
               }
             />
@@ -588,7 +626,7 @@ export default function DashboardPage() {
           {/* ── Row 4: Action Alerts ── */}
           <div className="grid grid-cols-2 gap-4">
 
-            {/* Low Stock Items */}
+            {/* ── Low Stock Items (Prep Summary) ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
@@ -596,51 +634,70 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-bold text-slate-800">Low Stock Items</h2>
-                  <p className="text-[11px] text-slate-400">Ingredients running low — compared with predicted demand</p>
+                  <p className="text-[11px] text-slate-400">
+                    Ingredients insufficient for the next {daysAhead} days of predicted demand
+                  </p>
                 </div>
-                {!predictLoading && !predictError && lowStockCount > 0 && (
+
+                {/* Days-ahead selector */}
+                <DaysSelector
+                  value={daysAhead}
+                  onChange={(d) => {
+                    setDaysAhead(d);
+                    fetchPrepSummary(d);
+                  }}
+                />
+
+                {!prepLoading && !prepError && lowStockCount > 0 && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">
                     {lowStockCount} items
                   </span>
                 )}
               </div>
+
               <div className="px-5 pb-5">
-                {predictLoading ? (
+                {prepLoading ? (
                   <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : predictError ? <SectionError onRetry={fetchAll} />
-                : reorderList.length > 0 ? (
-                  <div className="space-y-2">
-                    {reorderList.map((r) => {
-                      const needed = Math.max(0, Math.ceil(safeNum(r.expected_usage) - safeNum(r.current_stock)));
-                      return (
-                        <div key={r.ingredient_id}
-                          className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{r.ingredient_name || "Unknown"}</p>
-                            <p className="text-[11px] text-slate-400">
-                              Current: {safeNum(r.current_stock)} {r.unit || ""}
-                              &nbsp;·&nbsp;Expected: {Math.ceil(safeNum(r.expected_usage))} {r.unit || ""}
-                            </p>
+                ) : prepError ? (
+                  <SectionError onRetry={() => fetchPrepSummary(daysAhead)} />
+                ) : prepSummary.length > 0 ? (
+                  <div className="space-y-2 overflow-y-auto max-h-[220px]">
+                    {prepSummary
+                      .sort((a, b) => (safeNum(b.urgency_score) - safeNum(a.urgency_score)))
+                      .slice(0, 6)
+                      .map((r) => {
+                        const needed = Math.max(0, Math.ceil(safeNum(r.expected_usage) - safeNum(r.current_stock)));
+                        return (
+                          <div key={r.ingredient_id}
+                            className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{r.ingredient_name || "Unknown"}</p>
+                              <p className="text-[11px] text-slate-400">
+                                Current: {safeNum(r.current_stock)} {r.unit || ""}
+                                &nbsp;·&nbsp;Need ({daysAhead}d): {Math.ceil(safeNum(r.expected_usage))} {r.unit || ""}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-red-600">+{needed} {r.unit || ""}</p>
+                              <p className="text-[10px] text-red-400">to order</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-bold text-red-600">+{needed} {r.unit || ""}</p>
-                            <p className="text-[10px] text-red-400">to order</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-24 gap-2">
                     <CheckCircle size={24} className="text-emerald-300" />
-                    <p className="text-sm text-slate-400 italic">All ingredients are sufficiently stocked</p>
+                    <p className="text-sm text-slate-400 italic">
+                      All ingredients sufficient for {daysAhead} days
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Unable to Serve */}
+            {/* ── Unable to Serve ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -689,6 +746,7 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
           </div>
 
         </div>
