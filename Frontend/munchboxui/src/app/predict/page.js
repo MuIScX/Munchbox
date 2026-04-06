@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -12,9 +12,21 @@ import { PredictAPI, IngredientAPI } from "../../lib/api";
 import { CATEGORY_MAP } from "../../lib/schema";
 import {
   Search, Loader2, TrendingUp, X, Plus,
-  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown,
+  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown, Calendar,
 } from "lucide-react";
 import CategorySortPopover from "../components/CategorySortPopover";
+
+const DateInput = forwardRef(({ value, onClick }, ref) => (
+  <button
+    onClick={onClick}
+    ref={ref}
+    className="flex items-center gap-1 text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+  >
+    {value}
+    <Calendar size={11} className="text-slate-400 shrink-0" />
+  </button>
+));
+DateInput.displayName = "DateInput";
 
 export default function PredictPage() {
   const [report, setReport]                       = useState([]);
@@ -182,13 +194,22 @@ export default function PredictPage() {
     }
   }, [fetchTrend]);
 
+  const fetchReportRef = useRef(fetchReport);
+  useEffect(() => { fetchReportRef.current = fetchReport; }, [fetchReport]);
+
   useEffect(() => {
-    fetchReport(null);
+    fetchReportRef.current(null);
     IngredientAPI.list({}).then((res) => {
       const list = Array.isArray(res?.Data) ? res.Data : [];
       setIngredientList(list);
       if (list.length > 0) setRequestForm((f) => ({ ...f, ingredient_id: String(list[0].id) }));
     }).catch(() => {});
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchReportRef.current(null);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const handleSelectIngredient = (ing) => {
@@ -624,7 +645,7 @@ const filteredReport = useMemo(() => {
                             {isLow ? "Low" : "OK"}
                           </span>
                         </div>
-                        <p className="text-[9px] text-slate-300 mb-2">
+                        <p className="text-[9px] text-slate-400 mb-2">
                           Last updated: {ing.forecast_start && ing.forecast_end
                             ? `${new Date(ing.forecast_start).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })} - ${new Date(ing.forecast_end).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}`
                             : "—"}
@@ -830,7 +851,7 @@ const filteredReport = useMemo(() => {
                           minDate={minDate}
                           maxDate={toDate(sliceEnd ?? selectedSet.end_date)}
                           dateFormat="dd/MM/yyyy"
-                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                          customInput={<DateInput />}
                         />
                         <span className="text-slate-300 text-xs">–</span>
                         <DatePicker
@@ -839,7 +860,7 @@ const filteredReport = useMemo(() => {
                           minDate={toDate(sliceStart ?? selectedSet.start_date)}
                           maxDate={maxDate}
                           dateFormat="dd/MM/yyyy"
-                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                          customInput={<DateInput />}
                         />
                       </div>
                     );
@@ -1053,7 +1074,7 @@ const filteredReport = useMemo(() => {
                   <ClipboardList size={15} className="text-orange-500" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-base font-bold text-slate-800">Prep Summary</h2>
+                  <h2 className="text-base font-bold text-slate-800">Preparation Summary</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {prepStart && prepEnd
                       ? `Ingredients needed for ${prepStart.getDate().toString().padStart(2,"0")}/${(prepStart.getMonth()+1).toString().padStart(2,"0")}/${prepStart.getFullYear()} – ${prepEnd.getDate().toString().padStart(2,"0")}/${(prepEnd.getMonth()+1).toString().padStart(2,"0")}/${prepEnd.getFullYear()}`
@@ -1086,7 +1107,7 @@ const filteredReport = useMemo(() => {
                     onChange={(d) => { setPrepStart(d); fetchPrepSummary(d, prepEnd); }}
                     maxDate={prepEnd ?? undefined}
                     dateFormat="dd/MM/yyyy"
-                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                    customInput={<DateInput />}
                   />
                   <span className="text-slate-300 text-xs">–</span>
                   <DatePicker
@@ -1094,7 +1115,7 @@ const filteredReport = useMemo(() => {
                     onChange={(d) => { setPrepEnd(d); fetchPrepSummary(prepStart, d); }}
                     minDate={prepStart ?? undefined}
                     dateFormat="dd/MM/yyyy"
-                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                    customInput={<DateInput />}
                   />
                 </div>
                 <div className="flex items-center gap-1.5 w-[210px]">
