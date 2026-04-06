@@ -6,6 +6,7 @@ import { MenuAPI, IngredientAPI } from "../../lib/api";
 export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
   const dropdownRef = useRef(null);
 
   // Form States
@@ -113,6 +114,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
       onClose();   // ปิด Modal
     } catch (error) {
       setError(error.message || "Failed to add menu and recipe");
+      setShakeKey(k => k + 1);
     } finally {
       setLoading(false);
     }
@@ -120,6 +122,16 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm py-10">
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+        }
+        .input-shake { animation: shake 0.4s ease; }
+      `}</style>
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-full animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
@@ -134,7 +146,20 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-semibold text-slate-600 mb-1">Menu Name</label>
-              <input required type="text" placeholder="e.g., Spicy Basil Pork" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2  text-slate-600  bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" />
+              <input
+                key={shakeKey}
+                required
+                type="text"
+                placeholder="e.g., Spicy Basil Pork"
+                value={formData.name}
+                onChange={(e) => { setFormData({...formData, name: e.target.value}); setError(""); }}
+                className={`w-full px-4 py-2 text-slate-600 bg-slate-50 border rounded-lg outline-none transition-all ${
+                  error
+                    ? "border-red-400 ring-2 ring-red-200 input-shake"
+                    : "border-slate-200 focus:ring-2 focus:ring-orange-500"
+                }`}
+              />
+              {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">Type</label>
@@ -225,10 +250,9 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
           </div>
 
           {/* Actions */}
-          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3 border-t border-slate-100 mt-6">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">Cancel</button>
-            <button type="submit" disabled={loading || selectedIngredients.length === 0 || !formData.name.trim() || !formData.price || !formData.type} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading || selectedIngredients.length === 0 || !formData.name.trim() || !formData.price || !formData.type || selectedIngredients.some(ing => !ing.amount || Number(ing.amount) <= 0)} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Recipe"}
             </button>
           </div>

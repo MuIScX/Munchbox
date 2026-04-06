@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
 import { X, Loader2 } from 'lucide-react';
-import { IngredientAPI } from "../../lib/api"; 
-import { CATEGORY_MAP } from "../../lib/schema"; 
+import { IngredientAPI } from "../../lib/api";
+import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function AddIngredientModal({ isOpen, onClose, onSuccess, existingIngredients = [] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
   const [formData, setFormData] = useState({ name: "", category: "", unit: "" });
 
   if (!isOpen) return null;
@@ -16,6 +17,12 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
   const handleNameChange = (e) => {
     const val = e.target.value;
     setFormData({ ...formData, name: capitalize(val) });
+    setError("");
+  };
+
+  const triggerError = (msg) => {
+    setError(msg);
+    setShakeKey(k => k + 1);
   };
 
   const handleSubmit = async (e) => {
@@ -26,7 +33,7 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
       (ing) => (ing.ingredient_name || ing.name || "").toLowerCase() === trimmedName.toLowerCase()
     );
     if (isDuplicate) {
-      setError(`"${trimmedName}" already exists.`);
+      triggerError(`"${trimmedName}" already exists.`);
       return;
     }
     setLoading(true);
@@ -38,9 +45,9 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
       });
       onSuccess();
       onClose();
-      setFormData({ name: "", category: "1", unit: "" });
+      setFormData({ name: "", category: "", unit: "" });
     } catch (err) {
-      setError(err.message || "Failed to add ingredient");
+      triggerError(err.message || "Failed to add ingredient");
     } finally {
       setLoading(false);
     }
@@ -48,6 +55,16 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+        }
+        .input-shake { animation: shake 0.4s ease; }
+      `}</style>
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
           <h2 className="text-xl font-bold text-slate-800">Add New Ingredient</h2>
@@ -58,7 +75,20 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Ingredient Name</label>
-            <input required type="text" placeholder="e.g., Tomato" value={formData.name} onChange={handleNameChange} className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none" />
+            <input
+              key={shakeKey}
+              required
+              type="text"
+              placeholder="e.g., Tomato"
+              value={formData.name}
+              onChange={handleNameChange}
+              className={`w-full px-4 py-2 text-slate-600 bg-slate-50 border rounded-xl outline-none transition-all ${
+                error
+                  ? "border-red-400 ring-2 ring-red-200 input-shake"
+                  : "border-slate-200 focus:ring-2 focus:ring-orange-500"
+              }`}
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Category</label>
@@ -84,7 +114,6 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
               <option value="bottle">bottle</option>
             </select>
           </div>
-          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors">Cancel</button>
             <button type="submit" disabled={loading || !formData.name.trim() || !formData.unit || !formData.category} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

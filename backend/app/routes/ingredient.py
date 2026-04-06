@@ -40,6 +40,13 @@ def get_ingredients(body: IngredientListRequest, identity: dict = Depends(decode
 
 @router.post("/create", status_code=201)
 def add_ingredient(body: IngredientCreate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    existing = db.query(Ingredient).filter(
+        Ingredient.restaurant_id == identity["restaurantId"],
+        Ingredient.name == body.name,
+        Ingredient.is_active == 1,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f'"{body.name}" already exists.')
     ingredient = Ingredient(
         restaurant_id=identity["restaurantId"],
         name=body.name,

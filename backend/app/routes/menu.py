@@ -51,6 +51,13 @@ def get_all_menu(identity: dict = Depends(decode_token), db: Session = Depends(g
 
 @menu_router.post("/create", status_code=201)
 def add_menu(body: MenuCreate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    existing = db.query(Menu).filter(
+        Menu.restaurant_id == identity["restaurantId"],
+        Menu.name == body.name,
+        Menu.is_active == 1,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f'"{body.name}" already exists.')
     menu = Menu(name=body.name, price=body.price, type=body.type, restaurant_id=identity["restaurantId"])
     db.add(menu)
     db.commit()
