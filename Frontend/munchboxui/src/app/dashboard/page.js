@@ -139,7 +139,7 @@ function DaysSelector({ value, onChange }) {
   return (
     <div className="flex items-center gap-1 shrink-0">
       <Calendar size={11} className="text-slate-400" />
-      {[3, 7, 14, 30].map((d) => (
+      {[3, 7].map((d) => (
         <button
           key={d}
           onClick={() => onChange(d)}
