@@ -124,53 +124,56 @@ async function buildFuzzyChartData(ingredientId) {
   const setsRes = await PredictAPI.sets(ingredientId);
   const sets = setsRes?.Data || [];
 
-  console.log(`[Accuracy] ingredient=${ingredientId} sets:`, sets.map(s => ({
-    id: s.predict_set_id,
-    start: s.start_date,
-    end: s.end_date,
-  })));
+  if (!sets.length) return [];
 
-  if (!sets.length) { console.warn("[Accuracy] No sets found"); return []; }
+  // Sort ascending by set id (oldest first)
+  const sortedSets = [...sets].sort((a, b) => a.id - b.id);
 
-  const startDate = sets.map((s) => s.start_date).filter(Boolean).sort()[0];
-  const endDate = sets.map((s) => s.end_date).filter(Boolean).sort().at(-1);
+  const today = new Date().toISOString().split("T")[0];
 
-  console.log(`[Accuracy] Fetching actuals from ${startDate} → ${endDate}`);
+  // Fetch all forecasts and actuals for the full range
+  const startDate = sortedSets[0].start_date;
+  const endDate = sortedSets.at(-1).end_date;
 
   const [actualRes, ...forecasts] = await Promise.all([
     PredictAPI.actual(ingredientId, startDate, endDate),
-    ...sets.map((s) =>
+    ...sortedSets.map((s) =>
       PredictAPI.dailyForecast(ingredientId, s.predict_set_id).catch(() => ({ Data: [] }))
     ),
   ]);
 
   const actualArr = (actualRes?.Data || []).sort((a, b) => a.date.localeCompare(b.date));
 
-  console.log(`[Accuracy] Actuals returned: ${actualArr.length} rows`, actualArr.slice(0, 5));
+  if (!actualArr.length) return [];
 
-  sets.forEach((s, i) => {
-    const rows = forecasts[i]?.Data || [];
-    console.log(`[Accuracy] Set ${s.predict_set_id} forecast rows: ${rows.length}`, rows.slice(0, 3));
-  });
+  // For each predicted date, only keep the value from the set with the
+  // HIGHEST set id whose start_date <= that date (most recent applicable set)
+  const predByDate = {}; // date → { predicted, setId }
 
-  if (!actualArr.length) { console.warn("[Accuracy] No actual data returned — check date filter on backend"); return []; }
-
-  const predByDate = {};
-  sets.forEach((_, i) => {
+  sortedSets.forEach((s, i) => {
     (forecasts[i]?.Data || []).forEach((d) => {
-      if (d.date && d.mean_demand != null) predByDate[d.date] = d.mean_demand;
+      if (!d.date || d.mean_demand == null) return;
+
+      const existing = predByDate[d.date];
+      // Accept this set's value if:
+      // 1. No value yet for this date, OR
+      // 2. This set id is higher (more recent) than what we have
+      if (!existing || s.id > existing.setId) {
+        predByDate[d.date] = { predicted: d.mean_demand, setId: s.id };
+      }
     });
   });
 
+  // Only keep dates that have actual sales (past dates)
   const predictions = Object.entries(predByDate)
-    .map(([date, predicted]) => ({ date, predicted }))
+    .filter(([date]) => date <= today)
+    .map(([date, { predicted }]) => ({ date, predicted }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  console.log(`[Accuracy] Total unique predicted dates: ${predictions.length}`, predictions.slice(0, 5));
-  console.log(`[Accuracy] Predicted range: ${predictions[0]?.date} → ${predictions.at(-1)?.date}`);
-  console.log(`[Accuracy] Actual range:    ${actualArr[0]?.date} → ${actualArr.at(-1)?.date}`);
+  console.log(`[Accuracy] Predictions (past only): ${predictions.length}`, predictions);
+  console.log(`[Accuracy] Actuals: ${actualArr.length}`, actualArr);
 
-  if (!predictions.length) { console.warn("[Accuracy] No predictions with mean_demand"); return []; }
+  if (!predictions.length) return [];
 
   const usedActual = new Set();
   const matched = predictions.map((pred) => {
@@ -201,13 +204,7 @@ async function buildFuzzyChartData(ingredientId) {
     };
   }).filter(Boolean);
 
-  console.log(`[Accuracy] Matched points: ${matched.length} / ${predictions.length} predictions`);
-  if (matched.length === 0) {
-    console.warn("[Accuracy] Zero matches — predicted and actual date ranges likely don't overlap");
-    console.table(predictions.slice(0, 10));
-    console.table(actualArr.slice(0, 10));
-  }
-
+  console.log(`[Accuracy] Final matched: ${matched.length}`, matched);
   return matched;
 }
 /* ─── main page ─── */
