@@ -262,14 +262,21 @@ export default function Home() {
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full table-fixed text-left border-collapse min-w-[800px]">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                    <th className="px-6 py-3 w-[30%]">Item</th>
-                    <th className="px-6 py-3 w-[20%]">Category</th>
-                    <th className="px-6 py-3 w-[15%] text-center">Stock</th>
-                    <th className="px-6 py-3 w-[15%] text-center">Unit</th>
-                    <th className="px-6 py-3 w-[20%] text-center">
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Category</th>
+                    <th className="px-6 py-3 text-center">Stock</th>
+                    <th className="px-6 py-3 text-center">Unit</th>
+                    <th className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button

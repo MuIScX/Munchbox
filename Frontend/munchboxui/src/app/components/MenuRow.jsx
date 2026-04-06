@@ -8,12 +8,6 @@ const TYPE_MAP = {
   4: "Drink"
 };
 
-const TYPE_STYLE = {
-  1: "bg-orange-100 text-orange-700",
-  2: "bg-blue-100 text-blue-700",
-  3: "bg-pink-100 text-pink-700",
-  4: "bg-cyan-100 text-cyan-700",
-};
 
 export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick }) {
   const id = menu.menu_id || menu.id;
@@ -21,11 +15,10 @@ export default function MenuRow({ menu, onViewRecipe, showDelete, onDeleteClick 
   const typeValue = menu.menu_type || menu.type;
   const price = menu.menu_price || menu.price || 0;
   const count = menu.ingredient_count || menu.count || 0;
-  const typeStyle = TYPE_STYLE[typeValue] || "bg-slate-100 text-slate-600";
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors">
-      <td className="px-6 py-3 text-slate-800 font-semibold">{name}</td>
+      <td className="px-6 py-3 text-slate-800 font-semibold break-words">{name}</td>
       <td className="px-6 py-3">
         <span className="inline-block text-slate-500 text-sm">
           {TYPE_MAP[typeValue] || typeValue}

@@ -267,7 +267,14 @@ export default function ManageMenuPage() {
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full table-fixed text-left border-collapse min-w-[800px]">
+                <colgroup>
+                  <col className="w-[35%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
                     <th className="px-6 py-3">Recipe</th>

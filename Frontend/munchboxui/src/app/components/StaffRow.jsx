@@ -41,7 +41,7 @@ export default function StaffRow({ member, onEditClick, showDelete, onDeleteClic
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors group">
-      <td className="px-6 py-4">
+      <td className="px-6 py-4 break-words">
         <span className="text-slate-800 font-semibold">{name}</span>
       </td>
       <td className="px-6 py-4">

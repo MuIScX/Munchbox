@@ -8,7 +8,7 @@ export default function IngredientRow({ row, showDelete, onDeleteClick, onEditCl
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors">
-      <td className="px-6 py-3 text-slate-800 font-semibold">{name}</td>
+      <td className="px-6 py-3 text-slate-800 font-semibold break-words">{name}</td>
       <td className="px-6 py-3 text-slate-500 text-sm">{CATEGORY_MAP[row.category] || row.category || 'Unknown'}</td>
       <td className="px-6 py-3 text-center text-slate-800 font-semibold">{currentStock}</td>
       <td className="px-6 py-3 text-center text-slate-500 text-sm">{row.unit}</td>
