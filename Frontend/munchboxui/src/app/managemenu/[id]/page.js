@@ -8,8 +8,12 @@ import EditMenuModal from "../../components/EditRecipeModal";
 import { MenuAPI, RecipeAPI, IngredientAPI } from "../../../lib/api";
 import { ArrowLeft, Utensils, Receipt, ListChecks, Loader2, Edit3 } from "lucide-react";
 
-const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
-
+const TYPE_MAP = {
+  1: "Main",
+  2: "Appetizer",
+  3: "Dessert",
+  4: "Drink"
+};
 export default function RecipeDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -88,11 +92,11 @@ export default function RecipeDetailPage() {
                     <div className="flex items-center gap-4 text-slate-300">
                       <div className="flex items-center gap-1.5">
                         <Receipt size={16} className="text-orange-500" />
-                        <span className="font-bold text-lg text-white">{menu.menu_price || 0} Baht</span>
+                        <span className="font-bold text-lg text-white">{menu.price || 0} Baht</span>
                       </div>
                       <span className="opacity-30 text-xl">|</span>
                       <span className="text-sm font-semibold uppercase tracking-widest bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg">
-                        {TYPE_MAP[menu.menu_type] || "Main Dish"}
+                        {TYPE_MAP[menu.type] || "Main Dish"}
                       </span>
                     </div>
                   </div>

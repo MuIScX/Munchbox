@@ -121,22 +121,27 @@ function ChartTooltip({ active, payload, label, unit }) {
 const MAX_DAYS_DIFF = 7;
 
 async function buildFuzzyChartData(ingredientId) {
-  const [setsRes, actualRes] = await Promise.all([
-    PredictAPI.sets(ingredientId),
-    PredictAPI.actual(ingredientId),
+  // Step 1: get sets first to know the forecast date range
+  const setsRes = await PredictAPI.sets(ingredientId);
+  const sets = setsRes?.Data || [];
+
+  if (!sets.length) return [];
+
+  // Derive date range from all sets
+  const startDate = sets.map((s) => s.start_date).filter(Boolean).sort()[0];
+  const endDate = sets.map((s) => s.end_date).filter(Boolean).sort().at(-1);
+
+  // Step 2: fetch actual data scoped to forecast date range only
+  const [actualRes, ...forecasts] = await Promise.all([
+    PredictAPI.actual(ingredientId, startDate, endDate),
+    ...sets.map((s) =>
+      PredictAPI.dailyForecast(ingredientId, s.predict_set_id).catch(() => ({ Data: [] }))
+    ),
   ]);
 
-  const sets      = setsRes?.Data || [];
   const actualArr = (actualRes?.Data || []).sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!sets.length || !actualArr.length) return [];
-
-  // Fetch all set daily forecasts in parallel
-  const forecasts = await Promise.all(
-    sets.map((s) =>
-      PredictAPI.dailyForecast(ingredientId, s.predict_set_id).catch(() => ({ Data: [] }))
-    )
-  );
+  if (!actualArr.length) return [];
 
   // Collect all predicted dates across all sets; later sets overwrite earlier for same date
   const predByDate = {};
@@ -172,20 +177,19 @@ async function buildFuzzyChartData(ingredientId) {
     if (!bestDate) return null;
     usedActual.add(bestDate);
 
-    const actual  = actualArr.find((a) => a.date === bestDate).actual_usage;
+    const actual = actualArr.find((a) => a.date === bestDate).actual_usage;
     const surplus = parseFloat((pred.predicted - actual).toFixed(2));
     return {
       date:      pred.date,
       predicted: parseFloat(pred.predicted.toFixed(2)),
       actual:    parseFloat(actual.toFixed(2)),
       surplus,
-      approx:    bestDiff > 0, // true = nearest-date approximation was used
+      approx:    bestDiff > 0,
     };
   }).filter(Boolean);
 
   return matched;
 }
-
 /* ─── main page ─── */
 export default function AccuracyPage() {
   const [ingredients, setIngredients] = useState([]);

@@ -12,8 +12,12 @@ import { MenuAPI, IngredientAPI, RecipeAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 
-const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
-
+const TYPE_MAP = {
+  1: "Main",
+  2: "Appetizer",
+  3: "Dessert",
+  4: "Drink"
+};
 export default function ManageMenuPage() {
   const router = useRouter();
   const filterBtnRef = useRef(null);

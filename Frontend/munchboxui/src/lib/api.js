@@ -169,7 +169,7 @@ export const SaleAPI = {
 export const PredictAPI = {
   report: (days = null) => request("/predict/report", "POST", { days }),
   trend: (ingredient_id) => request("/predict/trend", "POST", { ingredient_id }),
-  actual: (ingredient_id, days = null) => request("/predict/actual", "POST", { ingredient_id, days }),
+  actual: (ingredient_id, start_date = null, end_date = null) => request("/predict/actual", "POST", { ingredient_id, start_date, end_date }),
   dailyForecast: (ingredient_id, predict_set_id = null) =>
     request("/predict/ingredient-forecast", "POST", { ingredient_id, predict_set_id }),
   sets: (ingredient_id) => request("/predict/sets", "POST", { ingredient_id }),

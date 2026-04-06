@@ -378,23 +378,34 @@ def get_predicted_status(body: PredictIngredientRequest, identity: dict = Depend
 def get_actual_usage(body: PredictIngredientRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
     """Return daily actual usage for an ingredient derived from sale_data × recipe."""
     restaurant_id = identity["restaurantId"]
+
+    # Build date filter
+    date_filter = ""
+    params = {"ingredient_id": body.ingredient_id, "restaurant_id": restaurant_id}
+
+    if body.start_date:
+        date_filter += " AND DATE(S.timestamp) >= :start_date"
+        params["start_date"] = body.start_date
+    if body.end_date:
+        date_filter += " AND DATE(S.timestamp) <= :end_date"
+        params["end_date"] = body.end_date
+
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT DATE(S.timestamp) AS date, SUM(S.amount * R.amount) AS daily_usage
             FROM sale_data S
             JOIN recipe R ON S.menu_id = R.menu_id
             WHERE R.ingredient_id = :ingredient_id
               AND S.restaurant_id  = :restaurant_id
+              {date_filter}
             GROUP BY DATE(S.timestamp)
             ORDER BY date ASC
         """),
-        {"ingredient_id": body.ingredient_id, "restaurant_id": restaurant_id},
+        params,
     ).fetchall()
     return {"message": "success", "Data": [
         {"date": str(r[0]), "actual_usage": float(r[1])} for r in rows
     ]}
-
-
 @router.post("/prep-summary")
 def prep_summary(body: PrepSummaryRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
     """Return all active ingredients with expected_usage summed over the given date range (latest predict_set).
