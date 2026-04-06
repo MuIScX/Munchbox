@@ -61,6 +61,8 @@ export default function PredictPage() {
   const [statusFilter, setStatusFilter]           = useState("All");
   const [toast, setToast]                         = useState(null);
   const [modalOpen, setModalOpen]                 = useState(false);
+  const startPickerRef = useRef(null);
+  const endPickerRef   = useRef(null);
   const [ingredientList, setIngredientList]       = useState([]);
   const [requestForm, setRequestForm]             = useState({
     ingredient_id: "",
@@ -94,6 +96,9 @@ export default function PredictPage() {
   const toDateStr = (d) => d
     ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
     : null;
+
+  const toDate = (s) => s ? new Date(s + "T00:00:00") : null;
+  const toStr  = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
 
   const fetchPrepSummary = useCallback(async (start, end) => {
     try {
@@ -867,8 +872,7 @@ const filteredReport = useMemo(() => {
                     </div>
                   )}
                   {selectedSet && (() => {
-                    const toDate = (s) => s ? new Date(s) : null;
-                    const toStr  = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+
                     const minDate = toDate(selectedSet.start_date);
                     const maxDate = toDate(selectedSet.end_date);
                     return (
@@ -1312,26 +1316,35 @@ const filteredReport = useMemo(() => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Forecast Period</label>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <p className="text-[10px] text-slate-400 mb-1">From</p>
-                    <input
-                      type="date"
-                      value={requestForm.start_date}
-                      onChange={(e) => setRequestForm((f) => ({ ...f, start_date: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 h-[34px]">
+                    <span className="text-[10px] text-slate-400 font-medium shrink-0">From</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <DatePicker
+                      ref={startPickerRef}
+                      selected={toDate(requestForm.start_date)}
+                      onChange={(d) => setRequestForm((f) => ({ ...f, start_date: toStr(d) }))}
+                      maxDate={toDate(requestForm.end_date) ?? undefined}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      className="bg-transparent text-xs font-semibold text-slate-600 outline-none cursor-pointer w-[90px]"
                     />
+                    <Calendar size={12} className="text-slate-400 shrink-0 cursor-pointer" onClick={() => startPickerRef.current?.setOpen(true)} />
                   </div>
-                  <div className="pb-2.5 text-slate-300 font-bold text-lg">→</div>
-                  <div className="flex-1">
-                    <p className="text-[10px] text-slate-400 mb-1">To</p>
-                    <input
-                      type="date"
-                      value={requestForm.end_date}
-                      min={requestForm.start_date}
-                      onChange={(e) => setRequestForm((f) => ({ ...f, end_date: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                  <span className="text-slate-300 text-xs">→</span>
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 h-[34px]">
+                    <span className="text-[10px] text-slate-400 font-medium shrink-0">To</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <DatePicker
+                      ref={endPickerRef}
+                      selected={toDate(requestForm.end_date)}
+                      onChange={(d) => setRequestForm((f) => ({ ...f, end_date: toStr(d) }))}
+                      minDate={toDate(requestForm.start_date) ?? undefined}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      className="bg-transparent text-xs font-semibold text-slate-600 outline-none cursor-pointer w-[90px]"
                     />
+                    <Calendar size={12} className="text-slate-400 shrink-0 cursor-pointer" onClick={() => endPickerRef.current?.setOpen(true)} />
                   </div>
                 </div>
                 {requestForm.start_date && requestForm.end_date && (() => {
