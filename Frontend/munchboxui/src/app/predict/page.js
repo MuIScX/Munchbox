@@ -66,7 +66,7 @@ export default function PredictPage() {
   const [ingredientList, setIngredientList]       = useState([]);
   const [requestForm, setRequestForm]             = useState({
     ingredient_id: "",
-    start_date: new Date().toISOString().split("T")[0],
+    start_date: new Date(Date.now() + 1 * 86400000).toISOString().split("T")[0],
     end_date:   new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     strategy:   "2",
   });
@@ -1348,7 +1348,7 @@ const filteredReport = useMemo(() => {
                   </div>
                 </div>
                 {requestForm.start_date && requestForm.end_date && (() => {
-                  const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000);
+                  const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000) + 1;
                   return days > 0 ? (
                     <div className="mt-2 inline-flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-500 text-xs font-semibold px-3 py-1 rounded-full">
                       <Clock size={11} /> {days} day{days !== 1 ? "s" : ""} selected
