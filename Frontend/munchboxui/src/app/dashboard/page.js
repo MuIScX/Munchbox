@@ -100,13 +100,18 @@ function SaleTooltip({ active, payload, label }) {
   );
 }
 
+function fmtDisplayDate(v) {
+  const [y, m, d] = v.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function AccTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const val = safeNum(payload[0].value);
   return (
     <div className="bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-lg">
       <p className={`text-sm font-bold ${accuracyColor(val)}`}>{val.toFixed(1)}%</p>
-      <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
+      <p className="text-[10px] text-slate-400 mt-0.5">{fmtDisplayDate(label)}</p>
     </div>
   );
 }
@@ -307,51 +312,17 @@ export default function DashboardPage() {
       .catch(() => { if (mountedRef.current) setMenuError(true); })
       .finally(() => { if (mountedRef.current) setMenuLoading(false); });
 
-    /* Accuracy via predict report */
+    /* Accuracy via /predict/accuracy (all ingredients) */
     setAccuracyLoading(true);
-    PredictAPI.report(null).then(async (res) => {
+    PredictAPI.accuracy(null).then((res) => {
       if (!mountedRef.current) return;
-      if (Array.isArray(res?.Data)) {
-        const data = res.Data;
-        const sample = data.slice(0, 10);
-        const results = await Promise.allSettled(
-          sample.map((ing) => Promise.all([
-            PredictAPI.actual(ing.ingredient_id),
-            PredictAPI.trend(ing.ingredient_id),
-          ]))
-        );
-        if (!mountedRef.current) return;
-        const dateMap = {};
-        let totalAcc = 0, countAcc = 0;
-        results.forEach((r) => {
-          if (r.status !== "fulfilled") return;
-          const [actualRes, trendRes] = r.value;
-          const actualMap = {};
-          (actualRes?.Data || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
-          (trendRes?.Data?.data || [])
-            .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
-            .forEach((d) => {
-              const date = (d.timestamp || "").split(" ")[0];
-              const actual = actualMap[date];
-              if (!actual || actual <= 0) return;
-              const acc = Math.min(100, d.expected_usage >= actual
-                ? 100 : Math.max(0, (d.expected_usage / actual) * 100));
-              totalAcc += acc; countAcc += 1;
-              if (!dateMap[date]) dateMap[date] = { total: 0, count: 0 };
-              dateMap[date].total += acc;
-              dateMap[date].count += 1;
-            });
-        });
-        setAccuracy(countAcc > 0 ? parseFloat((totalAcc / countAcc).toFixed(1)) : null);
-        setAccuracyChartData(
-          Object.entries(dateMap)
-            .map(([date, { total, count }]) => ({
-              date,
-              name: new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-              accuracy: parseFloat((total / count).toFixed(1)),
-            }))
-            .sort((a, b) => a.date.localeCompare(b.date))
-        );
+      const data = Array.isArray(res?.Data) ? res.Data : [];
+      setAccuracyChartData(data);
+      if (data.length > 0) {
+        const avg = data.reduce((s, d) => s + d.accuracy, 0) / data.length;
+        setAccuracy(parseFloat(avg.toFixed(1)));
+      } else {
+        setAccuracy(null);
       }
     }).catch(() => {})
       .finally(() => { if (mountedRef.current) setAccuracyLoading(false); });
@@ -593,10 +564,11 @@ export default function DashboardPage() {
                     <LineChart data={accuracyChartData} margin={{ top: 4, right: 8, left: -10, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis
-                        dataKey="name"
+                        dataKey="date"
                         tick={{ fontSize: 10, fill: "#94a3b8" }}
                         axisLine={false} tickLine={false}
                         interval={Math.max(0, Math.ceil(accuracyChartData.length / 6) - 1)}
+                        tickFormatter={fmtDisplayDate}
                         label={{ value: "Time", position: "insideBottom", offset: -12, style: { fontSize: 10, fill: "#94a3b8" } }}
                       />
                       <YAxis
@@ -608,9 +580,9 @@ export default function DashboardPage() {
                       />
                       <Tooltip content={<AccTooltip />} />
                       <ReferenceLine y={85} stroke="#10b981" strokeDasharray="4 4" strokeWidth={1.5}
-                        label={{ value: "85%", position: "right", style: { fontSize: 9, fill: "#10b981" } }} />
+                        label={{ value: "85%", position: "insideTopRight", style: { fontSize: 9, fill: "#10b981" } }} />
                       <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1}
-                        label={{ value: "70%", position: "right", style: { fontSize: 9, fill: "#f59e0b" } }} />
+                        label={{ value: "70%", position: "insideTopRight", style: { fontSize: 9, fill: "#f59e0b" } }} />
                       <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={2.5}
                         dot={accuracyChartData.length <= 20 ? { r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 2 } : false}
                         activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} />
