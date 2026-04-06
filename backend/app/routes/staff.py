@@ -23,6 +23,13 @@ def get_all_staff(identity: dict = Depends(decode_token), db: Session = Depends(
 
 @router.post("/create", status_code=201)
 def add_staff(body: StaffCreate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    existing = db.query(Staff).filter(
+        Staff.restaurant_id == identity["restaurantId"],
+        Staff.name == body.name,
+        Staff.is_active == 1,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f'"{body.name}" already exists.')
     staff = Staff(name=body.name, role=body.role, restaurant_id=identity["restaurantId"])
     db.add(staff)
     db.commit()
