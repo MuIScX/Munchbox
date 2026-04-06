@@ -55,8 +55,8 @@ function AccuracyBadge({ acc }) {
 }
 
 function fmtDate(v) {
-  const d = new Date(v);
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+  const [y, m, d] = v.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 /* ─── per-ingredient chart tooltip ─── */
@@ -66,7 +66,7 @@ function ChartTooltip({ active, payload, label, unit }) {
   const isSafe = d?.surplus != null ? d.surplus >= 0 : null;
   return (
     <div style={{ background: "white", borderRadius: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgb(0 0 0/0.10)", border: "1px solid #e2e8f0", minWidth: 190 }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{label}</p>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{fmtDate(label)}</p>
       {d?.actual != null && (
         <p style={{ fontSize: 13, color: "#10b981", margin: "3px 0 0 0" }}>Actual: <b>{d.actual.toFixed(2)}</b> {unit}</p>
       )}
@@ -94,7 +94,7 @@ function AllAccuracyTooltip({ active, payload, label }) {
   const acc = payload[0]?.value;
   return (
     <div style={{ background: "white", borderRadius: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgb(0 0 0/0.10)", border: "1px solid #e2e8f0", minWidth: 160 }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{label}</p>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", margin: "0 0 6px 0" }}>{fmtDate(label)}</p>
       {acc != null && (
         <p style={{ fontSize: 13, color: "#f97316", margin: "3px 0 0 0" }}>
           Avg Accuracy: <b>{acc.toFixed(1)}%</b>
@@ -479,7 +479,7 @@ export default function AccuracyPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                    Predicted (closest-before)
+                    Predicted Demand
                   </div>
                   {selected?.accuracy != null && (
                     <div className="ml-auto"><AccuracyBadge acc={selected.accuracy} /></div>
