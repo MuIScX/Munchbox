@@ -7,7 +7,7 @@ import { CATEGORY_MAP } from "../../lib/schema";
 export default function AddIngredientModal({ isOpen, onClose, onSuccess, existingIngredients = [] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({ name: "", category: "1", unit: "" });
+  const [formData, setFormData] = useState({ name: "", category: "", unit: "" });
 
   if (!isOpen) return null;
 
@@ -62,7 +62,8 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Category</label>
-            <select required value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200  rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
+            <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
+              <option value="" disabled>Select Category</option>
               {Object.entries(CATEGORY_MAP).map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
               ))}
@@ -70,7 +71,7 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Unit</label>
-            <select required value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
+            <select value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-700">
               <option value="" disabled>Select Unit</option>
               <option value="kg">kg (Kilogram)</option>
               <option value="g">g (Gram)</option>
@@ -86,7 +87,7 @@ export default function AddIngredientModal({ isOpen, onClose, onSuccess, existin
           {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50">
+            <button type="submit" disabled={loading || !formData.name.trim() || !formData.unit || !formData.category} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Ingredient"}
             </button>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { X, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { X, Loader2, Search, Trash2 } from "lucide-react";
 import { MenuAPI, IngredientAPI } from "../../lib/api"; 
 
 export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
@@ -9,7 +9,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
   const dropdownRef = useRef(null);
 
   // Form States
-  const [formData, setFormData] = useState({ name: "", type: "1", price: "" });
+  const [formData, setFormData] = useState({ name: "", type: "", price: "" });
   
   // Ingredients States
   const [availableIngredients, setAvailableIngredients] = useState([]);
@@ -19,7 +19,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ name: "", type: "1", price: "" });
+      setFormData({ name: "", type: "", price: "" });
       setSelectedIngredients([]);
       setSearchTerm("");
       setIsDropdownOpen(false);
@@ -106,7 +106,7 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
       }
       
       // รีเซ็ตฟอร์ม (เผื่อกดเปิดใหม่จะได้เป็นค่าว่าง)
-      setFormData({ name: "", type: "1", price: "" });
+      setFormData({ name: "", type: "", price: "" });
       setSelectedIngredients([]);
 
       onSuccess(); // รีเฟรชตารางหน้าหลัก
@@ -138,7 +138,8 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">Type</label>
-              <select required value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border  text-slate-600  border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+              <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border text-slate-600 border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+                <option value="" disabled>Select Type</option>
                 <option value="1">Main Course</option>
                 <option value="2">Appetizer</option>
                 <option value="3">Dessert</option>
@@ -227,8 +228,8 @@ export default function AddMenuModal({ isOpen, onClose, onSuccess }) {
           {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
           <div className="pt-4 flex gap-3 border-t border-slate-100 mt-6">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Menu & Recipe"}
+            <button type="submit" disabled={loading || selectedIngredients.length === 0 || !formData.name.trim() || !formData.price || !formData.type} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Recipe"}
             </button>
           </div>
         </form>
