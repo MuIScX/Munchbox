@@ -163,12 +163,12 @@ export default function PredictPage() {
     try {
       setLoading(true);
       const res  = await PredictAPI.report(days);
-      const data = Array.isArray(res?.Data) ? res.Data : [];
+      const data = Array.isArray(res?.Data) ? res.Data.map(r => ({ ...r, hasPrediction: true })) : [];
       setReport(data);
 
       if (data.length > 0) {
         setSelectedIngredient((prev) => {
-          const keep = prev ? data.find((r) => r.ingredient_id === prev.ingredient_id) : null;
+          const keep = prev?.hasPrediction ? data.find((r) => r.ingredient_id === prev.ingredient_id) : null;
           const next = keep ?? data[0];
           fetchTrend(next.ingredient_id);
           return next;
@@ -192,7 +192,14 @@ export default function PredictPage() {
 
   const handleSelectIngredient = (ing) => {
     setSelectedIngredient(ing);
-    fetchTrend(ing.ingredient_id);
+    if (ing.hasPrediction) {
+      fetchTrend(ing.ingredient_id);
+    } else {
+      setTrendData([]);
+      setDailyForecast([]);
+      setPredictSets([]);
+      setSelectedSetId(null);
+    }
   };
 
 
@@ -226,14 +233,33 @@ export default function PredictPage() {
     }
   };
 
+const mergedList = useMemo(() => {
+  const reportMap = new Map(report.map(r => [r.ingredient_id, r]));
+  return ingredientList.map(ing => {
+    const predicted = reportMap.get(ing.id);
+    if (predicted) return { ...predicted, hasPrediction: true };
+    return {
+      ingredient_id: ing.id,
+      ingredient_name: ing.ingredient_name,
+      unit: ing.unit || "",
+      category: ing.category ?? "",
+      hasPrediction: false,
+    };
+  });
+}, [ingredientList, report]);
+
 const filteredReport = useMemo(() => {
-  return report
+  return mergedList
     .filter((r) => {
       const nameMatch   = (r.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+      // Status filter only applies to items with prediction data; no-prediction items only show under "All"
+      if (!r.hasPrediction) return nameMatch && statusFilter === "All";
       const statusMatch = statusFilter === "All" || (statusFilter === "OK" ? r.status === 1 : r.status === 0);
       return nameMatch && statusMatch;
     })
     .sort((a, b) => {
+      // Items without prediction always go to the bottom
+      if (a.hasPrediction !== b.hasPrediction) return a.hasPrediction ? -1 : 1;
       if (sortBy === "urgency") {
         // Use urgency_score if available (higher = more urgent), else fall back to deficit
         const uA = a.urgency_score ?? null;
@@ -249,7 +275,7 @@ const filteredReport = useMemo(() => {
       }
       return 0;
     });
-}, [report, searchQuery, statusFilter, sortBy, categoryOrder]);
+}, [mergedList, searchQuery, statusFilter, sortBy, categoryOrder]);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -547,8 +573,31 @@ const filteredReport = useMemo(() => {
                 ) : (() => {
                   const renderCard = (ing) => {
                     const isSelected = selectedIngredient?.ingredient_id === ing.ingredient_id;
-                    const isLow      = ing.status === 0;
-                    const diff       = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
+
+                    if (!ing.hasPrediction) {
+                      return (
+                        <button
+                          key={ing.ingredient_id}
+                          onClick={() => handleSelectIngredient(ing)}
+                          className={`w-full text-left rounded-xl border p-3 transition-all opacity-50 ${
+                            isSelected
+                              ? "bg-slate-100 border-slate-300 shadow-sm"
+                              : "bg-white border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-300" />
+                            <span className="font-semibold text-sm truncate flex-1 text-slate-400">
+                              {ing.ingredient_name}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 italic">No prediction data</p>
+                        </button>
+                      );
+                    }
+
+                    const isLow = ing.status === 0;
+                    const diff  = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
                     return (
                       <button
                         key={ing.ingredient_id}
@@ -614,8 +663,18 @@ const filteredReport = useMemo(() => {
             {/* ── Right panel: stats + chart ── */}
             <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto">
 
+              {/* No prediction placeholder */}
+              {selectedIngredient && !selectedIngredient.hasPrediction && (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
+                  <BarChart2 size={36} className="text-slate-300" />
+                  <p className="text-base font-semibold text-slate-500">{selectedIngredient.ingredient_name}</p>
+                  <p className="text-sm text-slate-400">No prediction data available.</p>
+                  <p className="text-xs text-slate-300">Generate a forecast to see predictions for this ingredient.</p>
+                </div>
+              )}
+
               {/* Stat cards */}
-              {selectedIngredient && (
+              {selectedIngredient && selectedIngredient.hasPrediction && (
                 <div className="grid grid-cols-4 gap-3 shrink-0">
                   <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center gap-3 shadow-sm">
                     <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
@@ -670,6 +729,9 @@ const filteredReport = useMemo(() => {
                   </div>
                 </div>
               )}
+
+              {/* ── Charts: only shown when ingredient has prediction data ── */}
+              {(!selectedIngredient || selectedIngredient.hasPrediction) && <>
 
               {/* ── TOP CHART: Demand Forecast ── */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
@@ -910,6 +972,8 @@ const filteredReport = useMemo(() => {
                   </div>
                 )}
               </div>
+
+              </>}
             </div>
           </div>
 
