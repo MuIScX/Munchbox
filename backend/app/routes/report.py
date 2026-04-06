@@ -94,7 +94,7 @@ def get_share_menu(
             (func.coalesce(func.sum(SaleData.amount), 0) / func.coalesce(total_sub, 1) * 100),
         )
         .outerjoin(SaleData, (Menu.id == SaleData.menu_id) & (SaleData.restaurant_id == restaurant_id))
-        .filter(Menu.restaurant_id == restaurant_id)
+        .filter(Menu.restaurant_id == restaurant_id, Menu.is_active == 1)
     )
     sale_q = apply_date_filter(sale_q, body)
     rows = sale_q.group_by(Menu.id, Menu.name, Menu.price).all()
