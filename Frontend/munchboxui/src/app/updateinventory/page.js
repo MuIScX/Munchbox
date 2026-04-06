@@ -212,7 +212,7 @@ export default function Home() {
                       className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                     />
                   </div>
-                  {showSuggestions && searchQuery && (() => {
+                  {showSuggestions && (() => {
                     const suggestions = ingredients.filter(i => (i.ingredient_name || i.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
                     if (suggestions.length === 0) return null;
                     return (

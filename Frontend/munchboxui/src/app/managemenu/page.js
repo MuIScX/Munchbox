@@ -190,7 +190,7 @@ export default function ManageMenuPage() {
                     className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                   />
                 </div>
-                {showSuggestions && searchQuery && (() => {
+                {showSuggestions && (() => {
                   const suggestions = menus.filter(m => (m.menu_name || m.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
                   if (suggestions.length === 0) return null;
                   return (

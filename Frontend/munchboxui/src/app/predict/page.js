@@ -61,6 +61,9 @@ export default function PredictPage() {
   const [statusFilter, setStatusFilter]           = useState("All");
   const [toast, setToast]                         = useState(null);
   const [modalOpen, setModalOpen]                 = useState(false);
+  const [ingSearchQuery, setIngSearchQuery]       = useState("");
+  const [ingSearchOpen, setIngSearchOpen]         = useState(false);
+  const [ingAll, setIngAll]                       = useState(false);
   const startPickerRef = useRef(null);
   const endPickerRef   = useRef(null);
   const [ingredientList, setIngredientList]       = useState([]);
@@ -539,7 +542,7 @@ const filteredReport = useMemo(() => {
                     </button>
                   )}
                 </div>
-                {showSuggestions && searchQuery && (() => {
+                {showSuggestions && (() => {
                   const suggestions = mergedList
                     .filter(ing => (ing.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase()))
                     .slice(0, 6);
@@ -550,9 +553,8 @@ const filteredReport = useMemo(() => {
                         <button
                           key={ing.ingredient_id}
                           onMouseDown={(e) => { e.preventDefault(); handleSelectIngredient(ing); setSearchQuery(ing.ingredient_name); setShowSuggestions(false); }}
-                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors flex items-center gap-2"
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors"
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${ing.hasPrediction ? (ing.status === 0 ? "bg-red-400" : "bg-emerald-400") : "bg-slate-300"}`} />
                           {ing.ingredient_name}
                         </button>
                       ))}
@@ -1289,7 +1291,7 @@ const filteredReport = useMemo(() => {
                 <h2 className="text-lg font-bold text-slate-800">New Prediction</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Run the Bayesian model for selected ingredient</p>
               </div>
-              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition p-1">
+              <button onClick={() => { setModalOpen(false); setIngSearchQuery(""); setIngAll(false); setRequestForm(f => ({ ...f, ingredient_id: "" })); }} className="text-slate-400 hover:text-slate-600 transition p-1">
                 <X size={18} />
               </button>
             </div>
@@ -1297,25 +1299,73 @@ const filteredReport = useMemo(() => {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Ingredient</label>
-                {!requestForm.ingredient_id && (
-                  <p className="text-xs text-red-500 font-medium mb-1.5 flex items-center gap-1">
-                    <AlertTriangle size={11} /> This procedure will take a long time to complete
-                  </p>
-                )}
-                <select
-                  value={requestForm.ingredient_id}
-                  onChange={(e) => setRequestForm((f) => ({ ...f, ingredient_id: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
-                >
-                  <option value="">All Ingredients</option>
-                  {ingredientList.map((r) => (
-                    <option key={r.id} value={r.id}>{r.ingredient_name}</option>
-                  ))}
-                </select>
+                <label className="flex items-center gap-2 mb-2 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={ingAll}
+                    onChange={(e) => {
+                      setIngAll(e.target.checked);
+                      if (e.target.checked) { setRequestForm(f => ({ ...f, ingredient_id: "" })); setIngSearchQuery(""); }
+                    }}
+                    className="w-3.5 h-3.5"
+                  />
+                  <span className="text-xs text-slate-500 font-medium">All Ingredient</span>
+                  {ingAll && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1">
+                      <AlertTriangle size={11} /> This will take a long time
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 transition ${ingAll ? "bg-slate-100 border-slate-200 opacity-60 pointer-events-none" : "bg-slate-50 border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent"}`}>
+                    <Search size={13} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search ingredient..."
+                      value={ingSearchQuery}
+                      onChange={(e) => { setIngSearchQuery(e.target.value); setIngSearchOpen(true); if (!e.target.value) setRequestForm(f => ({ ...f, ingredient_id: "" })); }}
+                      onFocus={() => setIngSearchOpen(true)}
+                      onBlur={() => setTimeout(() => setIngSearchOpen(false), 150)}
+                      className="bg-transparent text-sm text-slate-700 outline-none w-full placeholder:text-slate-400"
+                    />
+                    {requestForm.ingredient_id && (
+                      <button type="button" onClick={() => { setRequestForm(f => ({ ...f, ingredient_id: "" })); setIngSearchQuery(""); setIngAll(false); }} className="text-slate-300 hover:text-slate-500 shrink-0">
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  {ingSearchOpen && (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-48 overflow-y-auto">
+                      {ingredientList
+                        .filter(r => (r.ingredient_name || "").toLowerCase().includes(ingSearchQuery.toLowerCase()))
+                        .slice(0, 5)
+                        .map(r => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); setRequestForm(f => ({ ...f, ingredient_id: r.id })); setIngSearchQuery(r.ingredient_name); setIngSearchOpen(false); setIngAll(false); }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors"
+                          >
+                            {r.ingredient_name}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Forecast Period</label>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Forecast Period</label>
+                  {requestForm.start_date && requestForm.end_date && (() => {
+                    const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000) + 1;
+                    return days > 0 ? (
+                      <div className="inline-flex items-center gap-1 bg-orange-50 border border-orange-100 text-orange-500 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        <Clock size={10} /> {days} day{days !== 1 ? "s" : ""}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 h-[34px]">
                     <span className="text-[10px] text-slate-400 font-medium shrink-0">From</span>
@@ -1349,13 +1399,9 @@ const filteredReport = useMemo(() => {
                 </div>
                 {requestForm.start_date && requestForm.end_date && (() => {
                   const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000) + 1;
-                  return days > 0 ? (
-                    <div className="mt-2 inline-flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-500 text-xs font-semibold px-3 py-1 rounded-full">
-                      <Clock size={11} /> {days} day{days !== 1 ? "s" : ""} selected
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-red-400 font-medium">⚠ End date must be after start date</p>
-                  );
+                  return days <= 0 ? (
+                    <p className="mt-1 text-xs text-red-400 font-medium">⚠ End date must be after start date</p>
+                  ) : null;
                 })()}
               </div>
 

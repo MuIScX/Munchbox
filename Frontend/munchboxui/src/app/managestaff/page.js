@@ -173,7 +173,7 @@ export default function ManageStaffPage() {
                     className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                   />
                 </div>
-                {showSuggestions && searchQuery && (() => {
+                {showSuggestions && (() => {
                   const suggestions = staff.filter(s => (s.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
                   if (suggestions.length === 0) return null;
                   return (
