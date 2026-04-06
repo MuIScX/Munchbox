@@ -225,6 +225,8 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
             "total_upper_bound":    round(sum(r.upper_bound   for r in rows if r.upper_bound is not None), 2),
             "total_lower_bound":    round(sum(r.lower_bound   for r in rows if r.lower_bound is not None), 2),
             "day_count":            len(rows),
+            "forecast_start":       str(rows[0].timestamp.date())  if rows else None,
+            "forecast_end":         str(rows[-1].timestamp.date()) if rows else None,
         }
 
     # Step 4: Get daily_target_average from summary rows
@@ -283,6 +285,8 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
             "unit":                 ing.unit,
             "category":             ing.category,
             "status":               1 if float(ing.stock_left) >= total_usage else 0,
+            "forecast_start":       agg["forecast_start"],
+            "forecast_end":         agg["forecast_end"],
         })
 
     return {"message": "success", "Data": result}

@@ -74,6 +74,7 @@ export default function PredictPage() {
   const [prepSummaryData, setPrepSummaryData]     = useState([]);
   const [prepSummaryLoading, setPrepSummaryLoading] = useState(false);
   const [prepSummaryError, setPrepSummaryError]   = useState(null);
+  const [prepSearch, setPrepSearch]               = useState("");
   const [prepStart, setPrepStart]                 = useState(() => new Date(Date.now() + 1 * 86400000));
   const [prepEnd, setPrepEnd]                     = useState(() => new Date(Date.now() + 7 * 86400000));
 
@@ -585,19 +586,21 @@ const filteredReport = useMemo(() => {
                               : "bg-white border-slate-200 hover:border-slate-300"
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 mb-1">
                             <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-300" />
                             <span className="font-semibold text-sm truncate flex-1 text-slate-400">
                               {ing.ingredient_name}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 italic">No prediction data</p>
+                          <p className="text-[9px] text-slate-300 pl-3.5">Last updated: —</p>
                         </button>
                       );
                     }
 
                     const isLow = ing.status === 0;
-                    const diff  = (ing.current_stock - Math.ceil(ing.expected_usage)).toFixed(1);
+                    const setDays = (ing.forecast_start && ing.forecast_end)
+                      ? Math.round((new Date(ing.forecast_end) - new Date(ing.forecast_start)) / 86400000) + 1
+                      : null;
                     return (
                       <button
                         key={ing.ingredient_id}
@@ -608,7 +611,7 @@ const filteredReport = useMemo(() => {
                             : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm"
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-0.5">
                           <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLow ? "bg-red-400" : "bg-emerald-400"}`} />
                           <span className={`font-semibold text-sm truncate flex-1 ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
                             {ing.ingredient_name}
@@ -621,41 +624,79 @@ const filteredReport = useMemo(() => {
                             {isLow ? "Low" : "OK"}
                           </span>
                         </div>
+                        <p className="text-[9px] text-slate-300 mb-2">
+                          Last updated: {ing.forecast_start && ing.forecast_end
+                            ? `${new Date(ing.forecast_start).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })} - ${new Date(ing.forecast_end).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}`
+                            : "—"}
+                        </p>
                         <div className="grid grid-cols-2 gap-x-2">
                           <div>
-                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Stock</p>
+                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Current Stock</p>
                             <p className="text-xs font-bold text-slate-600">{ing.current_stock} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
                           </div>
                           <div>
-                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Est. {forecastDays}d</p>
+                            <p className="text-[9px] text-slate-400 uppercase tracking-wide font-medium">Est. {setDays ?? "?"}d</p>
                             <p className="text-xs font-bold text-slate-600">{Math.ceil(ing.expected_usage)} <span className="font-normal text-slate-400 text-[10px]">{ing.unit}</span></p>
                           </div>
                         </div>
-                        {isLow && (
-                          <div className="mt-2 pt-2 border-t border-red-100">
-                            <p className="text-[10px] text-red-400 font-medium">Need {Math.abs(diff)} more {ing.unit}</p>
-                          </div>
-                        )}
                       </button>
                     );
                   };
 
                   if (sortBy === "category") {
-                    return categoryOrder.map((catId) => {
-                      const items = filteredReport.filter(ing => String(ing.category) === catId);
-                      if (items.length === 0) return null;
-                      return (
-                        <div key={catId} className="flex flex-col gap-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 pb-1 border-b border-orange-100">
-                            {CATEGORY_MAP[catId] || catId}
+                    const noPredictionItems = filteredReport.filter(ing => !ing.hasPrediction);
+                    return [
+                      ...categoryOrder.map((catId) => {
+                        const items = filteredReport
+                          .filter(ing => ing.hasPrediction && String(ing.category) === catId)
+                          .sort((a, b) => {
+                            const uA = a.urgency_score ?? null;
+                            const uB = b.urgency_score ?? null;
+                            if (uA !== null && uB !== null) return uB - uA;
+                            if (a.status !== b.status) return a.status - b.status;
+                            return (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage);
+                          });
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={catId} className="flex flex-col gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 pb-1 border-b border-orange-100">
+                              {CATEGORY_MAP[catId] || catId}
+                            </p>
+                            {items.map(renderCard)}
+                          </div>
+                        );
+                      }),
+                      noPredictionItems.length > 0 && (
+                        <div key="__no_prediction__" className="flex flex-col gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 pb-1 border-b border-slate-100">
+                            No Prediction Data
                           </p>
-                          {items.map(renderCard)}
+                          {noPredictionItems.map(renderCard)}
                         </div>
-                      );
-                    });
+                      ),
+                    ];
                   }
 
-                  return filteredReport.map(renderCard);
+                  const predictedItems    = filteredReport.filter(ing => ing.hasPrediction);
+                  const noPredictionItems = filteredReport.filter(ing => !ing.hasPrediction);
+                  return [
+                    predictedItems.length > 0 && (
+                      <div key="__predicted__" className="flex flex-col gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 pb-1 border-b border-orange-100">
+                          Predicted
+                        </p>
+                        {predictedItems.map(renderCard)}
+                      </div>
+                    ),
+                    noPredictionItems.length > 0 && (
+                      <div key="__no_prediction__" className="flex flex-col gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 pb-1 border-b border-slate-100">
+                          No Prediction Data
+                        </p>
+                        {noPredictionItems.map(renderCard)}
+                      </div>
+                    ),
+                  ];
                 })()}
               </div>
             </div>
@@ -681,7 +722,7 @@ const filteredReport = useMemo(() => {
                       <Package size={14} className="text-slate-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Stock</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Current Stock</p>
                       <p className="text-xl font-bold text-slate-700 leading-tight">{selectedIngredient.current_stock}</p>
                       <p className="text-[10px] text-slate-400">{selectedIngredient.unit}</p>
                     </div>
@@ -692,7 +733,7 @@ const filteredReport = useMemo(() => {
                       <BarChart2 size={14} className="text-orange-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-orange-500 font-bold uppercase tracking-wide">Est. {forecastDays}d</p>
+                      <p className="text-[9px] text-orange-500 font-bold uppercase tracking-wide">Estimate {forecastDays} day</p>
                       <p className="text-xl font-bold text-orange-900 leading-tight">{Math.ceil(selectedIngredient.expected_usage)}</p>
                       <p className="text-[10px] text-orange-400">{selectedIngredient.unit}</p>
                     </div>
@@ -703,7 +744,7 @@ const filteredReport = useMemo(() => {
                       <Clock size={14} className="text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-blue-500 font-bold uppercase tracking-wide">Avg / Day</p>
+                      <p className="text-[9px] text-blue-500 font-bold uppercase tracking-wide">Average / Day</p>
                       <p className="text-xl font-bold text-blue-900 leading-tight">{selectedIngredient.daily_target_average ?? "—"}</p>
                       <p className="text-[10px] text-blue-400">{selectedIngredient.unit}/day</p>
                     </div>
@@ -986,7 +1027,7 @@ const filteredReport = useMemo(() => {
           ? Math.round((prepEnd - prepStart) / 86400000) + 1
           : null;
         // An ingredient "has data" only if it covers every day in the requested range
-        const withData    = prepSummaryData.filter((r) => r.has_data).sort((a, b) => {
+        const withData    = prepSummaryData.filter((r) => r.has_data && (r.ingredient_name || "").toLowerCase().includes(prepSearch.toLowerCase())).sort((a, b) => {
           if (prepSortBy === "category") {
             const ai = categoryOrder.indexOf(String(a.category));
             const bi = categoryOrder.indexOf(String(b.category));
@@ -999,7 +1040,9 @@ const filteredReport = useMemo(() => {
           if (a.status !== b.status) return a.status - b.status;
           return (a.current_stock - a.expected_usage) - (b.current_stock - b.expected_usage);
         });
-        const withoutData = prepSummaryData.filter((r) => !r.has_data);
+        const withoutData = prepSummaryData
+          .filter((r) => !r.has_data)
+          .filter((r) => (r.ingredient_name || "").toLowerCase().includes(prepSearch.toLowerCase()));
 
         return (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1022,8 +1065,19 @@ const filteredReport = useMemo(() => {
                 </button>
               </div>
 
-              {/* Date range + sort */}
-              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+              {/* Search + Date range + sort */}
+              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search ingredient…"
+                    value={prepSearch}
+                    onChange={(e) => setPrepSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 h-[30px] bg-white border border-slate-200 rounded-lg text-xs text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 h-[30px]">
                   <span className="text-[10px] text-slate-400 font-medium">Range</span>
                   <span className="text-slate-200 text-xs">|</span>
@@ -1086,6 +1140,7 @@ const filteredReport = useMemo(() => {
                 >
                   Reset
                 </button>
+                </div>
               </div>
 
               {/* Content */}
@@ -1120,7 +1175,7 @@ const filteredReport = useMemo(() => {
                                     <div key={r.ingredient_id} className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl px-4 py-2.5 mb-1.5">
                                       <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
                                       <p className="text-sm font-semibold text-slate-700 truncate flex-1">{r.ingredient_name}</p>
-                                      <p className="text-sm font-bold text-slate-700 shrink-0">{r.expected_usage} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
+                                      <p className="text-sm font-bold text-slate-700 shrink-0">{Math.ceil(r.expected_usage)} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
                                     </div>
                                   ))}
                                 </div>
@@ -1133,7 +1188,7 @@ const filteredReport = useMemo(() => {
                                   <p className="text-sm font-semibold text-slate-700 truncate">{r.ingredient_name}</p>
                                   <p className="text-[10px] text-slate-400">{CATEGORY_MAP[r.category] || "Other"}</p>
                                 </div>
-                                <p className="text-sm font-bold text-slate-700 shrink-0">{r.expected_usage} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
+                                <p className="text-sm font-bold text-slate-700 shrink-0">{Math.ceil(r.expected_usage)} <span className="text-[10px] font-normal text-slate-400">{r.unit}</span></p>
                               </div>
                             ))
                         }
