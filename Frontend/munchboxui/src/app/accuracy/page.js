@@ -25,9 +25,11 @@ function computeAccuracy(actualData, trendData) {
       predicted: d.expected_usage,
     }));
 
+  const today = new Date().toISOString().split("T")[0];
+
   const merged = predPoints
     .map((d) => ({ ...d, actual: actualMap[d.date] ?? null }))
-    .filter((d) => d.actual !== null && d.actual > 0)
+    .filter((d) => d.actual !== null && d.actual > 0 && d.date <= today)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (merged.length === 0) {
