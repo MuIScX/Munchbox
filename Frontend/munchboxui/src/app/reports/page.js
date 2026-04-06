@@ -180,7 +180,7 @@ const formatCurrency = (val) =>
                     <BarChart2 size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Reports</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sale Reports</h1>
                     <p className="text-sm text-slate-400 mt-0.5">Analyze sales trends and revenue data</p>
                   </div>
                 </div>

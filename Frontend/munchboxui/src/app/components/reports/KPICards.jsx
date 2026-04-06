@@ -16,7 +16,7 @@ export default function KPICards({ totalOrders, totalRevenue, formatCurrency }) 
           <ShoppingCart size={18} className="text-amber-600" />
         </div>
         <div>
-          <p className="text-xs text-amber-600 font-bold uppercase tracking-wide">Total Orders</p>
+          <p className="text-xs text-amber-600 font-bold uppercase tracking-wide">Total Sales</p>
           <p className="text-3xl font-bold text-amber-900 mt-0.5">{totalOrders.toLocaleString()}</p>
           <p className="text-xs text-amber-500 font-medium mt-0.5">in selected period</p>
         </div>
