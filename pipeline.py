@@ -15,6 +15,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from ocr import process_ocr
 from cleanup import run_cleanup
+import scanner_trigger
 import config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -155,7 +156,7 @@ def load_menu_names() -> List[str]:
 
     return recipes_cache
 
-def wait_until_file_ready(path, delay=0.5,timeout=30):
+def wait_until_file_ready(path, delay=0.5,timeout=60):
     """
     Wait until scanner finishes writing the file.
     """
@@ -168,7 +169,7 @@ def wait_until_file_ready(path, delay=0.5,timeout=30):
 
         current_size = os.path.getsize(path)
 
-        if current_size == last_size:
+        if current_size == last_size and current_size > 0:
             return
 
         last_size = current_size
@@ -284,6 +285,10 @@ class ScanHandler(FileSystemEventHandler):
             if event.is_directory:
                 return
 
+            # Ignore temp files from scanner_trigger.py
+            if os.path.basename(event.src_path).startswith(".tmp_"):
+                return
+
             if not event.src_path.lower().endswith(
                 (".jpg", ".jpeg", ".png", ".pdf")
             ):
@@ -372,7 +377,14 @@ def start_pipeline():
     
     initialize_counter(OUTPUT_FOLDER)
 
-    #clean up thread
+    # Pass queue to scanner_trigger before starting thread
+    scanner_trigger.set_queue(ocr_queue)
+
+
+    # Starts the Arduino sensor listener
+    threading.Thread(target=scanner_trigger.listen_for_trigger, daemon=True).start()
+
+    # clean up thread
     threading.Thread(target=maintenance_loop, daemon=True).start()
 
     # Start worker thread

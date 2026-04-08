@@ -8,3 +8,23 @@ To run the program,
 
 python main.py
 
+------------------------------------------------
+
+Scanner setup:
+
+Download list
+1. brscan5
+2. sane-utils
+3. pyserial
+
+give linux permission
+'''
+sudo usermod -aG dialout $USER     # allow serial port access without sudo
+sudo chmod a+rw /dev/ttyACM0       # immediate port access without re-login
+'''
+
+find device name
+'''
+scanimage -L
+'''
+
