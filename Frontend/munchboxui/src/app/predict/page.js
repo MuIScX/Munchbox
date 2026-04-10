@@ -188,14 +188,14 @@ export default function PredictPage() {
       const data = Array.isArray(res?.Data) ? res.Data.map(r => ({ ...r, hasPrediction: true })) : [];
       setReport(data);
 
-      if (data.length > 0) {
-        setSelectedIngredient((prev) => {
-          const keep = prev?.hasPrediction ? data.find((r) => r.ingredient_id === prev.ingredient_id) : null;
-          const next = keep ?? data[0];
-          fetchTrend(next.ingredient_id);
-          return next;
-        });
-      }
+      // Preserve previously selected ingredient if it still exists in data
+      // Do NOT auto-select the first ingredient — user must explicitly choose one
+      setSelectedIngredient((prev) => {
+        if (!prev) return null;
+        const keep = prev.hasPrediction ? data.find((r) => r.ingredient_id === prev.ingredient_id) : null;
+        if (keep) fetchTrend(keep.ingredient_id);
+        return keep ?? null;
+      });
     } catch {
       showToast("error", "Failed to load prediction data.");
     } finally {
@@ -780,9 +780,9 @@ const filteredReport = useMemo(() => {
                       <Package size={14} className="text-slate-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Current Stock</p>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Current Stock</p>
                       <p className="text-xl font-bold text-slate-700 leading-tight">{selectedIngredient.current_stock}</p>
-                      <p className="text-[10px] text-slate-400">{selectedIngredient.unit}</p>
+                      <p className="text-xs text-slate-500 font-medium">{selectedIngredient.unit}</p>
                     </div>
                   </div>
 
@@ -791,9 +791,9 @@ const filteredReport = useMemo(() => {
                       <BarChart2 size={14} className="text-orange-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-orange-500 font-bold uppercase tracking-wide">Estimate {forecastDays} day</p>
+                      <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">Est. {forecastDays}-Day Usage</p>
                       <p className="text-xl font-bold text-orange-900 leading-tight">{Math.ceil(selectedIngredient.expected_usage)}</p>
-                      <p className="text-[10px] text-orange-400">{selectedIngredient.unit}</p>
+                      <p className="text-xs text-orange-500 font-medium">{selectedIngredient.unit}</p>
                     </div>
                   </div>
 
@@ -802,9 +802,9 @@ const filteredReport = useMemo(() => {
                       <Clock size={14} className="text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-blue-500 font-bold uppercase tracking-wide">Average / Day</p>
+                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">Avg / Day</p>
                       <p className="text-xl font-bold text-blue-900 leading-tight">{selectedIngredient.daily_target_average ?? "—"}</p>
-                      <p className="text-[10px] text-blue-400">{selectedIngredient.unit}/day</p>
+                      <p className="text-xs text-blue-500 font-medium">{selectedIngredient.unit}/day</p>
                     </div>
                   </div>
 
@@ -815,11 +815,11 @@ const filteredReport = useMemo(() => {
                         : <AlertTriangle size={14} className="text-red-500" />}
                     </div>
                     <div>
-                      <p className={`text-[9px] font-bold uppercase tracking-wide ${selectedIngredient.status === 1 ? "text-emerald-600" : "text-red-500"}`}>Status</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wide ${selectedIngredient.status === 1 ? "text-emerald-700" : "text-red-600"}`}>Stock Status</p>
                       <p className={`text-xl font-bold leading-tight ${selectedIngredient.status === 1 ? "text-emerald-900" : "text-red-900"}`}>
                         {selectedIngredient.status === 1 ? "OK" : "Low"}
                       </p>
-                      <p className={`text-[10px] ${selectedIngredient.status === 1 ? "text-emerald-500" : "text-red-400"}`}>
+                      <p className={`text-xs font-medium ${selectedIngredient.status === 1 ? "text-emerald-600" : "text-red-500"}`}>
                         {selectedIngredient.status === 1
                           ? `+${surplus} ${selectedIngredient.unit} surplus`
                           : `Need ${Math.abs(surplus)} ${selectedIngredient.unit}`}
@@ -829,8 +829,17 @@ const filteredReport = useMemo(() => {
                 </div>
               )}
 
+              {/* No ingredient selected placeholder */}
+              {!selectedIngredient && (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 bg-white border border-slate-200 rounded-2xl p-10 shadow-sm">
+                  <BarChart2 size={40} className="text-slate-200" />
+                  <p className="text-base font-semibold text-slate-400">Select an ingredient</p>
+                  <p className="text-sm text-slate-300">Choose an ingredient from the list to view its forecast</p>
+                </div>
+              )}
+
               {/* ── Charts: only shown when ingredient has prediction data ── */}
-              {(!selectedIngredient || selectedIngredient.hasPrediction) && <>
+              {selectedIngredient && selectedIngredient.hasPrediction && <>
 
               {/* ── TOP CHART: Demand Forecast ── */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
@@ -849,7 +858,7 @@ const filteredReport = useMemo(() => {
                   {/* Prediction set selector */}
                   {predictSets.length > 0 && (
                     <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0 h-[30px]">
-                      <span className="text-[10px] text-slate-400 font-medium">Forecast set</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Model forecast runs</span>
                       <span className="text-slate-200 text-xs">|</span>
                       <select
                         value={selectedSetId ?? ""}
@@ -862,11 +871,12 @@ const filteredReport = useMemo(() => {
                         }}
                         className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
                       >
-                        {predictSets.map((s) => {
+                        {predictSets.map((s, idx) => {
                           const fmt = (d) => { if (!d) return "?"; const [y,m,day] = d.split("-"); return `${day}/${m}/${y}`; };
+                          const runNum = predictSets.length - idx;
                           return (
                             <option key={s.predict_set_id} value={s.predict_set_id}>
-                              {fmt(s.start_date)} – {fmt(s.end_date)}
+                              Run {runNum} — {fmt(s.start_date)} – {fmt(s.end_date)}
                             </option>
                           );
                         })}
@@ -912,8 +922,8 @@ const filteredReport = useMemo(() => {
                   </div>
                   {selectedIngredient && (
                     selectedIngredient.status === 1
-                      ? <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0"><CheckCircle size={11} /> Stock OK</span>
-                      : <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg shrink-0"><AlertTriangle size={11} /> Reorder</span>
+                      ? <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0 pointer-events-none"><CheckCircle size={11} /> Stock OK</span>
+                      : <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg shrink-0 pointer-events-none"><AlertTriangle size={11} /> Low Stock</span>
                   )}
                 </div>
 

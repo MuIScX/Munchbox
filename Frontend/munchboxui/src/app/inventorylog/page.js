@@ -3,11 +3,9 @@ import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { IngredientAPI, StaffAPI } from "../../lib/api";
 import { Search, Calendar, User, Loader2, ClipboardList, X, BookOpen } from 'lucide-react';
-import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function InventoryLog() {
   const [logs, setLogs] = useState([]);
-  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
   const [detailBatch, setDetailBatch] = useState(null);
@@ -42,19 +40,9 @@ export default function InventoryLog() {
     }
   };
 
-  const fetchIngredients = async () => {
-    try {
-      const response = await IngredientAPI.list({});
-      if (response && Array.isArray(response.Data)) setIngredients(response.Data);
-    } catch {
-      // unavailable
-    }
-  };
-
   useEffect(() => {
     fetchLogs();
     fetchStaff();
-    fetchIngredients();
   }, []);
 
   // Group logs by timestamp — each unique timestamp = one batch update session
@@ -88,58 +76,52 @@ export default function InventoryLog() {
       <Sidebar />
 
       {/* Detail Modal */}
-      {detailBatch && (() => {
-        const updatedMap = Object.fromEntries(detailBatch.rows.map(r => [String(r.ingredient_id), r]));
-        const grouped = {};
-        for (const ing of ingredients) {
-          const cat = String(ing.category);
-          if (!grouped[cat]) grouped[cat] = [];
-          grouped[cat].push(ing);
-        }
-        return (
+      {detailBatch && (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
               <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300 shrink-0" />
-              <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="font-bold text-slate-800 text-lg">Stock Update Detail</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {detailBatch.staff_name} &mdash; {detailBatch.timestamp}
+                    <span className="font-semibold text-slate-600">Updated by:</span> {detailBatch.staff_name}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    <span className="font-semibold text-slate-600">As Of:</span> {detailBatch.timestamp}
                   </p>
                 </div>
                 <button onClick={() => setDetailBatch(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
                   <X size={18} />
                 </button>
               </div>
-              <div className="overflow-y-auto flex-1 px-6 py-3 space-y-6 custom-scrollbar">
-                {Object.entries(grouped).map(([catId, items]) => (
-                  <div key={catId}>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2 pb-1 border-b border-orange-100">
-                      {CATEGORY_MAP[catId] || catId}
-                    </h3>
-                    <div className="space-y-0.5">
-                      {items.map((ing) => {
-                        const id = String(ing.ingredient_id || ing.id);
-                        const name = ing.ingredient_name || ing.name;
-                        const updated = updatedMap[id];
-                        return (
-                          <div key={id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
-                            <span className="flex-1 text-sm text-slate-700 font-medium">{name}</span>
-                            <span className={`w-20 text-center text-sm font-bold ${updated ? 'text-orange-500' : 'text-slate-300'}`}>
-                              {updated ? updated.new_current : '—'}
-                            </span>
-                            <span className="w-10 text-xs text-slate-400 text-right shrink-0">{ing.unit}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-y-auto flex-1 px-6 py-3 custom-scrollbar">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-[10px] text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                      <th className="py-2 text-left font-semibold">Ingredient</th>
+                      <th className="py-2 text-center font-semibold">Before</th>
+                      <th className="py-2 text-center font-semibold">After</th>
+                      <th className="py-2 text-left font-semibold pl-2">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailBatch.rows.map((r) => (
+                      <tr key={r.ingredient_id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 text-sm text-slate-700 font-medium">{r.ingredient_name}</td>
+                        <td className="py-2.5 text-center text-sm text-slate-400">{r.previous_stock ?? '—'}</td>
+                        <td className="py-2.5 text-center text-sm font-bold text-orange-500">{r.new_current}</td>
+                        <td className="py-2.5 text-xs text-slate-400 pl-2">{r.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-400">
+                {detailBatch.rows.length} ingredient{detailBatch.rows.length !== 1 ? "s" : ""} updated
               </div>
             </div>
           </div>
-        );
-      })()}
+      )}
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <div className="p-8 flex flex-col gap-6 overflow-hidden h-full">
