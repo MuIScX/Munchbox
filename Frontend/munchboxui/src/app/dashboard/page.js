@@ -11,7 +11,7 @@ import {
 import {
   ShoppingCart, TrendingUp, AlertTriangle, CheckCircle, Package,
   UtensilsCrossed, Loader2, RefreshCw, BarChart2, AlertCircle,
-  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen, Search, X,
+  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen, Search, X, Calendar,
 } from "lucide-react";
 import { ReportAPI, PredictAPI, MenuAPI, StaffAPI, IngredientAPI, StaffSession } from "../../lib/api";
 
@@ -42,7 +42,6 @@ function dateOffset(offset = 0) {
 function formatDisplayDate() {
   return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
-
 function accuracyColor(acc) {
   if (acc === null) return "text-slate-400";
   if (acc >= 85) return "text-emerald-600";
@@ -105,13 +104,18 @@ function SaleTooltip({ active, payload, label }) {
   );
 }
 
+function fmtDisplayDate(v) {
+  const [y, m, d] = v.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function AccTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const val = safeNum(payload[0].value);
   return (
     <div className="bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-lg">
       <p className={`text-sm font-bold ${accuracyColor(val)}`}>{val.toFixed(1)}%</p>
-      <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
+      <p className="text-[10px] text-slate-400 mt-0.5">{fmtDisplayDate(label)}</p>
     </div>
   );
 }
@@ -141,6 +145,28 @@ function KpiCard({ icon: Icon, iconColor, iconBg, label, loading, error, value, 
   return inner;
 }
 
+/* ── Days Ahead Pill Selector ── */
+function DaysSelector({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <Calendar size={11} className="text-slate-400" />
+      {[3, 7].map((d) => (
+        <button
+          key={d}
+          onClick={() => onChange(d)}
+          className={`text-[11px] font-bold px-2 py-1 rounded-lg transition-all ${
+            value === d
+              ? "bg-orange-500 text-white shadow-sm"
+              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+          }`}
+        >
+          {d}d
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main Page ── */
 export default function DashboardPage() {
   const mountedRef = useRef(true);
@@ -154,11 +180,11 @@ export default function DashboardPage() {
   const [kpiLoading, setKpiLoading] = useState(true);
   const [kpiError, setKpiError] = useState(false);
 
-  /* Stock */
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [reorderList, setReorderList] = useState([]);
-  const [predictLoading, setPredictLoading] = useState(true);
-  const [predictError, setPredictError] = useState(false);
+  /* Prep Summary (replaces old predict report for low stock) */
+  const [daysAhead, setDaysAhead] = useState(7);
+  const [prepSummary, setPrepSummary] = useState([]);
+  const [prepLoading, setPrepLoading] = useState(true);
+  const [prepError, setPrepError] = useState(false);
 
   /* Menus */
   const [totalMenus, setTotalMenus] = useState(0);
@@ -189,7 +215,30 @@ export default function DashboardPage() {
   /* Unable to Serve search */
   const [unreadySearch, setUnreadySearch] = useState("");
 
-  const isAnyLoading = kpiLoading || predictLoading || menuLoading || staffLoading || ingredientLoading || trendLoading;
+  const isAnyLoading = kpiLoading || prepLoading || menuLoading || staffLoading || ingredientLoading || trendLoading;
+
+  /* ── Fetch Prep Summary ── */
+  const fetchPrepSummary = async (days) => {
+    if (!mountedRef.current) return;
+    setPrepLoading(true);
+    setPrepError(false);
+    try {
+      const start = new Date();
+      start.setDate(start.getDate() + 1);
+      const end = new Date();
+      end.setDate(end.getDate() + days);
+      const fmt = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const res = await PredictAPI.prepSummary(fmt(start), fmt(end));
+      if (!mountedRef.current) return;
+      const data = Array.isArray(res?.Data) ? res.Data : [];
+      setPrepSummary(data.filter((r) => r.has_data && r.status === 0));
+    } catch {
+      if (mountedRef.current) setPrepError(true);
+    } finally {
+      if (mountedRef.current) setPrepLoading(false);
+    }
+  };
 
   /* ── Fetch Sales Trend ── */
   const fetchTrend = async (start, end) => {
@@ -224,7 +273,7 @@ export default function DashboardPage() {
     const today = dateOffset(0);
     const yesterday = dateOffset(-1);
 
-    /* KPIs — today + yesterday */
+    /* KPIs */
     setKpiLoading(true); setKpiError(false);
     Promise.allSettled([
       ReportAPI.orders(null, { start_date: today, end_date: today }),
@@ -272,67 +321,23 @@ export default function DashboardPage() {
       .catch(() => { if (mountedRef.current) setMenuError(true); })
       .finally(() => { if (mountedRef.current) setMenuLoading(false); });
 
-    /* Stock + Accuracy */
-    setPredictLoading(true); setPredictError(false);
-    PredictAPI.report(null).then(async (res) => {
+    /* Accuracy via /predict/accuracy (all ingredients) */
+    setAccuracyLoading(true);
+    PredictAPI.accuracy(null).then((res) => {
       if (!mountedRef.current) return;
-      if (Array.isArray(res?.Data)) {
-        const data = res.Data;
-        const lowItems = data.filter((r) => r.status === 0);
-        setLowStockCount(lowItems.length);
-        setReorderList(lowItems.sort((a, b) => safeNum(b.urgency_score) - safeNum(a.urgency_score)).slice(0, 6));
+      const data = Array.isArray(res?.Data) ? res.Data : [];
+      setAccuracyChartData(data);
+      if (data.length > 0) {
+        const avg = data.reduce((s, d) => s + d.accuracy, 0) / data.length;
+        setAccuracy(parseFloat(avg.toFixed(1)));
+      } else {
+        setAccuracy(null);
+      }
+    }).catch(() => {})
+      .finally(() => { if (mountedRef.current) setAccuracyLoading(false); });
 
-        /* Accuracy — fetch per ingredient, build chart + summary */
-        setAccuracyLoading(true);
-        const sample = data.slice(0, 10);
-        const results = await Promise.allSettled(
-          sample.map((ing) => Promise.all([
-            PredictAPI.actual(ing.ingredient_id),
-            PredictAPI.trend(ing.ingredient_id),
-          ]))
-        );
-        if (!mountedRef.current) return;
-
-        const dateMap = {};
-        let totalAcc = 0, countAcc = 0;
-
-        results.forEach((r) => {
-          if (r.status !== "fulfilled") return;
-          const [actualRes, trendRes] = r.value;
-          const actualMap = {};
-          (actualRes?.Data || []).forEach((d) => { actualMap[d.date] = d.actual_usage; });
-
-          (trendRes?.Data?.data || [])
-            .filter((d) => d.prediction_type === 1 && d.expected_usage != null)
-            .forEach((d) => {
-              const date = (d.timestamp || "").split(" ")[0];
-              const actual = actualMap[date];
-              if (!actual || actual <= 0) return;
-              const acc = Math.min(100, d.expected_usage >= actual
-                ? 100 : Math.max(0, (d.expected_usage / actual) * 100));
-              totalAcc += acc; countAcc += 1;
-              if (!dateMap[date]) dateMap[date] = { total: 0, count: 0 };
-              dateMap[date].total += acc;
-              dateMap[date].count += 1;
-            });
-        });
-
-        setAccuracy(countAcc > 0 ? parseFloat((totalAcc / countAcc).toFixed(1)) : null);
-        setAccuracyChartData(
-          Object.entries(dateMap)
-            .map(([date, { total, count }]) => ({
-              date,
-              name: new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-              accuracy: parseFloat((total / count).toFixed(1)),
-            }))
-            .sort((a, b) => a.date.localeCompare(b.date))
-        );
-        setAccuracyLoading(false);
-      } else { setPredictError(true); }
-    }).catch(() => { if (mountedRef.current) setPredictError(true); })
-      .finally(() => { if (mountedRef.current) setPredictLoading(false); });
-
-    /* Sales Trend */
+    /* Prep Summary + Sales Trend */
+    fetchPrepSummary(daysAhead);
     fetchTrend(trendStart, trendEnd);
   };
 
@@ -346,6 +351,9 @@ export default function DashboardPage() {
     fetchAll();
     return () => { mountedRef.current = false; };
   }, []);
+
+  /* low stock count from prep summary */
+  const lowStockCount = prepSummary.length;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -404,14 +412,14 @@ export default function DashboardPage() {
 
             <KpiCard
               icon={AlertTriangle}
-              iconBg={!predictLoading && lowStockCount > 0 ? "bg-red-100" : "bg-slate-100"}
-              iconColor={!predictLoading && lowStockCount > 0 ? "text-red-500" : "text-slate-400"}
+              iconBg={!prepLoading && lowStockCount > 0 ? "bg-red-100" : "bg-slate-100"}
+              iconColor={!prepLoading && lowStockCount > 0 ? "text-red-500" : "text-slate-400"}
               label="Low Stock"
-              loading={predictLoading} error={predictError}
-              value={lowStockCount} href="/updateinventory"
+              loading={prepLoading} error={prepError}
+              value={prepSummary.length} href="/updateinventory"
               sub={
                 <span className={`text-xs font-medium ${lowStockCount > 0 ? "text-red-400" : "text-slate-400"}`}>
-                  {lowStockCount > 0 ? "ingredients need reorder" : "all ingredients sufficient"}
+                  {lowStockCount > 0 ? `need reorder (${daysAhead}d forecast)` : "all ingredients sufficient"}
                 </span>
               }
             />
@@ -572,10 +580,11 @@ export default function DashboardPage() {
                     <LineChart data={accuracyChartData} margin={{ top: 4, right: 8, left: -10, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis
-                        dataKey="name"
+                        dataKey="date"
                         tick={{ fontSize: 10, fill: "#94a3b8" }}
                         axisLine={false} tickLine={false}
                         interval={Math.max(0, Math.ceil(accuracyChartData.length / 6) - 1)}
+                        tickFormatter={fmtDisplayDate}
                         label={{ value: "Time", position: "insideBottom", offset: -12, style: { fontSize: 10, fill: "#94a3b8" } }}
                       />
                       <YAxis
@@ -587,9 +596,9 @@ export default function DashboardPage() {
                       />
                       <Tooltip content={<AccTooltip />} />
                       <ReferenceLine y={85} stroke="#10b981" strokeDasharray="4 4" strokeWidth={1.5}
-                        label={{ value: "85%", position: "right", style: { fontSize: 9, fill: "#10b981" } }} />
+                        label={{ value: "85%", position: "insideTopRight", style: { fontSize: 9, fill: "#10b981" } }} />
                       <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1}
-                        label={{ value: "70%", position: "right", style: { fontSize: 9, fill: "#f59e0b" } }} />
+                        label={{ value: "70%", position: "insideTopRight", style: { fontSize: 9, fill: "#f59e0b" } }} />
                       <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={2.5}
                         dot={accuracyChartData.length <= 20 ? { r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 2 } : false}
                         activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} />
@@ -605,7 +614,7 @@ export default function DashboardPage() {
           {/* ── Row 4: Action Alerts ── */}
           <div className="grid grid-cols-2 gap-4">
 
-            {/* Low Stock Items */}
+            {/* ── Low Stock Items (Prep Summary) ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
@@ -613,51 +622,70 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-bold text-slate-800">Low Stock Items</h2>
-                  <p className="text-[11px] text-slate-400">Ingredients running low — compared with predicted demand</p>
+                  <p className="text-[11px] text-slate-400">
+                    Ingredients insufficient for the next {daysAhead} days of predicted demand
+                  </p>
                 </div>
-                {!predictLoading && !predictError && lowStockCount > 0 && (
+
+                {/* Days-ahead selector */}
+                <DaysSelector
+                  value={daysAhead}
+                  onChange={(d) => {
+                    setDaysAhead(d);
+                    fetchPrepSummary(d);
+                  }}
+                />
+
+                {!prepLoading && !prepError && lowStockCount > 0 && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 shrink-0">
                     {lowStockCount} items
                   </span>
                 )}
               </div>
+
               <div className="px-5 pb-5">
-                {predictLoading ? (
+                {prepLoading ? (
                   <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : predictError ? <SectionError onRetry={fetchAll} />
-                : reorderList.length > 0 ? (
-                  <div className="space-y-2">
-                    {reorderList.map((r) => {
-                      const needed = Math.max(0, Math.ceil(safeNum(r.expected_usage) - safeNum(r.current_stock)));
-                      return (
-                        <div key={r.ingredient_id}
-                          className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{r.ingredient_name || "Unknown"}</p>
-                            <p className="text-[11px] text-slate-400">
-                              Current: {safeNum(r.current_stock)} {r.unit || ""}
-                              &nbsp;·&nbsp;Expected: {Math.ceil(safeNum(r.expected_usage))} {r.unit || ""}
-                            </p>
+                ) : prepError ? (
+                  <SectionError onRetry={() => fetchPrepSummary(daysAhead)} />
+                ) : prepSummary.length > 0 ? (
+                  <div className="space-y-2 overflow-y-auto max-h-[220px]">
+                    {prepSummary
+                      .sort((a, b) => (safeNum(b.urgency_score) - safeNum(a.urgency_score)))
+                      .slice(0, 6)
+                      .map((r) => {
+                        const needed = Math.max(0, Math.ceil(safeNum(r.expected_usage) - safeNum(r.current_stock)));
+                        return (
+                          <div key={r.ingredient_id}
+                            className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{r.ingredient_name || "Unknown"}</p>
+                              <p className="text-[11px] text-slate-400">
+                                Current: {safeNum(r.current_stock)} {r.unit || ""}
+                                &nbsp;·&nbsp;Need ({daysAhead}d): {Math.ceil(safeNum(r.expected_usage))} {r.unit || ""}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-red-600">+{needed} {r.unit || ""}</p>
+                              <p className="text-[10px] text-red-400">to order</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-bold text-red-600">+{needed} {r.unit || ""}</p>
-                            <p className="text-[10px] text-red-400">to order</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-24 gap-2">
                     <CheckCircle size={24} className="text-emerald-300" />
-                    <p className="text-sm text-slate-400 italic">All ingredients are sufficiently stocked</p>
+                    <p className="text-sm text-slate-400 italic">
+                      All ingredients sufficient for {daysAhead} days
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Unable to Serve */}
+            {/* ── Unable to Serve ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3 shrink-0">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -732,6 +760,7 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
           </div>
 
         </div>

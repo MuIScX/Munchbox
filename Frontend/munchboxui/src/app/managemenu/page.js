@@ -12,8 +12,12 @@ import { MenuAPI, IngredientAPI, RecipeAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
 
-const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
-
+const TYPE_MAP = {
+  1: "Main",
+  2: "Appetizer",
+  3: "Dessert",
+  4: "Drink"
+};
 export default function ManageMenuPage() {
   const router = useRouter();
   const filterBtnRef = useRef(null);
@@ -21,6 +25,7 @@ export default function ManageMenuPage() {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showDelete, setShowDelete] = useState(false);
   const [toast, setToast] = useState(null);
@@ -176,14 +181,17 @@ export default function ManageMenuPage() {
               <div className="w-px h-8 mx-4 bg-slate-100" />
 
               <div className="flex gap-3 items-center flex-1 justify-between">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <div className="relative w-48">
+                <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
                   <input
                     type="text"
                     placeholder="Search recipe..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-8 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-48 transition-all"
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                   />
                   {searchQuery && (
                     <button
@@ -193,6 +201,21 @@ export default function ManageMenuPage() {
                       <X size={13} />
                     </button>
                   )}
+                </div>
+                {showSuggestions && (() => {
+                  const suggestions = menus.filter(m => (m.menu_name || m.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                      {suggestions.map(m => (
+                        <button key={m.menu_id || m.id} onMouseDown={(e) => { e.preventDefault(); setSearchQuery(m.menu_name || m.name); setShowSuggestions(false); }}
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors">
+                          {m.menu_name || m.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 </div>
 
                 <select
@@ -261,7 +284,14 @@ export default function ManageMenuPage() {
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full table-fixed text-left border-collapse min-w-[800px]">
+                <colgroup>
+                  <col className="w-[35%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
                     <th className="px-6 py-3">Recipe</th>

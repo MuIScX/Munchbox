@@ -18,6 +18,7 @@ export default function ManageStaffPage() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [staffToEdit, setStaffToEdit] = useState(null);
   const [staffToDelete, setStaffToDelete] = useState(null);
@@ -159,30 +160,58 @@ export default function ManageStaffPage() {
 
           {/* Data Table */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="font-semibold text-slate-700">Staff Directory</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{filteredStaff.length} member{filteredStaff.length !== 1 ? "s" : ""} found</p>
+            <div className="px-6 py-4 border-b border-slate-100 shrink-0 flex items-center bg-white">
+              <div className="shrink-0">
+                <h2 className="font-bold text-slate-800 text-lg italic">Staff List</h2>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{filteredStaff.length} member{filteredStaff.length !== 1 ? "s" : ""} found</p>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input
-                  type="text"
-                  placeholder="Search staff name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-slate-50 text-sm text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-64"
-                />
+
+              <div className="w-px h-8 mx-4 bg-slate-100" />
+
+              <div className="flex gap-3 items-center flex-1">
+              <div className="relative w-64">
+                <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search staff name..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
+                  />
+                </div>
+                {showSuggestions && (() => {
+                  const suggestions = staff.filter(s => (s.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                      {suggestions.map(s => (
+                        <button key={s.staff_id || s.id} onMouseDown={(e) => { e.preventDefault(); setSearchQuery(s.name); setShowSuggestions(false); }}
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors">
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
               </div>
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
-                  <tr className="text-slate-500 text-xs uppercase tracking-wider">
-                    <th className="px-6 py-3.5 font-semibold">Staff Name</th>
-                    <th className="px-6 py-3.5 font-semibold">Role</th>
-                    <th className="px-6 py-3.5 font-semibold text-center">
+              <table className="w-full table-fixed text-left border-collapse min-w-[600px]">
+                <colgroup>
+                  <col className="w-[45%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[25%]" />
+                </colgroup>
+                <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
+                  <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
+                    <th className="px-6 py-3">Staff Name</th>
+                    <th className="px-6 py-3">Role</th>
+                    <th className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         Actions
                         <button
@@ -197,7 +226,7 @@ export default function ManageStaffPage() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {loading ? (
                     <tr>
                       <td colSpan={3} className="py-16 text-center">

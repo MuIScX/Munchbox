@@ -18,6 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ingredientToDelete, setIngredientToDelete] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
@@ -198,15 +199,33 @@ export default function Home() {
 
               {/* Filters Group moved here */}
               <div className="flex gap-3 items-center flex-1 justify-between">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input
-                    type="text"
-                    placeholder="Search ingredient..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none w-52 transition-all hover:border-slate-300"
-                  />
+                <div className="relative w-52">
+                  <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent transition">
+                    <Search size={13} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search ingredient..."
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                      className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
+                    />
+                  </div>
+                  {showSuggestions && (() => {
+                    const suggestions = ingredients.filter(i => (i.ingredient_name || i.name || "").toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6);
+                    if (suggestions.length === 0) return null;
+                    return (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                        {suggestions.map(i => (
+                          <button key={i.ingredient_id || i.id} onMouseDown={(e) => { e.preventDefault(); setSearchQuery(i.ingredient_name || i.name); setShowSuggestions(false); }}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors">
+                            {i.ingredient_name || i.name}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <select 
@@ -243,14 +262,21 @@ export default function Home() {
             </div>
 
             <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full table-fixed text-left border-collapse min-w-[800px]">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[20%]" />
+                </colgroup>
                 <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100">
                   <tr className="text-[10px] text-slate-400 uppercase tracking-widest font-black">
-                    <th className="px-6 py-3 w-[30%]">Item</th>
-                    <th className="px-6 py-3 w-[20%]">Category</th>
-                    <th className="px-6 py-3 w-[15%] text-center">Stock</th>
-                    <th className="px-6 py-3 w-[15%] text-center">Unit</th>
-                    <th className="px-6 py-3 w-[20%] text-center">
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Category</th>
+                    <th className="px-6 py-3 text-center">Stock</th>
+                    <th className="px-6 py-3 text-center">Unit</th>
+                    <th className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         Action
                         <button

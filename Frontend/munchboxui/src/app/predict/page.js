@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -12,9 +12,21 @@ import { PredictAPI, IngredientAPI } from "../../lib/api";
 import { CATEGORY_MAP } from "../../lib/schema";
 import {
   Search, Loader2, TrendingUp, X, Plus,
-  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown,
+  Package, BarChart2, Clock, AlertTriangle, CheckCircle, RefreshCw, ClipboardList, ArrowUpDown, Calendar,
 } from "lucide-react";
 import CategorySortPopover from "../components/CategorySortPopover";
+
+const DateInput = forwardRef(({ value, onClick }, ref) => (
+  <button
+    onClick={onClick}
+    ref={ref}
+    className="flex items-center gap-1 text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer"
+  >
+    {value}
+    <Calendar size={11} className="text-slate-400 shrink-0" />
+  </button>
+));
+DateInput.displayName = "DateInput";
 
 export default function PredictPage() {
   const [report, setReport]                       = useState([]);
@@ -45,13 +57,19 @@ export default function PredictPage() {
     return dailyForecast.length || 7;
   }, [displayStart, displayEnd, dailyForecast.length]);
   const [searchQuery, setSearchQuery]             = useState("");
+  const [showSuggestions, setShowSuggestions]     = useState(false);
   const [statusFilter, setStatusFilter]           = useState("All");
   const [toast, setToast]                         = useState(null);
   const [modalOpen, setModalOpen]                 = useState(false);
+  const [ingSearchQuery, setIngSearchQuery]       = useState("");
+  const [ingSearchOpen, setIngSearchOpen]         = useState(false);
+  const [ingAll, setIngAll]                       = useState(false);
+  const startPickerRef = useRef(null);
+  const endPickerRef   = useRef(null);
   const [ingredientList, setIngredientList]       = useState([]);
   const [requestForm, setRequestForm]             = useState({
     ingredient_id: "",
-    start_date: new Date().toISOString().split("T")[0],
+    start_date: new Date(Date.now() + 1 * 86400000).toISOString().split("T")[0],
     end_date:   new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     strategy:   "2",
   });
@@ -81,6 +99,9 @@ export default function PredictPage() {
   const toDateStr = (d) => d
     ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
     : null;
+
+  const toDate = (s) => s ? new Date(s + "T00:00:00") : null;
+  const toStr  = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
 
   const fetchPrepSummary = useCallback(async (start, end) => {
     try {
@@ -182,13 +203,22 @@ export default function PredictPage() {
     }
   }, [fetchTrend]);
 
+  const fetchReportRef = useRef(fetchReport);
+  useEffect(() => { fetchReportRef.current = fetchReport; }, [fetchReport]);
+
   useEffect(() => {
-    fetchReport(null);
+    fetchReportRef.current(null);
     IngredientAPI.list({}).then((res) => {
       const list = Array.isArray(res?.Data) ? res.Data : [];
       setIngredientList(list);
       if (list.length > 0) setRequestForm((f) => ({ ...f, ingredient_id: String(list[0].id) }));
     }).catch(() => {});
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchReportRef.current(null);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const handleSelectIngredient = (ing) => {
@@ -493,16 +523,44 @@ const filteredReport = useMemo(() => {
 
             {/* ── Left panel: ingredient list ── */}
             <div className="w-64 shrink-0 flex flex-col gap-3">
-              {/* Search */}
+              {/* Search with dropdown */}
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search ingredient…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none shadow-sm"
-                />
+                <div className="flex items-center gap-2 border-2 border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:border-orange-400 transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search ingredient…"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(""); setShowSuggestions(false); }} className="text-slate-300 hover:text-slate-500 shrink-0">
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+                {showSuggestions && (() => {
+                  const suggestions = mergedList
+                    .filter(ing => (ing.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase()))
+                    .slice(0, 6);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                      {suggestions.map(ing => (
+                        <button
+                          key={ing.ingredient_id}
+                          onMouseDown={(e) => { e.preventDefault(); handleSelectIngredient(ing); setSearchQuery(ing.ingredient_name); setShowSuggestions(false); }}
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors"
+                        >
+                          {ing.ingredient_name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Status filter pills */}
@@ -624,7 +682,7 @@ const filteredReport = useMemo(() => {
                             {isLow ? "Low" : "OK"}
                           </span>
                         </div>
-                        <p className="text-[9px] text-slate-300 mb-2">
+                        <p className="text-[9px] text-slate-400 mb-2">
                           Last updated: {ing.forecast_start && ing.forecast_end
                             ? `${new Date(ing.forecast_start).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })} - ${new Date(ing.forecast_end).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}`
                             : "—"}
@@ -816,8 +874,7 @@ const filteredReport = useMemo(() => {
                     </div>
                   )}
                   {selectedSet && (() => {
-                    const toDate = (s) => s ? new Date(s) : null;
-                    const toStr  = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : null;
+
                     const minDate = toDate(selectedSet.start_date);
                     const maxDate = toDate(selectedSet.end_date);
                     return (
@@ -830,7 +887,7 @@ const filteredReport = useMemo(() => {
                           minDate={minDate}
                           maxDate={toDate(sliceEnd ?? selectedSet.end_date)}
                           dateFormat="dd/MM/yyyy"
-                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                          customInput={<DateInput />}
                         />
                         <span className="text-slate-300 text-xs">–</span>
                         <DatePicker
@@ -839,7 +896,7 @@ const filteredReport = useMemo(() => {
                           minDate={toDate(sliceStart ?? selectedSet.start_date)}
                           maxDate={maxDate}
                           dateFormat="dd/MM/yyyy"
-                          className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                          customInput={<DateInput />}
                         />
                       </div>
                     );
@@ -1053,7 +1110,7 @@ const filteredReport = useMemo(() => {
                   <ClipboardList size={15} className="text-orange-500" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-base font-bold text-slate-800">Prep Summary</h2>
+                  <h2 className="text-base font-bold text-slate-800">Preparation Summary</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {prepStart && prepEnd
                       ? `Ingredients needed for ${prepStart.getDate().toString().padStart(2,"0")}/${(prepStart.getMonth()+1).toString().padStart(2,"0")}/${prepStart.getFullYear()} – ${prepEnd.getDate().toString().padStart(2,"0")}/${(prepEnd.getMonth()+1).toString().padStart(2,"0")}/${prepEnd.getFullYear()}`
@@ -1067,14 +1124,14 @@ const filteredReport = useMemo(() => {
 
               {/* Search + Date range + sort */}
               <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
-                <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent transition">
+                  <Search size={13} className="text-slate-400 shrink-0" />
                   <input
                     type="text"
                     placeholder="Search ingredient…"
                     value={prepSearch}
                     onChange={(e) => setPrepSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 h-[30px] bg-white border border-slate-200 rounded-lg text-xs text-slate-600 focus:ring-2 focus:ring-orange-400 outline-none"
+                    className="bg-transparent text-xs text-slate-700 outline-none w-full placeholder:text-slate-400"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1086,7 +1143,7 @@ const filteredReport = useMemo(() => {
                     onChange={(d) => { setPrepStart(d); fetchPrepSummary(d, prepEnd); }}
                     maxDate={prepEnd ?? undefined}
                     dateFormat="dd/MM/yyyy"
-                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                    customInput={<DateInput />}
                   />
                   <span className="text-slate-300 text-xs">–</span>
                   <DatePicker
@@ -1094,7 +1151,7 @@ const filteredReport = useMemo(() => {
                     onChange={(d) => { setPrepEnd(d); fetchPrepSummary(prepStart, d); }}
                     minDate={prepStart ?? undefined}
                     dateFormat="dd/MM/yyyy"
-                    className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer w-20 text-center"
+                    customInput={<DateInput />}
                   />
                 </div>
                 <div className="flex items-center gap-1.5 w-[210px]">
@@ -1234,7 +1291,7 @@ const filteredReport = useMemo(() => {
                 <h2 className="text-lg font-bold text-slate-800">New Prediction</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Run the Bayesian model for selected ingredient</p>
               </div>
-              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition p-1">
+              <button onClick={() => { setModalOpen(false); setIngSearchQuery(""); setIngAll(false); setRequestForm(f => ({ ...f, ingredient_id: "" })); }} className="text-slate-400 hover:text-slate-600 transition p-1">
                 <X size={18} />
               </button>
             </div>
@@ -1242,56 +1299,109 @@ const filteredReport = useMemo(() => {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Ingredient</label>
-                {!requestForm.ingredient_id && (
-                  <p className="text-xs text-red-500 font-medium mb-1.5 flex items-center gap-1">
-                    <AlertTriangle size={11} /> This procedure will take a long time to complete
-                  </p>
-                )}
-                <select
-                  value={requestForm.ingredient_id}
-                  onChange={(e) => setRequestForm((f) => ({ ...f, ingredient_id: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
-                >
-                  <option value="">All Ingredients</option>
-                  {ingredientList.map((r) => (
-                    <option key={r.id} value={r.id}>{r.ingredient_name}</option>
-                  ))}
-                </select>
+                <label className="flex items-center gap-2 mb-2 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={ingAll}
+                    onChange={(e) => {
+                      setIngAll(e.target.checked);
+                      if (e.target.checked) { setRequestForm(f => ({ ...f, ingredient_id: "" })); setIngSearchQuery(""); }
+                    }}
+                    className="w-3.5 h-3.5"
+                  />
+                  <span className="text-xs text-slate-500 font-medium">All Ingredient</span>
+                  {ingAll && (
+                    <span className="text-xs text-red-500 font-medium flex items-center gap-1">
+                      <AlertTriangle size={11} /> This will take a long time
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 transition ${ingAll ? "bg-slate-100 border-slate-200 opacity-60 pointer-events-none" : "bg-slate-50 border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-transparent"}`}>
+                    <Search size={13} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search ingredient..."
+                      value={ingSearchQuery}
+                      onChange={(e) => { setIngSearchQuery(e.target.value); setIngSearchOpen(true); if (!e.target.value) setRequestForm(f => ({ ...f, ingredient_id: "" })); }}
+                      onFocus={() => setIngSearchOpen(true)}
+                      onBlur={() => setTimeout(() => setIngSearchOpen(false), 150)}
+                      className="bg-transparent text-sm text-slate-700 outline-none w-full placeholder:text-slate-400"
+                    />
+                    {requestForm.ingredient_id && (
+                      <button type="button" onClick={() => { setRequestForm(f => ({ ...f, ingredient_id: "" })); setIngSearchQuery(""); setIngAll(false); }} className="text-slate-300 hover:text-slate-500 shrink-0">
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  {ingSearchOpen && (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-48 overflow-y-auto">
+                      {ingredientList
+                        .filter(r => (r.ingredient_name || "").toLowerCase().includes(ingSearchQuery.toLowerCase()))
+                        .slice(0, 5)
+                        .map(r => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); setRequestForm(f => ({ ...f, ingredient_id: r.id })); setIngSearchQuery(r.ingredient_name); setIngSearchOpen(false); setIngAll(false); }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-600 font-medium transition-colors"
+                          >
+                            {r.ingredient_name}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Forecast Period</label>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <p className="text-[10px] text-slate-400 mb-1">From</p>
-                    <input
-                      type="date"
-                      value={requestForm.start_date}
-                      onChange={(e) => setRequestForm((f) => ({ ...f, start_date: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                <div className="flex items-center gap-2 mb-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Forecast Period</label>
+                  {requestForm.start_date && requestForm.end_date && (() => {
+                    const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000) + 1;
+                    return days > 0 ? (
+                      <div className="inline-flex items-center gap-1 bg-orange-50 border border-orange-100 text-orange-500 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        <Clock size={10} /> {days} day{days !== 1 ? "s" : ""}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 h-[34px]">
+                    <span className="text-[10px] text-slate-400 font-medium shrink-0">From</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <DatePicker
+                      ref={startPickerRef}
+                      selected={toDate(requestForm.start_date)}
+                      onChange={(d) => setRequestForm((f) => ({ ...f, start_date: toStr(d) }))}
+                      maxDate={toDate(requestForm.end_date) ?? undefined}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      className="bg-transparent text-xs font-semibold text-slate-600 outline-none cursor-pointer w-[90px]"
                     />
+                    <Calendar size={12} className="text-slate-400 shrink-0 cursor-pointer" onClick={() => startPickerRef.current?.setOpen(true)} />
                   </div>
-                  <div className="pb-2.5 text-slate-300 font-bold text-lg">→</div>
-                  <div className="flex-1">
-                    <p className="text-[10px] text-slate-400 mb-1">To</p>
-                    <input
-                      type="date"
-                      value={requestForm.end_date}
-                      min={requestForm.start_date}
-                      onChange={(e) => setRequestForm((f) => ({ ...f, end_date: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                  <span className="text-slate-300 text-xs">→</span>
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 h-[34px]">
+                    <span className="text-[10px] text-slate-400 font-medium shrink-0">To</span>
+                    <span className="text-slate-200 text-xs">|</span>
+                    <DatePicker
+                      ref={endPickerRef}
+                      selected={toDate(requestForm.end_date)}
+                      onChange={(d) => setRequestForm((f) => ({ ...f, end_date: toStr(d) }))}
+                      minDate={toDate(requestForm.start_date) ?? undefined}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="dd/mm/yyyy"
+                      className="bg-transparent text-xs font-semibold text-slate-600 outline-none cursor-pointer w-[90px]"
                     />
+                    <Calendar size={12} className="text-slate-400 shrink-0 cursor-pointer" onClick={() => endPickerRef.current?.setOpen(true)} />
                   </div>
                 </div>
                 {requestForm.start_date && requestForm.end_date && (() => {
-                  const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000);
-                  return days > 0 ? (
-                    <div className="mt-2 inline-flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-500 text-xs font-semibold px-3 py-1 rounded-full">
-                      <Clock size={11} /> {days} day{days !== 1 ? "s" : ""} selected
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-red-400 font-medium">⚠ End date must be after start date</p>
-                  );
+                  const days = Math.round((new Date(requestForm.end_date) - new Date(requestForm.start_date)) / 86400000) + 1;
+                  return days <= 0 ? (
+                    <p className="mt-1 text-xs text-red-400 font-medium">⚠ End date must be after start date</p>
+                  ) : null;
                 })()}
               </div>
 

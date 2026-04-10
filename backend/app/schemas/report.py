@@ -53,9 +53,10 @@ class PredictReportRequest(BaseModel):
     days: Optional[int] = None  # None = return all days from latest set
 class PredictIngredientRequest(BaseModel):
     ingredient_id: Optional[int] = None
-    days:          Optional[int] = None  # None = return all days
-    predict_set_id: Optional[int] = None  # None = use latest
-
+    predict_set_id: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    
 class PredictSetsRequest(BaseModel):
     ingredient_id: int
 
@@ -67,3 +68,9 @@ class PredictTrendRequest(BaseModel):
 class PrepSummaryRequest(BaseModel):
     start_date: Optional[str] = None
     end_date:   Optional[str] = None
+
+
+class PredictAccuracyRequest(BaseModel):
+    ingredient_id: Optional[int] = None
+    start_date:    Optional[str] = None
+    end_date:      Optional[str] = None
