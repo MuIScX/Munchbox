@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import StaffRow from "../components/StaffRow";
 import AddStaffModal from "../components/AddStaffModal";
 import EditStaffModal from "../components/EditStaffModal";
 import DeleteStaffModal from "../components/DeleteStaffModal";
 import Toast from "../components/Toast";
-import { StaffAPI } from "../../lib/api";
+import { StaffAPI, StaffSession } from "../../lib/api";
 import { Search, Plus, Loader2, Trash2, Users, UserCheck } from "lucide-react";
 
+const MANAGER_ROLES = [2, 3];
+
 export default function ManageStaffPage() {
+  const router = useRouter();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +39,11 @@ export default function ManageStaffPage() {
   };
 
   useEffect(() => {
+    const session = StaffSession.get();
+    if (session && !MANAGER_ROLES.includes(session.role)) {
+      router.replace("/updateinventory");
+      return;
+    }
     fetchStaff();
   }, []);
 

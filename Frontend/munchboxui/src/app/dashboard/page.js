@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -9,9 +11,11 @@ import {
 import {
   ShoppingCart, TrendingUp, AlertTriangle, CheckCircle, Package,
   UtensilsCrossed, Loader2, RefreshCw, BarChart2, AlertCircle,
-  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen,
+  ArrowUp, ArrowDown, Minus, Users, Target, BookOpen, Search, X,
 } from "lucide-react";
-import { ReportAPI, PredictAPI, MenuAPI, StaffAPI, IngredientAPI } from "../../lib/api";
+import { ReportAPI, PredictAPI, MenuAPI, StaffAPI, IngredientAPI, StaffSession } from "../../lib/api";
+
+const MANAGER_ROLES = [2, 3];
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -113,9 +117,9 @@ function AccTooltip({ active, payload, label }) {
 }
 
 /* ── KPI Card ── */
-function KpiCard({ icon: Icon, iconColor, iconBg, label, loading, error, value, sub, children }) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-start gap-4">
+function KpiCard({ icon: Icon, iconColor, iconBg, label, loading, error, value, sub, children, href }) {
+  const inner = (
+    <div className={`bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex items-start gap-4 ${href ? "hover:border-orange-300 hover:shadow-md transition cursor-pointer" : ""}`}>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
         <Icon size={18} className={iconColor} />
       </div>
@@ -133,11 +137,14 @@ function KpiCard({ icon: Icon, iconColor, iconBg, label, loading, error, value, 
       </div>
     </div>
   );
+  if (href) return <Link href={href}>{inner}</Link>;
+  return inner;
 }
 
 /* ── Main Page ── */
 export default function DashboardPage() {
   const mountedRef = useRef(true);
+  const router = useRouter();
 
   /* KPI */
   const [ordersToday, setOrdersToday] = useState(0);
@@ -178,6 +185,9 @@ export default function DashboardPage() {
   const [trendError, setTrendError] = useState(false);
   const [trendStart, setTrendStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return fmtDate(d); });
   const [trendEnd, setTrendEnd] = useState(() => fmtDate(new Date()));
+
+  /* Unable to Serve search */
+  const [unreadySearch, setUnreadySearch] = useState("");
 
   const isAnyLoading = kpiLoading || predictLoading || menuLoading || staffLoading || ingredientLoading || trendLoading;
 
@@ -328,6 +338,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     mountedRef.current = true;
+    const staff = StaffSession.get();
+    if (staff && !MANAGER_ROLES.includes(staff.role)) {
+      router.replace("/updateinventory");
+      return;
+    }
     fetchAll();
     return () => { mountedRef.current = false; };
   }, []);
@@ -373,7 +388,7 @@ export default function DashboardPage() {
             <KpiCard
               icon={ShoppingCart} iconBg="bg-orange-100" iconColor="text-orange-500"
               label="Orders Today" loading={kpiLoading} error={kpiError}
-              value={ordersToday.toLocaleString()}
+              value={ordersToday.toLocaleString()} href="/reports"
             >
               <Delta today={ordersToday} yesterday={ordersYest} />
             </KpiCard>
@@ -382,6 +397,7 @@ export default function DashboardPage() {
               icon={TrendingUp} iconBg="bg-blue-100" iconColor="text-blue-500"
               label="Revenue Today" loading={kpiLoading} error={kpiError}
               value={<span title={formatTHB(revenueToday)}>{shortCurrency(revenueToday)}</span>}
+              href="/reports"
             >
               <Delta today={revenueToday} yesterday={revenueYest} />
             </KpiCard>
@@ -392,7 +408,7 @@ export default function DashboardPage() {
               iconColor={!predictLoading && lowStockCount > 0 ? "text-red-500" : "text-slate-400"}
               label="Low Stock"
               loading={predictLoading} error={predictError}
-              value={lowStockCount}
+              value={lowStockCount} href="/updateinventory"
               sub={
                 <span className={`text-xs font-medium ${lowStockCount > 0 ? "text-red-400" : "text-slate-400"}`}>
                   {lowStockCount > 0 ? "ingredients need reorder" : "all ingredients sufficient"}
@@ -406,10 +422,10 @@ export default function DashboardPage() {
               iconColor={!menuLoading && unreadyMenus.length > 0 ? "text-amber-600" : "text-slate-400"}
               label="Unable to Serve"
               loading={menuLoading} error={menuError}
-              value={unreadyMenus.length}
+              value={unreadyMenus.length} href="/managemenu"
               sub={
                 <span className={`text-xs font-medium ${unreadyMenus.length > 0 ? "text-amber-500" : "text-slate-400"}`}>
-                  {unreadyMenus.length > 0 ? "menus unavailable" : "all menus ready"}
+                  {unreadyMenus.length > 0 ? "recipes unavailable" : "all recipes ready"}
                 </span>
               }
             />
@@ -420,21 +436,21 @@ export default function DashboardPage() {
             <KpiCard
               icon={Users} iconBg="bg-violet-100" iconColor="text-violet-600"
               label="Total Staff" loading={staffLoading} error={false}
-              value={totalStaff}
+              value={totalStaff} href="/managestaff"
               sub={<span className="text-xs text-slate-400 font-medium">active members</span>}
             />
 
             <KpiCard
               icon={Package} iconBg="bg-teal-100" iconColor="text-teal-600"
               label="Total Ingredients" loading={ingredientLoading} error={false}
-              value={totalIngredients}
+              value={totalIngredients} href="/updateinventory"
               sub={<span className="text-xs text-slate-400 font-medium">tracked items</span>}
             />
 
             <KpiCard
               icon={BookOpen} iconBg="bg-sky-100" iconColor="text-sky-600"
               label="Total Recipes" loading={menuLoading} error={false}
-              value={totalMenus}
+              value={totalMenus} href="/managemenu"
               sub={<span className="text-xs text-slate-400 font-medium">in recipe list</span>}
             />
 
@@ -446,6 +462,7 @@ export default function DashboardPage() {
                   ? <span className={accuracyColor(accuracy)}>{accuracy}%</span>
                   : <span className="text-slate-400 text-2xl italic">—</span>
               }
+              href="/accuracy"
               sub={<span className="text-xs text-slate-400 font-medium">AI forecast performance</span>}
             />
           </div>
@@ -641,50 +658,76 @@ export default function DashboardPage() {
             </div>
 
             {/* Unable to Serve */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 pt-5 pb-3 flex items-center gap-3">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 pt-5 pb-3 flex items-center gap-3 shrink-0">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
                   <UtensilsCrossed size={14} className="text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-bold text-slate-800">Unable to Serve</h2>
-                  <p className="text-[11px] text-slate-400">Menus unavailable for today's service</p>
+                  <p className="text-[11px] text-slate-400">Recipes unavailable for today's service</p>
                 </div>
                 {!menuLoading && !menuError && unreadyMenus.length > 0 && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">
-                    {unreadyMenus.length} menus
+                    {unreadyMenus.length}
                   </span>
                 )}
               </div>
+              {!menuLoading && !menuError && unreadyMenus.length > 0 && (
+                <div className="px-5 pb-2 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                    <input
+                      type="text"
+                      placeholder="Search recipes..."
+                      value={unreadySearch}
+                      onChange={(e) => setUnreadySearch(e.target.value)}
+                      className="w-full pl-8 pr-8 py-1.5 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-400 focus:border-orange-400 outline-none"
+                    />
+                    {unreadySearch && (
+                      <button onClick={() => setUnreadySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="px-5 pb-5">
                 {menuLoading ? (
                   <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
                 ) : menuError ? <SectionError onRetry={fetchAll} />
-                : unreadyMenus.length > 0 ? (
-                  <div className="space-y-2 overflow-y-auto max-h-[220px]">
-                    {unreadyMenus.map((m) => {
-                      const id = m.menu_id || m.id;
-                      const name = m.menu_name || m.name || "Unknown";
-                      const typeVal = m.menu_type || m.type;
-                      return (
-                        <div key={id}
-                          className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 min-w-0">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
-                            <p className="text-[11px] text-slate-400">{TYPE_MAP[typeVal] || "—"}</p>
-                          </div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap bg-amber-100 text-amber-700 border-amber-200">
-                            Not Ready
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
+                : unreadyMenus.length > 0 ? (() => {
+                  const filtered = [...unreadyMenus]
+                    .sort((a, b) => (a.menu_name || a.name || "").localeCompare(b.menu_name || b.name || ""))
+                    .filter((m) => {
+                      const name = (m.menu_name || m.name || "").toLowerCase();
+                      return !unreadySearch || name.includes(unreadySearch.toLowerCase());
+                    });
+                  return filtered.length > 0 ? (
+                    <div className="space-y-1.5 overflow-y-auto max-h-[200px]">
+                      {filtered.map((m) => {
+                        const id = m.menu_id || m.id;
+                        const name = m.menu_name || m.name || "Unknown";
+                        const typeVal = m.menu_type || m.type;
+                        return (
+                          <Link key={id} href={`/managemenu/${id}`}
+                            className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 min-w-0 hover:bg-amber-100 hover:border-amber-300 transition cursor-pointer group">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-amber-700">{name}</p>
+                              <p className="text-[11px] text-slate-400">{TYPE_MAP[typeVal] || "—"}</p>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-16 text-slate-400 italic text-sm">No recipes match "{unreadySearch}"</div>
+                  );
+                })() : (
                   <div className="flex flex-col items-center justify-center h-24 gap-2">
                     <CheckCircle size={24} className="text-emerald-300" />
-                    <p className="text-sm text-slate-400 italic">All menus are ready to serve</p>
+                    <p className="text-sm text-slate-400 italic">All recipes are ready to serve</p>
                   </div>
                 )}
               </div>

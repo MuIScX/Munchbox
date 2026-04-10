@@ -102,6 +102,8 @@ function UserAvatar({ user, loading }) {
   );
 }
 
+const MANAGER_ROLES = [2, 3]; // Manager, Admin
+
 export default function Sidebar() {
   const pathname = usePathname() || '/reports';
   const router = useRouter();
@@ -109,29 +111,44 @@ export default function Sidebar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, loading, error } = useCurrentUser();
 
+  const staffRole = (() => {
+    try {
+      const raw = typeof window !== 'undefined' ? document.cookie.split(';').find(c => c.trim().startsWith('staff=')) : null;
+      if (!raw) return null;
+      const val = decodeURIComponent(raw.split('=').slice(1).join('='));
+      return JSON.parse(val)?.role ?? null;
+    } catch { return null; }
+  })();
+
+  const isManager = MANAGER_ROLES.includes(staffRole);
+
   const handleLogout = () => {
     AuthAPI.logout();
     router.push('/login');
   };
 
+  const allServiceItems = [
+    { name: 'Update Inventory', path: '/updateinventory', icon: Package, iconActive: PackageOpen, color: 'text-blue-500', staffOnly: false },
+    { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500', staffOnly: false },
+    { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500', managerOnly: true },
+    { name: 'Prediction Accuracy', path: '/accuracy', icon: Target, color: 'text-emerald-500', managerOnly: true },
+    { name: 'Sales Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500', managerOnly: true },
+    { name: 'Manage Recipe', path: '/managemenu', icon: Utensils, iconActive: UtensilsCrossed, color: 'text-purple-500', managerOnly: true },
+    { name: 'Manage Staff', path: '/managestaff', icon: UserCircle, color: 'text-orange-500', managerOnly: true },
+  ];
+
+  const visibleServiceItems = allServiceItems.filter(item => !item.managerOnly || isManager);
+
   const navSections = [
-    {
+    ...(isManager ? [{
       title: 'QUICK ACCESS',
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: Home, color: 'text-orange-500' },
       ],
-    },
+    }] : []),
     {
-      title: 'SERVICE',
-      items: [
-        { name: 'Manage Staff', path: '/managestaff', icon: UserCircle, color: 'text-orange-500' },
-        { name: 'Predict Ingredients', path: '/predict', icon: LineChart, color: 'text-emerald-500' },
-        { name: 'Manage Recipe', path: '/managemenu', icon: Utensils, iconActive: UtensilsCrossed, color: 'text-purple-500' },
-        { name: 'Update Inventory', path: '/updateinventory', icon: Package, iconActive: PackageOpen, color: 'text-blue-500' },
-        { name: 'Sale Reports', path: '/reports', icon: FileChartColumn, color: 'text-emerald-500' },
-        { name: 'Accuracy Report', path: '/accuracy', icon: Target, color: 'text-emerald-500' },
-        { name: 'Inventory Log', path: '/inventorylog', icon: ClipboardClock, color: 'text-yellow-500' },
-      ],
+      title: 'SERVICES',
+      items: visibleServiceItems,
     },
     {
       title: 'ACCOUNT',

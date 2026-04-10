@@ -69,17 +69,17 @@ const faqs = [
     ],
   },
   {
-    category: "Menu",
+    category: "Recipe",
     icon: CookingPot,
     color: "text-pink-500",
     questions: [
       {
-        q: "How do I link ingredients to a menu item?",
-        a: "Open a menu item from Manage Menu and click 'Edit Recipe'. From there you can add ingredients and specify the quantity used per serving. This allows MunchBox to automatically track ingredient consumption.",
+        q: "How do I link ingredients to a recipe?",
+        a: "Open a recipe from Manage Recipe and click 'Edit Recipe'. From there you can add ingredients and specify the quantity used per serving. This allows MunchBox to automatically track ingredient consumption.",
       },
       {
-        q: "Can I temporarily hide a menu item?",
-        a: "Yes, you can toggle the visibility of any menu item from the Manage Menu page without deleting it. Hidden items won't appear in reports or affect predictions.",
+        q: "Can I temporarily hide a recipe?",
+        a: "Yes, you can toggle the visibility of any recipe from the Manage Recipe page without deleting it. Hidden recipes won't appear in reports or affect predictions.",
       },
     ],
   },

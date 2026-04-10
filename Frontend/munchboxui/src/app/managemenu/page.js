@@ -10,7 +10,7 @@ import IngredientFilterPopover from "../components/IngredientFilterPopover";
 import CategorySortPopover from "../components/CategorySortPopover";
 import { MenuAPI, IngredientAPI, RecipeAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Search, Loader2, Trash2, UtensilsCrossed, Plus, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -183,8 +183,16 @@ export default function ManageMenuPage() {
                     placeholder="Search recipe..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-48 transition-all"
+                    className="pl-9 pr-8 py-2 bg-slate-50 text-xs text-slate-700 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-48 transition-all"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
 
                 <select
@@ -196,33 +204,38 @@ export default function ManageMenuPage() {
                   {Object.entries(TYPE_MAP).map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
                 </select>
 
-                {/* Filter button with popover */}
+                {/* Filter button with popover — disabled when name search is active */}
                 <div className="relative" ref={filterBtnRef}>
                   <button
-                    onClick={() => setShowFilterPopover(v => !v)}
+                    onClick={() => !searchQuery && setShowFilterPopover(v => !v)}
+                    title={searchQuery ? "Clear recipe search to use ingredient filter" : undefined}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
-                      selectedIngredients.length > 0
-                        ? "bg-orange-500 border-orange-500 text-white"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                      searchQuery
+                        ? "opacity-40 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-400"
+                        : selectedIngredients.length > 0
+                          ? "bg-orange-500 border-orange-500 text-white"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     <SlidersHorizontal size={13} />
                     Ingredients
-                    {selectedIngredients.length > 0 && (
+                    {selectedIngredients.length > 0 && !searchQuery && (
                       <span className="bg-white/30 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
                         {selectedIngredients.length}
                       </span>
                     )}
                   </button>
 
-                  <IngredientFilterPopover
-                    isOpen={showFilterPopover}
-                    onClose={() => setShowFilterPopover(false)}
-                    ingredients={allIngredients}
-                    selected={selectedIngredients}
-                    onToggle={handleIngredientToggle}
-                    onClear={() => setSelectedIngredients([])}
-                  />
+                  {!searchQuery && (
+                    <IngredientFilterPopover
+                      isOpen={showFilterPopover}
+                      onClose={() => setShowFilterPopover(false)}
+                      ingredients={allIngredients}
+                      selected={selectedIngredients}
+                      onToggle={handleIngredientToggle}
+                      onClear={() => setSelectedIngredients([])}
+                    />
+                  )}
                 </div>
 
                 {/* Sort by type popover */}

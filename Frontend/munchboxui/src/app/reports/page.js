@@ -16,11 +16,12 @@ const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
 const now = new Date();
+const defaultStart = (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })();
 
 export default function ViewReports() {
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [shareAllTime, setShareAllTime] = useState(true);
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(now);
+  const [shareAllTime, setShareAllTime] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
@@ -42,7 +43,7 @@ export default function ViewReports() {
     return `${y}-${m}-${day}`;
   };
   const startStr = toStr(startDate);
-  const endStr   = toStr(endDate);
+  const endStr   = toStr(endDate) || toStr(new Date());
 
   const dateRange = shareAllTime
     ? { start_date: null, end_date: null }
@@ -180,7 +181,7 @@ const formatCurrency = (val) =>
                     <BarChart2 size={20} className="text-orange-500" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sale Reports</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sales Reports</h1>
                     <p className="text-sm text-slate-400 mt-0.5">Analyze sales trends and revenue data</p>
                   </div>
                 </div>

@@ -97,7 +97,8 @@ export default function StaffLogin() {
       role: match.role,
       roleLabel: match.role === 2 ? "Manager" : (ROLE_MAP[match.role] ?? "Staff"),
     });
-    router.push("/dashboard");
+    const isManager = match.role === 2 || match.role === 3;
+    router.push(isManager ? "/dashboard" : "/updateinventory");
   };
 
   return (

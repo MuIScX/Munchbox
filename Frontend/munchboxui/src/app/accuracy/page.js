@@ -293,7 +293,7 @@ export default function AccuracyPage() {
                   <Target size={20} className="text-orange-500" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Accuracy Report</h1>
+                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Prediction Accuracy</h1>
                   <p className="text-sm text-slate-400 mt-0.5">Compare predicted vs. actual ingredient usage to evaluate forecast performance</p>
                 </div>
               </div>
@@ -526,7 +526,7 @@ export default function AccuracyPage() {
                   <th className="px-6 py-3 font-semibold">Ingredient</th>
                   <th className="px-6 py-3 font-semibold text-center">Accuracy</th>
                   <th className="px-6 py-3 font-semibold text-right">MAE (avg error/day)</th>
-                  <th className="px-6 py-3 font-semibold text-right">Bias</th>
+                  <th className="px-6 py-3 font-semibold text-right">Deviation</th>
                   <th className="px-6 py-3 font-semibold text-right">Days compared</th>
                   <th className="px-6 py-3 font-semibold text-center">Unit</th>
                 </tr>
@@ -597,9 +597,9 @@ export default function AccuracyPage() {
               </tbody>
             </table>
 
-            {/* Bias guide */}
+            {/* Deviation guide */}
             <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-6 flex-wrap">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bias guide</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Deviation guide</p>
               <span className="text-xs text-emerald-600 font-semibold">+Positive ↑ = over-predicted — surplus stock, safe</span>
               <span className="text-xs text-red-500 font-semibold">−Negative ↓ = under-predicted — risk of running out</span>
               <span className="text-xs text-slate-400">≈ 0 = well-calibrated</span>
