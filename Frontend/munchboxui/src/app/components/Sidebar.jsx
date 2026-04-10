@@ -111,15 +111,7 @@ export default function Sidebar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, loading, error } = useCurrentUser();
 
-  const staffRole = (() => {
-    try {
-      const raw = typeof window !== 'undefined' ? document.cookie.split(';').find(c => c.trim().startsWith('staff=')) : null;
-      if (!raw) return null;
-      const val = decodeURIComponent(raw.split('=').slice(1).join('='));
-      return JSON.parse(val)?.role ?? null;
-    } catch { return null; }
-  })();
-
+  const staffRole = StaffSession.get()?.role ?? null;
   const isManager = MANAGER_ROLES.includes(staffRole);
 
   const handleLogout = () => {
