@@ -19,7 +19,7 @@ services:
       timeout: 5s
       retries: 5
   intake:
-    build: ./intake
+    image: ${DOCKER_HUB_USERNAME}/munchbox-intake:latest
     container_name: munchbox-intake
     restart: always
     depends_on:
@@ -29,8 +29,6 @@ services:
       TZ: Asia/Bangkok
       DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       INTAKE_API_KEY: ${INTAKE_API_KEY}
-    volumes:
-      - ./backend/app:/app/app   # shares models from backend
     networks:
       - munchbox-net
   backend:

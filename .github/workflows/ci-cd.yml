@@ -169,7 +169,7 @@ jobs:
           host: ${{ secrets.LINODE_HOST }}
           username: ${{ secrets.LINODE_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx.conf,intake/"
+          source: "docker-compose.prod.yml,nginx.conf"
           target: "/opt/munchbox"
 
       - name: Deploy via SSH
