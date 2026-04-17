@@ -18,7 +18,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+  intake:
+    build: ./intake
+    container_name: munchbox-intake
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Bangkok
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      INTAKE_API_KEY: ${INTAKE_API_KEY}
+    volumes:
+      - ./backend/app:/app/app   # shares models from backend
+    networks:
+      - munchbox-net
   backend:
     image: ${DOCKER_HUB_USERNAME}/munchbox-backend:latest
     container_name: munchbox-backend
@@ -54,6 +68,7 @@ services:
     depends_on:
       - frontend
       - backend
+      - intake
     ports:
       - "80:80"
       - "443:443"

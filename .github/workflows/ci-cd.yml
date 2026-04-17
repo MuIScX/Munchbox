@@ -9,6 +9,7 @@ on:
 env:
   BACKEND_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/munchbox-backend
   FRONTEND_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/munchbox-frontend
+  INTAKE_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/munchbox-intake
 
 jobs:
   # ─────────────────────────────────────────
@@ -137,6 +138,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build & push intake
+        uses: docker/build-push-action@v5
+        with:
+          context: ./intake
+          file: ./intake/Dockerfile
+          push: true
+          tags: |
+            ${{ env.INTAKE_IMAGE }}:latest
+            ${{ env.INTAKE_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # ─────────────────────────────────────────
   # JOB 4: Deploy to Linode
   # ─────────────────────────────────────────
@@ -156,7 +169,7 @@ jobs:
           host: ${{ secrets.LINODE_HOST }}
           username: ${{ secrets.LINODE_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx.conf"
+          source: "docker-compose.prod.yml,nginx.conf,intake/"
           target: "/opt/munchbox"
 
       - name: Deploy via SSH
@@ -180,9 +193,10 @@ jobs:
             # Pull latest images
             docker pull $DOCKER_HUB_USERNAME/munchbox-backend:latest
             docker pull $DOCKER_HUB_USERNAME/munchbox-frontend:latest
+            docker pull $DOCKER_HUB_USERNAME/munchbox-intake:latest
 
-            # Restart backend, frontend, nginx
-            docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend frontend nginx
+            # Restart backend, frontend, intake, nginx
+            docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend frontend intake nginx
             echo "Waiting for backend to start..."
             sleep 10
 
