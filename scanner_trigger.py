@@ -37,7 +37,7 @@ def trigger_scan():
     try:
         result = subprocess.run([
             "scanimage",
-            "--device-name=brother5:bus1;dev7",
+            "--device-name=brother5:bus1;dev3",
             "--format=png",
             "--resolution=300",
             "--AutoDocumentSize=yes",
@@ -75,6 +75,7 @@ def listen_for_trigger():
                     if line.startswith("TRIGGERED"):
                         logger.info(f"[SENSOR] Beam broken — receipt #{receipt_counter + 1} incoming!")
                         trigger_scan()
+                        ser.reset_input_buffer()
 
         except serial.SerialException as e:
             logger.error(f"[SENSOR] Serial error: {e}. Retrying in 5s...")
