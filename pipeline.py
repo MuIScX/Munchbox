@@ -280,32 +280,34 @@ def maintenance_loop():
         time.sleep(86400) 
 
 class ScanHandler(FileSystemEventHandler):
-    def on_created(self, event):
+    def _handle(self, path):
         try:
-            if event.is_directory:
+            if os.path.basename(path).startswith(".tmp_"):
                 return
 
-            # Ignore temp files from scanner_trigger.py
-            if os.path.basename(event.src_path).startswith(".tmp_"):
+            if not path.lower().endswith((".jpg", ".jpeg", ".png", ".pdf")):
                 return
 
-            if not event.src_path.lower().endswith(
-                (".jpg", ".jpeg", ".png", ".pdf")
-            ):
-                return
+            logger.info(f"[NEW FILE] {short_path(path)}")
 
-            logger.info(f"[NEW FILE] {short_path(event.src_path)}")
+            wait_until_file_ready(path)
 
-            wait_until_file_ready(event.src_path)
-
-            processing_path = move_to_processing(event.src_path)
+            processing_path = move_to_processing(path)
 
             logger.info(f"[QUEUED] {short_path(processing_path)}")
 
             ocr_queue.put(processing_path)
 
         except Exception as e:
-            logger.error(f"[WATCHER ERROR] {short_path(event.src_path)}: {e}")
+            logger.error(f"[WATCHER ERROR] {short_path(path)}: {e}")
+
+    def on_created(self, event):
+        if not event.is_directory:
+            self._handle(event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            self._handle(event.dest_path)
 
 def ocr_worker():
     global success_counter
