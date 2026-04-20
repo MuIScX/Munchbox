@@ -15,6 +15,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from ocr import process_ocr
 from cleanup import run_cleanup
+from api_client import send_csv_to_api
 import scanner_trigger
 import config
 
@@ -280,34 +281,32 @@ def maintenance_loop():
         time.sleep(86400) 
 
 class ScanHandler(FileSystemEventHandler):
-    def _handle(self, path):
+    def on_created(self, event):
         try:
-            if os.path.basename(path).startswith(".tmp_"):
+            if event.is_directory:
                 return
 
-            if not path.lower().endswith((".jpg", ".jpeg", ".png", ".pdf")):
+            # Ignore temp files from scanner_trigger.py
+            if os.path.basename(event.src_path).startswith(".tmp_"):
                 return
 
-            logger.info(f"[NEW FILE] {short_path(path)}")
+            if not event.src_path.lower().endswith(
+                (".jpg", ".jpeg", ".png", ".pdf")
+            ):
+                return
 
-            wait_until_file_ready(path)
+            logger.info(f"[NEW FILE] {short_path(event.src_path)}")
 
-            processing_path = move_to_processing(path)
+            wait_until_file_ready(event.src_path)
+
+            processing_path = move_to_processing(event.src_path)
 
             logger.info(f"[QUEUED] {short_path(processing_path)}")
 
             ocr_queue.put(processing_path)
 
         except Exception as e:
-            logger.error(f"[WATCHER ERROR] {short_path(path)}: {e}")
-
-    def on_created(self, event):
-        if not event.is_directory:
-            self._handle(event.src_path)
-
-    def on_moved(self, event):
-        if not event.is_directory:
-            self._handle(event.dest_path)
+            logger.error(f"[WATCHER ERROR] {short_path(event.src_path)}: {e}")
 
 def ocr_worker():
     global success_counter
@@ -338,6 +337,16 @@ def ocr_worker():
                 retry_counts.pop(file_path, None)
                 success_counter += 1
                 move_to_done(file_path, success_counter)
+
+                # Send to Munchbox Intake API
+                try:
+                    api_result = send_csv_to_api(output_csv)
+                    if api_result.get("message") == "success":
+                        logger.info(f"[API] Sent to server: {api_result.get('data', {})}")
+                    else:
+                        logger.warning(f"[API] Server response: {api_result}")
+                except Exception as api_err:
+                    logger.error(f"[API] Failed to send: {api_err}")
 
             elif status == 2:
                 logger.info(f"[NO TEXT DETECTED] {short_path(file_path)} - Processed in {duration:.2f} seconds.")
@@ -378,6 +387,15 @@ def start_pipeline():
     global observer
     
     initialize_counter(OUTPUT_FOLDER)
+
+    # Fetch menu from API and update recipes_name.csv on startup
+    try:
+        from api_client import get_client
+        client = get_client()
+        client.fetch_menu(force=True)
+        logger.info("[START] Menu fetched from API and recipes_name.csv updated")
+    except Exception as e:
+        logger.warning(f"[START] Could not fetch menu from API: {e}. Using local recipes_name.csv")
 
     # Pass queue to scanner_trigger before starting thread
     scanner_trigger.set_queue(ocr_queue)

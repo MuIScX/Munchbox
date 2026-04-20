@@ -81,11 +81,59 @@ class MunchboxAPIClient:
 
             self._menu_last_fetched = now
             logger.info(f"[API] Menu fetched: {len(self._menu_list)} items")
+
+            # Update recipes_name.csv so OCR pipeline uses latest menu names
+            self._update_recipes_csv()
+
             return self._menu_list
 
         except requests.RequestException as e:
             logger.error(f"[API] Menu fetch error: {e}")
             return self._menu_list  # return stale cache
+
+    def _update_recipes_csv(self):
+        """
+        Write menu names from API into recipes/recipes_name.csv
+        so the OCR pipeline always has the latest menu names.
+        pipeline.py watches this file's mtime and auto-reloads.
+        """
+        if not self._menu_list:
+            return
+
+        recipes_path = config.RECIPES_NAME
+
+        try:
+            # Only include menu items with non-empty names (skip combo sub-items starting with " -")
+            menu_names = []
+            for item in self._menu_list:
+                name = item["menu_name"].strip()
+                if name and not name.startswith("-"):
+                    menu_names.append(name)
+
+            # Read current file to check if update is needed
+            current_names = []
+            if os.path.exists(recipes_path):
+                with open(recipes_path, "r", encoding="utf-8-sig") as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        if row:
+                            current_names.append(row[0].strip())
+
+            if set(current_names) == set(menu_names):
+                logger.info("[API] recipes_name.csv already up to date")
+                return
+
+            # Write updated menu names
+            os.makedirs(os.path.dirname(recipes_path), exist_ok=True)
+            with open(recipes_path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                for name in menu_names:
+                    writer.writerow([name])
+
+            logger.info(f"[API] recipes_name.csv updated with {len(menu_names)} menu names")
+
+        except Exception as e:
+            logger.error(f"[API] Failed to update recipes_name.csv: {e}")
 
     def _fuzzy_match(self, name: str) -> Optional[int]:
         """
