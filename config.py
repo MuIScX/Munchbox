@@ -27,6 +27,6 @@ FUZZY_MATCH_CUTOFF = 0.6
 
 # --- INTAKE API SETTINGS ---
 API_BASE_URL = os.getenv("MUNCHBOX_API_URL", "https://munchbox.live/intake")
-API_KEY = os.getenv("MUNCHBOX_API_KEY", "")
-RESTAURANT_ID = int(os.getenv("MUNCHBOX_RESTAURANT_ID", "0"))
+API_KEY = os.getenv("MUNCHBOX_API_KEY", "d3303f0b4133e89eb82966d40bd541a226f30bdab55a746f563d7149f7597eaa")
+RESTAURANT_ID = int(os.getenv("MUNCHBOX_RESTAURANT_ID", "1"))
 MENU_CACHE_TTL = 30  # re-fetch menu every 1 hour (seconds)

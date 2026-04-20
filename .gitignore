@@ -11,6 +11,7 @@ scans/incoming/
 scans/processing/
 scans/done/
 scans/failed/
+recipes/
 
 # Outputs (runtime data)
 output_csv/
