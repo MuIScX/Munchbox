@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, Text, DECIMAL, TIMESTAMP, SmallInteger, Date, String
+from sqlalchemy import Column, BigInteger, Integer, Text, DECIMAL, TIMESTAMP, SmallInteger
 from app.db.base import Base
 
 
@@ -13,7 +13,6 @@ class Ingredient(Base):
     unit          = Column(Text, nullable=False)
     category      = Column(Integer, nullable=False)
     last_update   = Column(TIMESTAMP, nullable=False)
-    reorder_point = Column(DECIMAL(10, 2), nullable=True)
 
 
 class IngredientHistory(Base):
@@ -27,5 +26,3 @@ class IngredientHistory(Base):
     staff_id      = Column(BigInteger, nullable=True)
     restaurant_id = Column(BigInteger, nullable=False)
     new_current   = Column(Integer, nullable=True)
-    as_of_date    = Column(Date, nullable=True)
-    restock_type  = Column(SmallInteger, nullable=True)  # 1=before, 2=after

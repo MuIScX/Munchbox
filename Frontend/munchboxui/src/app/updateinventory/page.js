@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
 import IngredientRow from "../components/IngredientRow";
 import DeleteIngredientModal from "../components/DeleteIngredientModal";
 import EditIngredientModal from "../components/EditIngredientModal";
 import CategorySortPopover from "../components/CategorySortPopover";
-import { IngredientAPI, StaffSession, ImportAPI } from "../../lib/api";
+import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar, Upload, Download } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function UpdateInventoryPage() {
@@ -24,8 +24,6 @@ export default function UpdateInventoryPage() {
   const [asOfDate, setAsOfDate]             = useState(new Date());
   const [restockType, setRestockType]       = useState("after"); // "before" | "after"
   const [saving, setSaving]                 = useState(false);
-  const [importing, setImporting]           = useState(false);
-  const csvInputRef                         = useRef(null);
 
   // Manage tab state
   const [isModalOpen, setIsModalOpen]       = useState(false);
@@ -78,13 +76,9 @@ export default function UpdateInventoryPage() {
     if (updates.length === 0) { showToast("error", "No changes to save."); return; }
 
     const staff = StaffSession.get();
-    const asOfStr = asOfDate
-      ? `${asOfDate.getFullYear()}-${String(asOfDate.getMonth()+1).padStart(2,"0")}-${String(asOfDate.getDate()).padStart(2,"0")}`
-      : null;
-    const restockTypeNum = restockType === "before" ? 1 : 2;
     setSaving(true);
     try {
-      await IngredientAPI.updateStock(updates, staff ? parseInt(staff.id) : null, asOfStr, restockTypeNum);
+      await IngredientAPI.updateStock(updates, staff ? parseInt(staff.id) : null);
       showToast("success", `Updated ${updates.length} ingredient${updates.length > 1 ? "s" : ""}.`);
       setStockValues({});
       fetchIngredients();
@@ -96,32 +90,6 @@ export default function UpdateInventoryPage() {
   };
 
   const changedCount = Object.values(stockValues).filter(v => v !== "").length;
-
-  const handleCSVImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    setImporting(true);
-    try {
-      const res = await ImportAPI.inventory(file);
-      const { updated = 0, skipped = 0, errors = [] } = res?.Data ?? {};
-      showToast("success", `Imported: ${updated} updated, ${skipped} skipped${errors.length ? `, ${errors.length} errors` : ""}.`);
-      fetchIngredients();
-    } catch (err) {
-      showToast("error", err.message || "CSV import failed.");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const downloadCSVTemplate = () => {
-    const header = "ingredient_name,new_stock,as_of_date,restock_type\n";
-    const example = "Chicken,50,2026-04-23,after\n";
-    const blob = new Blob([header + example], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "inventory_import_template.csv"; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   // Grouped ingredients for update tab
   const grouped = useMemo(() => {
@@ -266,18 +234,6 @@ export default function UpdateInventoryPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
-                  {/* Hidden CSV file input */}
-                  <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
-
-                  <button onClick={downloadCSVTemplate}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition" title="Download CSV template">
-                    <Download size={13} /> Template
-                  </button>
-                  <button onClick={() => csvInputRef.current?.click()} disabled={importing}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition disabled:opacity-50">
-                    {importing ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                    Import CSV
-                  </button>
                   <button
                     onClick={() => { setStockValues({}); fetchIngredients(); }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition"

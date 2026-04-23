@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, Text, SmallInteger, String
+from sqlalchemy import Column, BigInteger, Integer, Text, SmallInteger
 from app.db.base import Base
 
 
@@ -10,4 +10,3 @@ class Staff(Base):
     role          = Column(Integer, nullable=False)
     restaurant_id = Column(BigInteger, nullable=False)
     is_active     = Column(SmallInteger, nullable=False, default=1)
-    pin           = Column(String(20), nullable=True)

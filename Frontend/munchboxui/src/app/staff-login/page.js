@@ -40,7 +40,6 @@ export default function StaffLogin() {
   }, [router]);
 
   const isManager = selected && (selected.role === 2 || selected.role === 3);
-  const requiresPin = selected && (isManager || selected.has_pin);
 
   const handleSelect = (staff) => {
     setSelected(staff);
@@ -63,12 +62,6 @@ export default function StaffLogin() {
         setLoading(false);
         return;
       }
-    } else if (selected.has_pin) {
-      // Per-staff PIN verification (non-manager)
-      if (!pinValue) { setPinError("Please enter your PIN."); return; }
-      // NOTE: backend currently doesn't have a per-staff verify endpoint
-      // This is a placeholder — PIN is stored in `staff.pin` and would need a verify endpoint
-      // For now we pass the PIN as part of login context (future backend work)
     }
 
     setLoading(true);
@@ -134,11 +127,11 @@ export default function StaffLogin() {
             </div>
           )}
 
-          {/* PIN input — visible for managers and staff with PIN */}
+          {/* PIN input — only visible for managers */}
           <form onSubmit={handleSubmit}>
-            <div className={`overflow-hidden transition-all duration-300 ${requiresPin ? "max-h-28 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+            <div className={`overflow-hidden transition-all duration-300 ${isManager ? "max-h-28 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
               <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
-                {isManager ? "Manager PIN" : "Staff PIN"}
+                Manager PIN
               </label>
               <input
                 type="password"

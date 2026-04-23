@@ -14,14 +14,13 @@ const ROLE_MAP = {
 export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({ name: "", role: "1", pin: "" });
+  const [formData, setFormData] = useState({ name: "", role: "1" });
 
   useEffect(() => {
     if (staffMember) {
       setFormData({
         name: staffMember.name || "",
         role: String(staffMember.role || "1"),
-        pin:  "",
       });
       setError("");
     }
@@ -35,8 +34,7 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
     setLoading(true);
     const staffId = staffMember?.staff_id || staffMember?.id;
     try {
-      const pinToSend = formData.pin !== "" ? formData.pin : undefined;
-      await StaffAPI.update(staffId, formData.name, Number(formData.role), pinToSend);
+      await StaffAPI.update(staffId, formData.name, Number(formData.role));
       onSuccess({ name: formData.name, role: Number(formData.role) });
       onClose();
     } catch (err) {
@@ -84,20 +82,6 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">
-              PIN <span className="text-slate-400 font-normal text-xs">(optional — leave blank to keep unchanged)</span>
-            </label>
-            <input
-              type="password"
-              inputMode="numeric"
-              placeholder="Set new PIN…"
-              value={formData.pin}
-              onChange={(e) => setFormData({...formData, pin: e.target.value})}
-              className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-            />
           </div>
 
           {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}

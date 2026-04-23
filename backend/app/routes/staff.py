@@ -17,7 +17,7 @@ def get_all_staff(identity: dict = Depends(decode_token), db: Session = Depends(
         Staff.is_active == 1,
     ).all()
     return {"message": "success", "Data": [
-        {"staff_id": s.id, "name": s.name, "role": s.role, "has_pin": bool(s.pin)} for s in rows
+        {"staff_id": s.id, "name": s.name, "role": s.role} for s in rows
     ]}
 
 
@@ -45,8 +45,6 @@ def edit_staff(body: StaffUpdate, identity: dict = Depends(decode_token), db: Se
         staff.name = body.name
     if body.role is not None:
         staff.role = body.role
-    if body.pin is not None:
-        staff.pin = body.pin if body.pin != "" else None
     db.commit()
     return {"message": "success", "Data": []}
 
