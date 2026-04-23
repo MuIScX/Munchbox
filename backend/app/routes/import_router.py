@@ -4,9 +4,13 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.core.security import decode_token
 from app.models import Menu, SaleData
+from app.models.ingredient import Ingredient, IngredientHistory
 import openpyxl
 import datetime
 import io
+import csv
+import pytz
+bkk_tz = pytz.timezone("Asia/Bangkok")
 
 router = APIRouter(prefix="/api/import", tags=["Import"])
 
@@ -155,4 +159,107 @@ def import_sales(
             "sheets_processed": sheets_processed,
             "records_imported": total_records,
         }
+    }
+
+
+@router.post("/inventory")
+def import_inventory(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    identity: dict = Depends(decode_token),
+):
+    """Import stock levels from CSV.
+    Required columns: ingredient_name, new_stock
+    Optional columns: as_of_date (YYYY-MM-DD), restock_type (before|after)
+    """
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files are accepted")
+
+    restaurant_id = identity["restaurantId"]
+    now = datetime.datetime.now(bkk_tz)
+
+    try:
+        contents = file.file.read().decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+    required_cols = {"ingredient_name", "new_stock"}
+    if reader.fieldnames is None or not required_cols.issubset(set(f.strip().lower() for f in reader.fieldnames)):
+        raise HTTPException(status_code=400, detail=f"CSV must have columns: {', '.join(required_cols)}")
+
+    updated = 0
+    skipped = 0
+    errors = []
+
+    try:
+        for i, row in enumerate(reader, start=2):
+            name = (row.get("ingredient_name") or row.get("Ingredient Name") or "").strip()
+            new_stock_raw = (row.get("new_stock") or row.get("New Stock") or "").strip()
+            as_of_raw = (row.get("as_of_date") or row.get("As Of Date") or "").strip()
+            restock_raw = (row.get("restock_type") or row.get("Restock Type") or "").strip().lower()
+
+            if not name or not new_stock_raw:
+                skipped += 1
+                continue
+
+            try:
+                new_stock = float(new_stock_raw)
+            except ValueError:
+                errors.append(f"Row {i}: invalid new_stock '{new_stock_raw}'")
+                continue
+
+            ingredient = db.query(Ingredient).filter(
+                Ingredient.restaurant_id == restaurant_id,
+                Ingredient.name == name,
+                Ingredient.is_active == 1,
+            ).first()
+
+            if not ingredient:
+                errors.append(f"Row {i}: ingredient '{name}' not found")
+                skipped += 1
+                continue
+
+            as_of_date = None
+            if as_of_raw:
+                try:
+                    as_of_date = datetime.date.fromisoformat(as_of_raw)
+                except ValueError:
+                    pass
+
+            restock_type = None
+            if restock_raw == "before":
+                restock_type = 1
+            elif restock_raw == "after":
+                restock_type = 2
+
+            current = float(ingredient.stock_left)
+            if new_stock < 0 or new_stock == current:
+                skipped += 1
+                continue
+
+            action_type = 1 if new_stock > current else 2
+            ingredient.stock_left = new_stock
+            ingredient.last_update = now
+            db.add(IngredientHistory(
+                timestamp=now,
+                action_type=action_type,
+                amount=abs(new_stock - current),
+                ingredient_id=ingredient.id,
+                staff_id=0,
+                restaurant_id=restaurant_id,
+                new_current=int(new_stock),
+                as_of_date=as_of_date,
+                restock_type=restock_type,
+            ))
+            updated += 1
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+    return {
+        "message": "success",
+        "Data": {"updated": updated, "skipped": skipped, "errors": errors[:10]},
     }

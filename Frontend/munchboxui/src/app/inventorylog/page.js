@@ -56,8 +56,10 @@ export default function InventoryLog() {
     // Convert to array sorted by timestamp desc (already ordered from API)
     return Array.from(map.entries()).map(([timestamp, rows]) => ({
       timestamp,
-      staff_id: rows[0].staff_id,
-      staff_name: rows[0].staff_name,
+      staff_id:    rows[0].staff_id,
+      staff_name:  rows[0].staff_name,
+      as_of_date:  rows[0].as_of_date  ?? null,
+      restock_type: rows[0].restock_type ?? null,
       rows,
     }));
   })();
@@ -87,8 +89,18 @@ export default function InventoryLog() {
                     <span className="font-semibold text-slate-600">Updated by:</span> {detailBatch.staff_name}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    <span className="font-semibold text-slate-600">As Of:</span> {detailBatch.timestamp}
+                    <span className="font-semibold text-slate-600">Logged at:</span> {detailBatch.timestamp}
                   </p>
+                  {detailBatch.as_of_date && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      <span className="font-semibold text-slate-600">As Of:</span> {detailBatch.as_of_date}
+                      {detailBatch.restock_type != null && (
+                        <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold ${detailBatch.restock_type === 1 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                          {detailBatch.restock_type === 1 ? "Before Restock" : "After Restock"}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => setDetailBatch(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
                   <X size={18} />

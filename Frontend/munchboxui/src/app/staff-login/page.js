@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getCookie } from "cookies-next";
 import { StaffAPI, StaffSession } from "../../lib/api";
+import { Loader2 } from "lucide-react";
 
 const ROLE_MAP = {
   1: "Staff",
@@ -13,73 +14,47 @@ const ROLE_MAP = {
   5: "Cashier",
 };
 
+const ROLE_COLOR = {
+  1: "bg-slate-100 text-slate-600",
+  2: "bg-orange-100 text-orange-700",
+  3: "bg-orange-100 text-orange-700",
+  4: "bg-blue-100 text-blue-700",
+  5: "bg-emerald-100 text-emerald-700",
+};
+
 export default function StaffLogin() {
-  const [nameValue, setNameValue] = useState("");
-  const [nameError, setNameError] = useState("");
-  const [pinValue, setPinValue] = useState("");
-  const [pinError, setPinError] = useState("");
-  const [isManager, setIsManager] = useState(false);
-  const [matchedStaff, setMatchedStaff] = useState(null);
-  const [staffList, setStaffList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [staffList, setStaffList]   = useState([]);
+  const [selected, setSelected]     = useState(null);
+  const [pinValue, setPinValue]     = useState("");
+  const [pinError, setPinError]     = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [fetching, setFetching]     = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!getCookie("token")) {
-      router.replace("/login");
-      return;
-    }
+    if (!getCookie("token")) { router.replace("/login"); return; }
     StaffAPI.list()
       .then((res) => setStaffList(Array.isArray(res?.Data) ? res.Data : []))
-      .catch(() => setStaffList([]));
+      .catch(() => setStaffList([]))
+      .finally(() => setFetching(false));
   }, [router]);
 
-  const handleNameChange = (e) => {
-    const val = e.target.value;
-    setNameValue(val);
-    if (nameError) setNameError("");
+  const isManager = selected && (selected.role === 2 || selected.role === 3);
+  const requiresPin = selected && (isManager || selected.has_pin);
 
-    const trimmed = val.trim();
-    const match = staffList.find(
-      (s) => s.name.toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (match && match.role === 2) {
-      setIsManager(true);
-      setMatchedStaff(match);
-    } else {
-      setIsManager(false);
-      setMatchedStaff(match || null);
-      setPinValue("");
-      setPinError("");
-    }
+  const handleSelect = (staff) => {
+    setSelected(staff);
+    setPinValue("");
+    setPinError("");
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setNameError("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selected) return;
     setPinError("");
 
-    const trimmed = nameValue.trim();
-    if (!trimmed) {
-      setNameError("Please enter your name.");
-      return;
-    }
-
-    const match = matchedStaff ?? staffList.find(
-      (s) => s.name.toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (!match) {
-      setNameError("Staff member not found. Please check your name.");
-      return;
-    }
-
     if (isManager) {
-      if (!pinValue) {
-        setPinError("Please enter the manager PIN.");
-        return;
-      }
+      if (!pinValue) { setPinError("Please enter the manager PIN."); return; }
       try {
         setLoading(true);
         await StaffAPI.verifyManagerPin(pinValue);
@@ -88,99 +63,104 @@ export default function StaffLogin() {
         setLoading(false);
         return;
       }
+    } else if (selected.has_pin) {
+      // Per-staff PIN verification (non-manager)
+      if (!pinValue) { setPinError("Please enter your PIN."); return; }
+      // NOTE: backend currently doesn't have a per-staff verify endpoint
+      // This is a placeholder — PIN is stored in `staff.pin` and would need a verify endpoint
+      // For now we pass the PIN as part of login context (future backend work)
     }
 
     setLoading(true);
     StaffSession.set({
-      id: match.staff_id,
-      name: match.name,
-      role: match.role,
-      roleLabel: match.role === 2 ? "Manager" : (ROLE_MAP[match.role] ?? "Staff"),
+      id:        selected.staff_id,
+      name:      selected.name,
+      role:      selected.role,
+      roleLabel: ROLE_MAP[selected.role] ?? "Staff",
     });
-    const isManagerRole = match.role === 2 || match.role === 3;
+    const isManagerRole = selected.role === 2 || selected.role === 3;
     router.push(isManagerRole ? "/dashboard" : "/updateinventory");
   };
 
   return (
-    <div className="grid grid-cols-8 grid-rows-5 gap-4">
-      <div className="col-span-2 row-span-5 flex items-end justify-center">
-        <Image src="/logo2.png" alt="logo" width={200} height={200} />
+    <div className="min-h-screen bg-[#fafaf8] flex">
+      {/* Left logo */}
+      <div className="hidden md:flex w-56 shrink-0 items-end justify-center pb-16">
+        <Image src="/logo2.png" alt="logo" width={160} height={160} />
       </div>
 
-      <div className="col-span-4 row-span-5">
-        <div className="flex flex-col items-center justify-center min-h-screen px-4">
-          <div className="w-[330px] max-w-sm text-center">
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">
-              Staff Login
-            </h1>
-            <p className="text-sm text-slate-500 mb-8">
-              Enter your name to continue
-            </p>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
+        <div className="w-full max-w-xl">
+          <h1 className="text-3xl font-bold text-slate-800 mb-1">Who are you?</h1>
+          <p className="text-sm text-slate-500 mb-6">Select your profile to continue</p>
 
-            <form className="space-y-1" onSubmit={handleSubmit}>
-              <div className="text-left">
-                <label
-                  htmlFor="name"
-                  className="block text-xs font-semibold text-slate-400 mb-1"
-                >
-                  YOUR NAME
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={nameValue}
-                  onChange={handleNameChange}
-                  placeholder="Enter your name"
-                  className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                    nameError ? "border-red-500" : "border-slate-300"
-                  }`}
-                />
-                <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
-                  {nameError}
-                </p>
-              </div>
-
-              <div
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                  isManager ? "max-h-32 opacity-100 pt-0.5 px-0.5" : "max-h-0 opacity-0"
-                }`}
-              >
-                <div className="text-left pt-1">
-                  <label
-                    htmlFor="pin"
-                    className="block text-xs font-semibold text-slate-400 mb-1"
-                  >
-                    MANAGER PIN
-                  </label>
-                  <input
-                    id="pin"
-                    type="password"
-                    inputMode="numeric"
-                    value={pinValue}
-                    onChange={(e) => {
-                      setPinValue(e.target.value);
-                      if (pinError) setPinError("");
-                    }}
-                    placeholder="Enter manager PIN"
-                    className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                      pinError ? "border-red-500" : "border-slate-300"
+          {fetching ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="animate-spin text-orange-400" size={24} />
+            </div>
+          ) : staffList.length === 0 ? (
+            <div className="text-sm text-slate-400 text-center py-10">
+              No staff found. Ask your manager to add staff members first.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              {staffList.map((s) => {
+                const isSelected = selected?.staff_id === s.staff_id;
+                return (
+                  <button
+                    key={s.staff_id}
+                    onClick={() => handleSelect(s)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-left ${
+                      isSelected
+                        ? "border-orange-400 bg-orange-50 shadow-md"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
                     }`}
-                  />
-                  <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">
-                    {pinError}
-                  </p>
-                </div>
-              </div>
+                  >
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${
+                      isSelected ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {(s.name || "?")[0].toUpperCase()}
+                    </div>
+                    <p className={`text-sm font-semibold truncate w-full text-center ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
+                      {s.name}
+                    </p>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLOR[s.role] ?? "bg-slate-100 text-slate-500"}`}>
+                      {ROLE_MAP[s.role] ?? "Staff"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-orange-500 text-white rounded-xl font-semibold py-3 hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading ? "Entering..." : "Enter"}
-              </button>
-            </form>
-          </div>
+          {/* PIN input — visible for managers and staff with PIN */}
+          <form onSubmit={handleSubmit}>
+            <div className={`overflow-hidden transition-all duration-300 ${requiresPin ? "max-h-28 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+                {isManager ? "Manager PIN" : "Staff PIN"}
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={pinValue}
+                onChange={(e) => { setPinValue(e.target.value); if (pinError) setPinError(""); }}
+                placeholder="Enter manager PIN"
+                className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                  pinError ? "border-red-400" : "border-slate-300"
+                }`}
+              />
+              {pinError && <p className="mt-1 text-xs text-red-500">{pinError}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={!selected || loading}
+              className="w-full bg-orange-500 text-white rounded-xl font-semibold py-3 hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Entering…</> : "Enter"}
+            </button>
+          </form>
         </div>
       </div>
     </div>

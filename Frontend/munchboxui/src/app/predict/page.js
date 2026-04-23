@@ -522,7 +522,7 @@ const filteredReport = useMemo(() => {
           <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
 
             {/* ── Left panel: ingredient list ── */}
-            <div className="w-64 shrink-0 flex flex-col gap-3">
+            <div className="w-64 shrink-0 flex flex-col gap-3 min-h-0">
               {/* Search with dropdown */}
               <div className="relative">
                 <div className="flex items-center gap-2 border-2 border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus-within:border-orange-400 transition">
@@ -804,7 +804,7 @@ const filteredReport = useMemo(() => {
                     <div>
                       <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">Avg / Day</p>
                       <p className="text-xl font-bold text-blue-900 leading-tight">{selectedIngredient.daily_target_average ?? "—"}</p>
-                      <p className="text-xs text-blue-500 font-medium">{selectedIngredient.unit}/day</p>
+                      <p className="text-xs text-blue-500 font-medium">{selectedIngredient.unit}/day · predicted</p>
                     </div>
                   </div>
 
@@ -824,6 +824,7 @@ const filteredReport = useMemo(() => {
                           ? `+${surplus} ${selectedIngredient.unit} surplus`
                           : `Need ${Math.abs(surplus)} ${selectedIngredient.unit}`}
                       </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">At end of forecast period</p>
                     </div>
                   </div>
                 </div>
@@ -873,10 +874,12 @@ const filteredReport = useMemo(() => {
                       >
                         {predictSets.map((s, idx) => {
                           const fmt = (d) => { if (!d) return "?"; const [y,m,day] = d.split("-"); return `${day}/${m}/${y}`; };
+                          const fmtTs = (ts) => { if (!ts) return ""; try { const d = new Date(ts); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; } catch { return ""; } };
+                          const modelName = { 1: "Conservative", 2: "Balanced", 3: "Aggressive" }[s.model] ?? "";
                           const runNum = predictSets.length - idx;
                           return (
                             <option key={s.predict_set_id} value={s.predict_set_id}>
-                              Run {runNum} — {fmt(s.start_date)} – {fmt(s.end_date)}
+                              Run {runNum} · {fmtTs(s.run_timestamp)}{modelName ? ` · ${modelName}` : ""}
                             </option>
                           );
                         })}
@@ -911,15 +914,16 @@ const filteredReport = useMemo(() => {
                       </div>
                     );
                   })()}
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
-                    <span className="text-[10px] text-slate-400 font-medium">Model</span>
-                    <span className="text-slate-200 text-xs">|</span>
-                    <select value={requestForm.strategy} onChange={(e) => setRequestForm((f) => ({ ...f, strategy: e.target.value }))} className="text-xs font-semibold text-slate-600 bg-transparent outline-none cursor-pointer">
-                      <option value="1">Conservative</option>
-                      <option value="2">Balanced</option>
-                      <option value="3">Aggressive</option>
-                    </select>
-                  </div>
+                  {selectedSet && (() => {
+                    const modelName = { 1: "Conservative", 2: "Balanced", 3: "Aggressive" }[selectedSet.model] ?? "—";
+                    return (
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
+                        <span className="text-[10px] text-slate-400 font-medium">Model</span>
+                        <span className="text-slate-200 text-xs">|</span>
+                        <span className="text-xs font-semibold text-slate-600">{modelName}</span>
+                      </div>
+                    );
+                  })()}
                   {selectedIngredient && (
                     selectedIngredient.status === 1
                       ? <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0 pointer-events-none"><CheckCircle size={11} /> Stock OK</span>
@@ -931,7 +935,7 @@ const filteredReport = useMemo(() => {
                 <div className="px-5 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/40">
                   {[
                     { key: "futureForecast",  label: "Forecast",   color: "#6366f1" },
-                    { key: "suggestionRange", label: "Range band", color: "#6366f1", opacity: 0.25 },
+                    { key: "suggestionRange", label: "Uncertainty range", color: "#6366f1", opacity: 0.25 },
                     { key: "dailyTargetAvg",  label: "Daily avg",  color: "#f97316", dashed: true },
                   ].map(({ key, label, color, opacity, dashed }) => (
                     <button key={key} onClick={() => setGraphFilters((f) => ({ ...f, [key]: !f[key] }))}
@@ -979,7 +983,7 @@ const filteredReport = useMemo(() => {
                     </div>
                     <div className="px-5 py-2 border-t border-slate-100 bg-slate-50/30 flex items-center gap-5 text-xs text-slate-500 flex-wrap">
                       <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="2.5" /></svg>Forecast demand</div>
-                      <div className="flex items-center gap-1.5"><div className="w-8 h-3 rounded-sm bg-indigo-100 border border-indigo-200" />Range band</div>
+                      <div className="flex items-center gap-1.5"><div className="w-8 h-3 rounded-sm bg-indigo-100 border border-indigo-200" />Uncertainty range (5th–95th %)</div>
                       <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>Daily avg</div>
                     </div>
                   </>

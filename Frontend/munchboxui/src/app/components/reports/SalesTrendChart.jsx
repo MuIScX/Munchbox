@@ -68,7 +68,7 @@ export default function SalesTrendChart({
 
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: data.length > 14 ? 36 : 20 }}>
               <defs>
                 <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.50} />
@@ -76,7 +76,18 @@ export default function SalesTrendChart({
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#0f172a', fontWeight: 600 }} axisLine={{ stroke: '#cbd5e1' }} />
+              <XAxis
+                dataKey="name"
+                axisLine={{ stroke: '#cbd5e1' }}
+                interval={data.length <= 14 ? 0 : data.length <= 60 ? 6 : Math.ceil(data.length / 8)}
+                tickFormatter={(v) => {
+                  if (!v || !v.includes("/")) return v;
+                  const parts = v.split("/");
+                  if (parts.length === 3) return data.length > 60 ? `${parts[0]}/${parts[1]}` : `${parts[0]}/${parts[1]}`;
+                  return v;
+                }}
+                tick={{ fontSize: data.length > 14 ? 10 : 12, fill: '#0f172a', fontWeight: 600, angle: data.length > 14 ? -35 : 0, textAnchor: data.length > 14 ? "end" : "middle", dy: data.length > 14 ? 4 : 0 }}
+              />
               <YAxis tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }} axisLine={{ stroke: '#cbd5e1' }} tickLine={false} width={40} allowDecimals={false} />
               <RechartsTooltip content={<CustomTooltip />} />
               <Area

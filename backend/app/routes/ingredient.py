@@ -33,7 +33,8 @@ def get_ingredients(body: IngredientListRequest, identity: dict = Depends(decode
 
     return {"message": "success", "Data": [
         {"id": i.id, "ingredient_name": i.name, "category": i.category,
-         "stock_left": float(i.stock_left), "unit": i.unit}
+         "stock_left": float(i.stock_left), "unit": i.unit,
+         "reorder_point": float(i.reorder_point) if i.reorder_point is not None else None}
         for i in q.all()
     ]}
 
@@ -91,6 +92,8 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
                 staff_id=body.staff_id or 0,
                 restaurant_id=identity["restaurantId"],
                 new_current=int(new_stock),
+                as_of_date=body.as_of_date,
+                restock_type=body.restock_type,
             ))
 
         if found == 0:
@@ -146,8 +149,10 @@ def get_inventory_log(body: IngredientLogRequest, identity: dict = Depends(decod
             Staff.name,
             Ingredient.unit,
             IngredientHistory.new_current,
+            IngredientHistory.as_of_date,
+            IngredientHistory.restock_type,
         )
-        .join(Staff, IngredientHistory.staff_id == Staff.id)
+        .outerjoin(Staff, IngredientHistory.staff_id == Staff.id)
         .join(Ingredient, IngredientHistory.ingredient_id == Ingredient.id)
         .filter(IngredientHistory.restaurant_id == identity["restaurantId"])
     )
@@ -158,7 +163,9 @@ def get_inventory_log(body: IngredientLogRequest, identity: dict = Depends(decod
         {
             "timestamp": r[0], "action_type": r[1], "ingredient_id": r[2],
             "ingredient_name": r[3], "amount": float(r[4]),
-            "staff_id": r[5], "staff_name": r[6], "unit": r[7], "new_current": r[8],
+            "staff_id": r[5], "staff_name": r[6] or "System", "unit": r[7], "new_current": r[8],
+            "as_of_date": str(r[9]) if r[9] else None,
+            "restock_type": r[10],
         }
         for r in q.order_by(IngredientHistory.timestamp.desc()).all()
     ]}
@@ -176,6 +183,8 @@ def update_ingredient_detail(body: IngredientUpdate, identity: dict = Depends(de
     ingredient.name = body.name
     ingredient.category = body.category
     ingredient.unit = body.unit
+    if body.reorder_point is not None:
+        ingredient.reorder_point = body.reorder_point
     db.commit()
     return {"message": "success", "Data": []}
 

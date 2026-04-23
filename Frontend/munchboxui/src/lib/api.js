@@ -110,7 +110,7 @@ export const StaffSession = {
 export const StaffAPI = {
   list: () => request("/staff/list"),
   create: (name, role) => request("/staff/create", "POST", { name, role }),
-  update: (staff_id, name, role) => request("/staff/update", "PUT", { staff_id, name, role }),
+  update: (staff_id, name, role, pin) => request("/staff/update", "PUT", { staff_id, name, role, ...(pin !== undefined ? { pin } : {}) }),
   delete: (staff_id) => request("/staff/delete", "DELETE", { staff_id }),
   verifyManagerPin: (pin) => request("/staff/verify-manager-pin", "POST", { pin: parseInt(pin) }),
 }
@@ -118,7 +118,7 @@ export const StaffAPI = {
 export const IngredientAPI = {
   list: (filters) => request("/ingredient/list", "POST", filters),
   create: (payload) => request("/ingredient/create", "POST", payload),
-  updateStock: (updates, staff_id) => request("/ingredient/update-stock", "PUT", { updates, staff_id }),
+  updateStock: (updates, staff_id, as_of_date, restock_type) => request("/ingredient/update-stock", "PUT", { updates, staff_id, as_of_date, restock_type }),
   updateDetail: (payload) => request("/ingredient/update-detail", "PUT", payload),
   status: (ingredient_id) => request("/ingredient/status", "POST", { ingredient_id }),
   log: (ingredient_id) => request("/ingredient/log", "POST", { ingredient_id }),
@@ -185,5 +185,6 @@ export const PredictAPI = {
 }
 
 export const ImportAPI = {
-  sales: (file) => uploadFile("/import/sales", file),
+  sales:     (file) => uploadFile("/import/sales",     file),
+  inventory: (file) => uploadFile("/import/inventory", file),
 }

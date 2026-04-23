@@ -30,7 +30,8 @@ def apply_date_filter(q, body):
     if hasattr(body, "start_date") and body.start_date:
         q = q.filter(SaleData.timestamp >= body.start_date)
     if hasattr(body, "end_date") and body.end_date:
-        q = q.filter(SaleData.timestamp <= body.end_date)
+        # Use < next day to include all timestamps on end_date regardless of time
+        q = q.filter(SaleData.timestamp < func.date_add(body.end_date, text("interval 1 day")))
     return q
 
 
@@ -86,6 +87,13 @@ def get_share_menu(
     total_q = apply_date_filter(total_q, body)
     total_sub = total_q.scalar_subquery()
 
+    # Build join condition including date filter so menus with 0 sales still appear
+    join_cond = (Menu.id == SaleData.menu_id) & (SaleData.restaurant_id == restaurant_id)
+    if body.start_date:
+        join_cond = join_cond & (SaleData.timestamp >= body.start_date)
+    if body.end_date:
+        join_cond = join_cond & (SaleData.timestamp < func.date_add(body.end_date, text("interval 1 day")))
+
     sale_q = (
         db.query(
             Menu.id, Menu.name,
@@ -93,10 +101,9 @@ def get_share_menu(
             func.coalesce(func.sum(SaleData.amount * Menu.price), 0),
             (func.coalesce(func.sum(SaleData.amount), 0) / func.coalesce(total_sub, 1) * 100),
         )
-        .outerjoin(SaleData, (Menu.id == SaleData.menu_id) & (SaleData.restaurant_id == restaurant_id))
+        .outerjoin(SaleData, join_cond)
         .filter(Menu.restaurant_id == restaurant_id, Menu.is_active == 1)
     )
-    sale_q = apply_date_filter(sale_q, body)
     rows = sale_q.group_by(Menu.id, Menu.name, Menu.price).all()
 
     return {"message": "success", "Data": [

@@ -96,22 +96,27 @@ def get_predict_sets(body: PredictSetsRequest, identity: dict = Depends(decode_t
             Predict.prediction_set,
             func.min(Predict.timestamp).label("start_date"),
             func.max(Predict.timestamp).label("end_date"),
+            PredictSet.model,
+            PredictSet.timestamp.label("run_timestamp"),
         )
+        .join(PredictSet, Predict.prediction_set == PredictSet.id)
         .filter(
             Predict.ingredient_id   == body.ingredient_id,
             Predict.restaurant_id   == restaurant_id,
             Predict.prediction_type == 1,
         )
-        .group_by(Predict.prediction_set)
+        .group_by(Predict.prediction_set, PredictSet.model, PredictSet.timestamp)
         .order_by(Predict.prediction_set.desc())
         .all()
     )
 
     return {"message": "success", "Data": [
         {
-            "predict_set_id": r[0],
-            "start_date":     str(r[1].date()) if r[1] else None,
-            "end_date":       str(r[2].date()) if r[2] else None,
+            "predict_set_id":  r[0],
+            "start_date":      str(r[1].date()) if r[1] else None,
+            "end_date":        str(r[2].date()) if r[2] else None,
+            "model":           r[3],
+            "run_timestamp":   r[4].isoformat() if r[4] else None,
         }
         for r in rows
     ]}
@@ -408,8 +413,11 @@ def get_actual_usage(body: PredictIngredientRequest, identity: dict = Depends(de
     ]}
 @router.post("/prep-summary")
 def prep_summary(body: PrepSummaryRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    """Return all active ingredients with expected_usage summed over the given date range (latest predict_set).
-    Ingredients without prediction data in that range are included but marked has_data=False."""
+    """Return all active ingredients with expected_usage projected over the requested date range.
+
+    Uses daily_target_average * requested_days so that 7-day always shows a superset
+    of 3-day low-stock items (consistent ordering).
+    """
     restaurant_id = identity["restaurantId"]
 
     ingredients = (
@@ -422,106 +430,67 @@ def prep_summary(body: PrepSummaryRequest, identity: dict = Depends(decode_token
 
     ingredient_ids = [i.id for i in ingredients]
 
-    # Calculate how many days the requested range spans
     from datetime import date as date_type
     if body.start_date and body.end_date:
-        start_dt  = date_type.fromisoformat(body.start_date)
-        end_dt    = date_type.fromisoformat(body.end_date)
-        requested_days = (end_dt - start_dt).days + 1
+        start_dt       = date_type.fromisoformat(body.start_date)
+        end_dt         = date_type.fromisoformat(body.end_date)
+        requested_days = max((end_dt - start_dt).days + 1, 1)
     else:
-        requested_days = None
+        requested_days = 7
 
-    # Step 1: for every (ingredient, set) count how many type-1 rows fall in the requested range
-    from collections import defaultdict
-    counts_q = (
+    # Get latest summary (type-2) row per ingredient — contains daily_target_average
+    latest_summary_sub = (
         db.query(
             Predict.ingredient_id,
-            Predict.prediction_set,
-            func.count(Predict.id).label("day_count"),
+            func.max(Predict.prediction_set).label("latest_set"),
         )
         .filter(
             Predict.restaurant_id   == restaurant_id,
-            Predict.prediction_type == 1,
+            Predict.prediction_type == 2,
             Predict.ingredient_id.in_(ingredient_ids),
         )
+        .group_by(Predict.ingredient_id)
+        .subquery()
     )
-    if body.start_date:
-        counts_q = counts_q.filter(func.date(Predict.timestamp) >= body.start_date)
-    if body.end_date:
-        counts_q = counts_q.filter(func.date(Predict.timestamp) <= body.end_date)
-    counts_q = counts_q.group_by(Predict.ingredient_id, Predict.prediction_set)
 
-    # Step 2: per ingredient, keep only sets that FULLY cover the requested range,
-    # then pick the newest (highest set id). If no set fully covers → no data.
-    set_counts = defaultdict(list)
-    for r in counts_q.all():
-        set_counts[r.ingredient_id].append((r.day_count, r.prediction_set))
-
-    best_sets = {}
-    for ing_id, entries in set_counts.items():
-        # Only consider sets that cover every day in the range
-        if requested_days is not None:
-            full_coverage = [e for e in entries if e[0] >= requested_days]
-        else:
-            full_coverage = entries  # no range filter — any set is fine
-        if not full_coverage:
-            continue  # no set covers the full range → will be marked no data
-        # Among qualifying sets, pick the newest (highest set id)
-        full_coverage.sort(key=lambda x: x[1], reverse=True)
-        best_sets[ing_id] = {"set_id": full_coverage[0][1], "day_count": full_coverage[0][0]}
-
-    # Step 3: sum expected_usage from the chosen set within the requested range
-    # Also fetch urgency_score from the type-2 summary row (same source as /report endpoint)
-    urgency_map = {}
-    if best_sets:
-        summary_rows = (
-            db.query(Predict.ingredient_id, Predict.prediction_set, Predict.urgency_score)
-            .filter(
-                Predict.restaurant_id   == restaurant_id,
-                Predict.prediction_type == 2,
-                Predict.ingredient_id.in_(list(best_sets.keys())),
-            )
-            .all()
+    summary_rows = (
+        db.query(
+            Predict.ingredient_id,
+            Predict.daily_target_average,
+            Predict.urgency_score,
         )
-        for sr in summary_rows:
-            best = best_sets.get(sr.ingredient_id)
-            if best and sr.prediction_set == best["set_id"]:
-                urgency_map[sr.ingredient_id] = int(sr.urgency_score) if sr.urgency_score is not None else None
+        .join(latest_summary_sub, (Predict.ingredient_id == latest_summary_sub.c.ingredient_id)
+              & (Predict.prediction_set == latest_summary_sub.c.latest_set))
+        .filter(Predict.prediction_type == 2)
+        .all()
+    )
 
     pred_map = {}
-    for ing_id, best in best_sets.items():
-        agg_q = (
-            db.query(func.sum(Predict.expected_usage))
-            .filter(
-                Predict.restaurant_id   == restaurant_id,
-                Predict.prediction_type == 1,
-                Predict.ingredient_id   == ing_id,
-                Predict.prediction_set  == best["set_id"],
-            )
-        )
-        if body.start_date:
-            agg_q = agg_q.filter(func.date(Predict.timestamp) >= body.start_date)
-        if body.end_date:
-            agg_q = agg_q.filter(func.date(Predict.timestamp) <= body.end_date)
-        total = agg_q.scalar()
-        if total is not None:
-            pred_map[ing_id] = {"total_expected": float(total), "day_count": best["day_count"], "urgency_score": urgency_map.get(ing_id)}
+    for r in summary_rows:
+        if r[1] is not None:
+            daily_avg = float(r[1])
+            total_expected = round(daily_avg * requested_days, 2)
+            pred_map[r[0]] = {
+                "total_expected": total_expected,
+                "daily_avg":      daily_avg,
+                "urgency_score":  int(r[2]) if r[2] is not None else None,
+            }
 
     result = []
     for ing in ingredients:
         pred = pred_map.get(ing.id)
         if pred:
-            total  = round(pred["total_expected"], 2)
+            total  = pred["total_expected"]
             status = 1 if float(ing.stock_left) >= total else 0
             result.append({
                 "ingredient_id":   ing.id,
                 "ingredient_name": ing.name,
                 "current_stock":   float(ing.stock_left),
                 "expected_usage":  total,
-                "day_count":       pred["day_count"],
+                "day_count":       requested_days,
                 "unit":            ing.unit,
                 "category":        ing.category,
-                "urgency_score":   pred.get("urgency_score"),
+                "urgency_score":   pred["urgency_score"],
                 "status":          status,
                 "has_data":        True,
             })
@@ -534,6 +503,7 @@ def prep_summary(body: PrepSummaryRequest, identity: dict = Depends(decode_token
                 "day_count":       0,
                 "unit":            ing.unit,
                 "category":        ing.category,
+                "urgency_score":   None,
                 "status":          None,
                 "has_data":        False,
             })

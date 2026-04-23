@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 
 
 class IngredientListRequest(BaseModel):
@@ -22,6 +23,8 @@ class IngredientStockItem(BaseModel):
 class IngredientStockUpdate(BaseModel):
     updates: list[IngredientStockItem]
     staff_id: Optional[int] = None
+    as_of_date: Optional[date] = None
+    restock_type: Optional[int] = None   # 1=before, 2=after
 
 
 class IngredientStatusRequest(BaseModel):
@@ -41,5 +44,6 @@ class IngredientUpdate(BaseModel):
     name: str
     category: int
     unit: str
+    reorder_point: Optional[float] = None
 
 

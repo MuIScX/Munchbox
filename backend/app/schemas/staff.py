@@ -11,6 +11,7 @@ class StaffUpdate(BaseModel):
     staff_id: int
     name: Optional[str] = None
     role: Optional[int] = None
+    pin: Optional[str] = None
 
 
 class StaffDelete(BaseModel):
