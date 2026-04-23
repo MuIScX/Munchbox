@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-from datetime import date
+from datetime import date, timedelta
 
 from app.db import get_db
 from app.core.security import decode_token
@@ -30,8 +30,7 @@ def apply_date_filter(q, body):
     if hasattr(body, "start_date") and body.start_date:
         q = q.filter(SaleData.timestamp >= body.start_date)
     if hasattr(body, "end_date") and body.end_date:
-        # Use < next day to include all timestamps on end_date regardless of time
-        q = q.filter(SaleData.timestamp < func.date_add(body.end_date, text("interval 1 day")))
+        q = q.filter(SaleData.timestamp < body.end_date + timedelta(days=1))
     return q
 
 
@@ -92,7 +91,7 @@ def get_share_menu(
     if body.start_date:
         join_cond = join_cond & (SaleData.timestamp >= body.start_date)
     if body.end_date:
-        join_cond = join_cond & (SaleData.timestamp < func.date_add(body.end_date, text("interval 1 day")))
+        join_cond = join_cond & (SaleData.timestamp < body.end_date + timedelta(days=1))
 
     sale_q = (
         db.query(
