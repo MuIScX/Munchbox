@@ -94,10 +94,10 @@ export default function SalesTrendChart({
                 type="monotone"
                 dataKey="order"
                 stroke="#3b82f6"
-                strokeWidth={4}
+                strokeWidth={data.length > 60 ? 2 : data.length > 14 ? 2.5 : 4}
                 fill="url(#salesGradient)"
-                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                activeDot={{ r: 6 }}
+                dot={data.length > 30 ? false : { r: data.length > 14 ? 2 : 4, fill: '#3b82f6', strokeWidth: 1.5, stroke: '#fff' }}
+                activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
               />
             </AreaChart>
           </ResponsiveContainer>

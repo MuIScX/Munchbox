@@ -76,17 +76,17 @@ export default function StaffLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafaf8] flex">
-      {/* Left logo */}
-      <div className="hidden md:flex w-56 shrink-0 items-end justify-center pb-16">
-        <Image src="/logo2.png" alt="logo" width={160} height={160} />
+    <div className="min-h-screen bg-[#fafaf8] flex items-center justify-center px-6 py-10 relative">
+      {/* Logo at bottom-left */}
+      <div className="hidden md:block fixed bottom-6 left-6 opacity-90">
+        <Image src="/logo2.png" alt="logo" width={120} height={120} />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
-        <div className="w-full max-w-xl">
+      <div className="w-full max-w-xl">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-slate-800 mb-1">Who are you?</h1>
-          <p className="text-sm text-slate-500 mb-6">Select your profile to continue</p>
+          <p className="text-sm text-slate-500">Select your profile to continue</p>
+        </div>
 
           {fetching ? (
             <div className="flex items-center justify-center h-40">
@@ -129,21 +129,23 @@ export default function StaffLogin() {
 
           {/* PIN input — only visible for managers */}
           <form onSubmit={handleSubmit}>
-            <div className={`overflow-hidden transition-all duration-300 ${isManager ? "max-h-28 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
-                Manager PIN
-              </label>
-              <input
-                type="password"
-                inputMode="numeric"
-                value={pinValue}
-                onChange={(e) => { setPinValue(e.target.value); if (pinError) setPinError(""); }}
-                placeholder="Enter manager PIN"
-                className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                  pinError ? "border-red-400" : "border-slate-300"
-                }`}
-              />
-              {pinError && <p className="mt-1 text-xs text-red-500">{pinError}</p>}
+            <div className={`overflow-hidden transition-all duration-300 ${isManager ? "max-h-32 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+              <div className="px-1 pt-1">
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+                  Manager PIN
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={pinValue}
+                  onChange={(e) => { setPinValue(e.target.value); if (pinError) setPinError(""); }}
+                  placeholder="Enter manager PIN"
+                  className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    pinError ? "border-red-400" : "border-slate-300"
+                  }`}
+                />
+                {pinError && <p className="mt-1 text-xs text-red-500">{pinError}</p>}
+              </div>
             </div>
 
             <button
@@ -154,7 +156,6 @@ export default function StaffLogin() {
               {loading ? <><Loader2 size={16} className="animate-spin" /> Entering…</> : "Enter"}
             </button>
           </form>
-        </div>
       </div>
     </div>
   );

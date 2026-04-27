@@ -6,6 +6,7 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea,
 } from "recharts";
+import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Toast from "../components/Toast";
 import { PredictAPI, IngredientAPI } from "../../lib/api";
@@ -926,8 +927,8 @@ const filteredReport = useMemo(() => {
                   })()}
                   {selectedIngredient && (
                     selectedIngredient.status === 1
-                      ? <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0 pointer-events-none"><CheckCircle size={11} /> Stock OK</span>
-                      : <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg shrink-0 pointer-events-none"><AlertTriangle size={11} /> Low Stock</span>
+                      ? <span className="inline-flex items-center gap-1.5 text-emerald-600 text-xs font-semibold shrink-0"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Stock OK</span>
+                      : <span className="inline-flex items-center gap-1.5 text-red-500 text-xs font-semibold shrink-0"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Low Stock</span>
                   )}
                 </div>
 
@@ -1005,7 +1006,16 @@ const filteredReport = useMemo(() => {
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">
                       {depletionDateRange
-                        ? <><span className="font-medium text-slate-500">{fmtDate(depletionDateRange.start)} – {fmtDate(depletionDateRange.end)}</span>{selectedIngredient?.daily_target_average != null ? ` · Avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder: ${reorderPoint} ${selectedIngredient.unit}${stockoutDate ? ` · ⚠ Stockout ${fmtDate(stockoutDate)}` : ""}` : ""}</>
+                        ? <>
+                            <span className="font-medium text-slate-500">{fmtDate(depletionDateRange.start)} – {fmtDate(depletionDateRange.end)}</span>
+                            {selectedIngredient?.daily_target_average != null && <>
+                              {` · Avg: ${selectedIngredient.daily_target_average} ${selectedIngredient.unit}/day · Reorder: `}
+                              <Link href="/updateinventory" className="text-orange-500 hover:text-orange-600 hover:underline font-medium" title="Edit reorder point in Update Inventory">
+                                {reorderPoint} {selectedIngredient.unit}
+                              </Link>
+                              {stockoutDate ? ` · ⚠ Stockout ${fmtDate(stockoutDate)}` : ""}
+                            </>}
+                          </>
                         : "Stock level projection based on forecast usage"}
                     </p>
                   </div>

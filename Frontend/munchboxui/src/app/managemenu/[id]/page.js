@@ -82,10 +82,6 @@ export default function RecipeDetailPage() {
                 </div>
                 <div className="relative z-10 flex justify-between items-start">
                   <div>
-                    <div className="flex items-center gap-2 mb-3 bg-white/5 w-fit px-3 py-1 rounded-full border border-white/10">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-xs font-bold uppercase tracking-widest opacity-70">Active Menu</span>
-                    </div>
                     <h1 className="text-5xl font-black italic tracking-tight mb-2 break-words max-w-3xl">
                       {menu.menu_name || menu.name}
                     </h1>
