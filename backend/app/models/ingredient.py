@@ -25,4 +25,4 @@ class IngredientHistory(Base):
     ingredient_id = Column(BigInteger, nullable=False)
     staff_id      = Column(BigInteger, nullable=True)
     restaurant_id = Column(BigInteger, nullable=False)
-    new_current   = Column(Integer, nullable=True)
+    new_current   = Column(DECIMAL(8, 2), nullable=True)

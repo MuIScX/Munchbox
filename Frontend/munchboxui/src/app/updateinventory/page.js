@@ -23,7 +23,7 @@ export default function UpdateInventoryPage() {
   // Update Stock state
   const [stockValues, setStockValues]       = useState({});
   const [asOfDate, setAsOfDate]             = useState(new Date());
-  const [restockType, setRestockType]       = useState("after"); // "before" | "after"
+  const [restockType, setRestockType]       = useState("restock"); // "restock" | "recheck"
   const [saving, setSaving]                 = useState(false);
 
   // Manage tab state
@@ -105,7 +105,7 @@ const handleExportCSV = () => {
     const staff = StaffSession.get();
     setSaving(true);
     try {
-      await IngredientAPI.updateStock(updates, staff ? parseInt(staff.id) : null);
+      await IngredientAPI.updateStock(updates, staff ? parseInt(staff.id) : null, restockType === "restock" ? 1 : 2);
       showToast("success", `Updated ${updates.length} ingredient${updates.length > 1 ? "s" : ""}.`);
       setStockValues({});
       fetchIngredients();
@@ -248,22 +248,11 @@ const handleExportCSV = () => {
                   />
                 </div>
 
-                {/* Before/After Restock */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium">Restock:</span>
-                  {[["before", "Before"], ["after", "After"]].map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setRestockType(val)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        restockType === val
-                          ? "bg-orange-500 border-orange-500 text-white"
-                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                {/* RESTOCK / RECHECK sliding toggle */}
+                <div className="relative flex items-center bg-slate-100 rounded-lg p-0.5 w-44 shrink-0">
+                  <div className={`absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-md bg-orange-500 shadow-sm transition-all duration-200 ease-in-out ${restockType === "recheck" ? "translate-x-[calc(100%+4px)]" : "translate-x-[2px]"}`} />
+                  <button onClick={() => setRestockType("restock")} className={`relative z-10 flex-1 text-center text-xs font-bold py-1.5 transition-colors duration-200 ${restockType === "restock" ? "text-white" : "text-slate-500"}`}>RESTOCK</button>
+                  <button onClick={() => setRestockType("recheck")} className={`relative z-10 flex-1 text-center text-xs font-bold py-1.5 transition-colors duration-200 ${restockType === "recheck" ? "text-white" : "text-slate-500"}`}>RECHECK</button>
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">

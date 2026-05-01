@@ -58,6 +58,7 @@ export default function InventoryLog() {
       timestamp,
       staff_id: rows[0].staff_id,
       staff_name: rows[0].staff_name,
+      action_type: rows[0].action_type,
       rows,
     }));
   })();
@@ -196,9 +197,11 @@ export default function InventoryLog() {
                         <td className="px-6 py-3 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
                         <td className="px-6 py-3 text-slate-800 font-semibold">{batch.staff_name}</td>
                         <td className="px-6 py-3 text-center">
-                          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-600">
-                            STOCK UPDATE
-                          </span>
+                          {batch.action_type === 2 ? (
+                            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-600">RECHECK</span>
+                          ) : (
+                            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-600">RESTOCK</span>
+                          )}
                         </td>
                         <td className="px-6 py-3 text-slate-500 text-sm">
                           <span className="font-semibold text-slate-700">{batch.staff_name}</span> updated stock at{" "}

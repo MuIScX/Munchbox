@@ -80,17 +80,17 @@ def update_stock(body: IngredientStockUpdate, identity: dict = Depends(decode_to
             if new_stock < 0 or new_stock == current:
                 continue
 
-            action_type = 1 if new_stock > current else 2
+            action_type = body.action_type if body.action_type in (1, 2) else (1 if new_stock > current else 2)
             ingredient.stock_left = new_stock
             ingredient.last_update = now
             db.add(IngredientHistory(
                 timestamp=now,
                 action_type=action_type,
-                amount=abs(new_stock - current),
+                amount=new_stock - current,
                 ingredient_id=item.ingredient_id,
                 staff_id=body.staff_id or 0,
                 restaurant_id=identity["restaurantId"],
-                new_current=int(new_stock),
+                new_current=new_stock,
             ))
 
         if found == 0:
@@ -159,6 +159,7 @@ def get_inventory_log(body: IngredientLogRequest, identity: dict = Depends(decod
             "timestamp": r[0], "action_type": r[1], "ingredient_id": r[2],
             "ingredient_name": r[3], "amount": float(r[4]),
             "staff_id": r[5], "staff_name": r[6] or "System", "unit": r[7], "new_current": r[8],
+            "previous_stock": round(float(r[8]) - float(r[4]), 2) if r[8] is not None and r[4] is not None else None,
         }
         for r in q.order_by(IngredientHistory.timestamp.desc()).all()
     ]}

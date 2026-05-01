@@ -22,6 +22,7 @@ class IngredientStockItem(BaseModel):
 class IngredientStockUpdate(BaseModel):
     updates: list[IngredientStockItem]
     staff_id: Optional[int] = None
+    action_type: Optional[int] = None  # 1 = RESTOCK, 2 = RECHECK
 
 
 class IngredientStatusRequest(BaseModel):
