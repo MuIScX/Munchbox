@@ -130,7 +130,7 @@ export default function StaffLogin() {
           {/* PIN input — only visible for managers */}
           <form onSubmit={handleSubmit}>
             <div className={`overflow-hidden transition-all duration-300 ${isManager ? "max-h-32 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
-              <div className="px-1 pt-1">
+              <div className="px-1 pt-1 pb-1">
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
                   Manager PIN
                 </label>
