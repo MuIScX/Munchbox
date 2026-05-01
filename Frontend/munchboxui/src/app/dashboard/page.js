@@ -68,12 +68,12 @@ function LiveClock() {
 
 function Delta({ today, yesterday }) {
   if (yesterday === null || yesterday === 0)
-    return <span className="text-xs text-slate-300 flex items-center gap-0.5 mt-0.5"><Minus size={10} /> No data for yesterday</span>;
+    return <span className="text-xs font-medium text-slate-400 flex items-center gap-0.5 mt-0.5"><Minus size={10} /> No data for yesterday</span>;
   const pct = ((today - yesterday) / yesterday) * 100;
   const abs = Math.abs(pct).toFixed(0);
-  if (pct > 0.5) return <span className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp size={11} /> {abs}% vs yesterday</span>;
-  if (pct < -0.5) return <span className="text-xs font-semibold text-red-500 flex items-center gap-0.5 mt-0.5"><ArrowDown size={11} /> {abs}% vs yesterday</span>;
-  return <span className="text-xs text-slate-400 flex items-center gap-0.5 mt-0.5"><Minus size={10} /> Same as yesterday</span>;
+  if (pct > 0.5) return <span className="text-xs font-medium text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp size={11} /> {abs}% vs yesterday</span>;
+  if (pct < -0.5) return <span className="text-xs font-medium text-red-500 flex items-center gap-0.5 mt-0.5"><ArrowDown size={11} /> {abs}% vs yesterday</span>;
+  return <span className="text-xs font-medium text-slate-400 flex items-center gap-0.5 mt-0.5"><Minus size={10} /> Same as yesterday</span>;
 }
 
 function Skeleton({ className }) {
