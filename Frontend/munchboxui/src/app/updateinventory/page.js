@@ -9,10 +9,24 @@ import EditIngredientModal from "../components/EditIngredientModal";
 import CategorySortPopover from "../components/CategorySortPopover";
 import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar, Upload,Download  } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar, Upload } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
+
+function LiveClock() {
+  const [time, setTime] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const h = String(time.getHours()).padStart(2, "0");
+  const m = String(time.getMinutes()).padStart(2, "0");
+  const s = String(time.getSeconds()).padStart(2, "0");
+  return (
+    <span className="text-xs font-medium text-slate-600 tabular-nums">
+      {h}<span className="opacity-40 animate-pulse">:</span>{m}<span className="opacity-40 animate-pulse">:</span>{s}
+    </span>
+  );
+}
 
 export default function UpdateInventoryPage() {
   const [showImportCSV, setShowImportCSV] = useState(false);
@@ -22,7 +36,7 @@ export default function UpdateInventoryPage() {
 
   // Update Stock state
   const [stockValues, setStockValues]       = useState({});
-  const [asOfDate, setAsOfDate]             = useState(new Date());
+
   const [restockType, setRestockType]       = useState("restock"); // "restock" | "recheck"
   const [saving, setSaving]                 = useState(false);
 
@@ -234,25 +248,19 @@ const handleExportCSV = () => {
 
               {/* Toolbar */}
               <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4 shrink-0 flex-wrap">
-                {/* As Of date */}
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                  <Calendar size={13} className="text-slate-400 shrink-0" />
-                  <span className="text-xs text-slate-400 font-medium shrink-0">As Of</span>
-                  <span className="text-slate-200 text-xs">|</span>
-                  <DatePicker
-                    selected={asOfDate}
-                    onChange={(d) => setAsOfDate(d)}
-                    maxDate={new Date()}
-                    dateFormat="dd/MM/yyyy"
-                    className="bg-transparent text-xs font-semibold text-slate-600 outline-none cursor-pointer w-[90px]"
-                  />
-                </div>
-
                 {/* RESTOCK / RECHECK sliding toggle */}
                 <div className="relative flex items-center bg-slate-100 rounded-lg p-0.5 w-44 shrink-0">
                   <div className={`absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-md bg-orange-500 shadow-sm transition-all duration-200 ease-in-out ${restockType === "recheck" ? "translate-x-[calc(100%+4px)]" : "translate-x-[2px]"}`} />
                   <button onClick={() => setRestockType("restock")} className={`relative z-10 flex-1 text-center text-xs font-bold py-1.5 transition-colors duration-200 ${restockType === "restock" ? "text-white" : "text-slate-500"}`}>RESTOCK</button>
                   <button onClick={() => setRestockType("recheck")} className={`relative z-10 flex-1 text-center text-xs font-bold py-1.5 transition-colors duration-200 ${restockType === "recheck" ? "text-white" : "text-slate-500"}`}>RECHECK</button>
+                </div>
+
+                {/* As Of — today's date + live clock */}
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={13} className="text-slate-600 shrink-0" />
+                  <span className="text-xs text-slate-600 font-medium">As of:</span>
+                  <span className="text-xs font-semibold text-slate-600">{new Date().toLocaleDateString("en-GB")}</span>
+                  <LiveClock />
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">

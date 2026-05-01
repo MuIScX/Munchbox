@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -29,11 +28,46 @@ export default function SalesTrendChart({
   endDate,
   tableData = [],
   formatCurrency,
+  monthly,
+  setMonthly,
 }) {
   const fmtDate = (s) => { if (!s) return "—"; const [y,m,d] = s.split("-"); return `${d}/${m}/${y}`; };
+  const fmtMonth = (s) => {
+    if (!s) return "—";
+    const [y, m] = s.split("-");
+    const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+    return `${MONTH_ABBR[parseInt(m) - 1]} ${y}`;
+  };
   const trendLabel = shareAllTime
     ? "All Time"
-    : `${fmtDate(startDate)} to ${fmtDate(endDate)}`;
+    : monthly
+      ? `${fmtMonth(startDate)} – ${fmtMonth(endDate)}`
+      : `${fmtDate(startDate)} to ${fmtDate(endDate)}`;
+
+  const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const displayData = monthly
+    ? (() => {
+        const map = {};
+        data.forEach(({ name, order }) => {
+          // name is dd/mm/yyyy or Mon YYYY
+          let year, month;
+          if (name && name.includes("/")) {
+            const parts = name.split("/");
+            month = parseInt(parts[1]) - 1;
+            year = parseInt(parts[2]);
+          } else {
+            // already aggregated monthly label — pass through
+            const d = new Date(name);
+            if (!isNaN(d)) { month = d.getMonth(); year = d.getFullYear(); }
+          }
+          if (year != null && month != null) {
+            const key = `${MONTH_ABBR[month]} ${year}`;
+            map[key] = (map[key] || 0) + (order || 0);
+          }
+        });
+        return Object.entries(map).map(([name, order]) => ({ name, order }));
+      })()
+    : data;
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2 flex flex-col relative">
@@ -45,20 +79,26 @@ export default function SalesTrendChart({
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-lg font-bold italic text-slate-800">Sales Trend ({trendLabel})</h2>
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1">
-          <span className="text-sm text-slate-500">Menu:</span>
-          <select 
-            value={selectedMenu}
-            onChange={(e) => setSelectedMenu(e.target.value)}
-            className="bg-transparent text-sm text-slate-700 outline-none cursor-pointer max-w-[150px] truncate"
-          >
-            <option value="All">All</option>
-            {menuList.map((menu) => (
-              <option key={menu.menu_id || menu.id} value={menu.menu_id || menu.id}>
-                {menu.menu_name || menu.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={monthly} onChange={(e) => setMonthly(e.target.checked)} className="w-3.5 h-3.5" />
+            <span className="text-xs font-medium text-slate-500">Monthly</span>
+          </label>
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1">
+            <span className="text-sm text-slate-500">Menu:</span>
+            <select
+              value={selectedMenu}
+              onChange={(e) => setSelectedMenu(e.target.value)}
+              className="bg-transparent text-sm text-slate-700 outline-none cursor-pointer max-w-[150px] truncate"
+            >
+              <option value="All">All</option>
+              {menuList.map((menu) => (
+                <option key={menu.menu_id || menu.id} value={menu.menu_id || menu.id}>
+                  {menu.menu_name || menu.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -66,9 +106,9 @@ export default function SalesTrendChart({
         <span className="absolute text-xs font-bold italic text-slate-800" style={{ left: 35, top: -5 }}>Order</span>
         <span className="absolute bottom-0 right-0 text-xs font-bold italic text-slate-800">Time</span>
 
-        {data.length > 0 ? (
+        {displayData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: data.length > 14 ? 36 : 20 }}>
+            <AreaChart data={displayData} margin={{ top: 20, right: 20, left: 10, bottom: displayData.length > 14 ? 36 : 20 }}>
               <defs>
                 <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.50} />
@@ -79,14 +119,9 @@ export default function SalesTrendChart({
               <XAxis
                 dataKey="name"
                 axisLine={{ stroke: '#cbd5e1' }}
-                interval={data.length <= 14 ? 0 : data.length <= 60 ? 6 : Math.ceil(data.length / 8)}
-                tickFormatter={(v) => {
-                  if (!v || !v.includes("/")) return v;
-                  const parts = v.split("/");
-                  if (parts.length === 3) return data.length > 60 ? `${parts[0]}/${parts[1]}` : `${parts[0]}/${parts[1]}`;
-                  return v;
-                }}
-                tick={{ fontSize: data.length > 14 ? 10 : 12, fill: '#0f172a', fontWeight: 600, angle: data.length > 14 ? -35 : 0, textAnchor: data.length > 14 ? "end" : "middle", dy: data.length > 14 ? 4 : 0 }}
+                interval={displayData.length <= 14 ? 0 : displayData.length <= 60 ? 6 : Math.ceil(displayData.length / 8)}
+                tickFormatter={(v) => v}
+                tick={{ fontSize: displayData.length > 14 ? 10 : 12, fill: '#0f172a', fontWeight: 600, angle: displayData.length > 14 ? -35 : 0, textAnchor: displayData.length > 14 ? "end" : "middle", dy: displayData.length > 14 ? 4 : 0 }}
               />
               <YAxis tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }} axisLine={{ stroke: '#cbd5e1' }} tickLine={false} width={40} allowDecimals={false} />
               <RechartsTooltip content={<CustomTooltip />} />
@@ -94,9 +129,9 @@ export default function SalesTrendChart({
                 type="monotone"
                 dataKey="order"
                 stroke="#3b82f6"
-                strokeWidth={data.length > 60 ? 2 : data.length > 14 ? 2.5 : 4}
+                strokeWidth={displayData.length > 60 ? 2 : displayData.length > 14 ? 2.5 : 4}
                 fill="url(#salesGradient)"
-                dot={data.length > 30 ? false : { r: data.length > 14 ? 2 : 4, fill: '#3b82f6', strokeWidth: 1.5, stroke: '#fff' }}
+                dot={displayData.length > 30 ? false : { r: displayData.length > 14 ? 2 : 4, fill: '#3b82f6', strokeWidth: 1.5, stroke: '#fff' }}
                 activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
               />
             </AreaChart>

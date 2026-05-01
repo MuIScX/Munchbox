@@ -15,17 +15,16 @@ import SalesReportTable from "../components/reports/SalesReportTable";
 const COLORS = ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#f472b6'];
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
-const now = new Date();
-const defaultStart = (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })();
-
 export default function ViewReports() {
-  const [startDate, setStartDate] = useState(defaultStart);
-  const [endDate, setEndDate] = useState(now);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(new Date());
   const [shareAllTime, setShareAllTime] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
   const [trendLoading, setTrendLoading] = useState(false);
+
+  const [firstDate, setFirstDate] = useState(null);
 
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -34,6 +33,27 @@ export default function ViewReports() {
   const [categoryData, setCategoryData] = useState([]);
   const [tableData, setTableData] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState("All");
+  const [monthly, setMonthly] = useState(false);
+
+  const snapToMonthBounds = (start, end) => {
+    const today = new Date();
+    const s = start ? new Date(start.getFullYear(), start.getMonth(), 1) : null;
+    let e = null;
+    if (end) {
+      const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+      e = lastDay > today ? today : lastDay;
+    }
+    return { s, e };
+  };
+
+  const handleSetMonthly = (val) => {
+    setMonthly(val);
+    if (val) {
+      const { s, e } = snapToMonthBounds(startDate, endDate);
+      if (s) setStartDate(s);
+      if (e) setEndDate(e);
+    }
+  };
 
   const toStr = (d) => {
     if (!d) return null;
@@ -60,10 +80,22 @@ export default function ViewReports() {
   };
 
   const handleClearDates = () => {
-    setStartDate(null);
-    setEndDate(null);
-    setShareAllTime(true);
+    setStartDate(firstDate ?? null);
+    setEndDate(new Date());
+    setShareAllTime(!firstDate);
   };
+
+  // Fetch earliest sale date once on mount and set as default start
+  useEffect(() => {
+    ReportAPI.trendMenu(null, {}).then((res) => {
+      const days = Array.isArray(res?.Data) ? res.Data.map((r) => r.day).filter(Boolean).sort() : [];
+      if (days.length > 0) {
+        const first = new Date(days[0]);
+        setFirstDate(first);
+        setStartDate(first);
+      }
+    }).catch(() => {});
+  }, []);
 
   // KPI + menu list
   useEffect(() => {
@@ -190,16 +222,20 @@ const formatCurrency = (val) =>
                     <label className="block text-xs text-slate-400 font-medium mb-1">Start Date</label>
                     <DatePicker
                       selected={startDate}
-                      onChange={handleStartDateChange}
+                      onChange={(date) => {
+                        if (monthly && date) {
+                          const snapped = new Date(date.getFullYear(), date.getMonth(), 1);
+                          handleStartDateChange(snapped);
+                        } else {
+                          handleStartDateChange(date);
+                        }
+                      }}
                       selectsStart
                       startDate={startDate}
                       endDate={endDate}
                       maxDate={endDate || new Date()}
-                      dateFormat="dd/MM/yyyy"
-                      placeholderText="dd/mm/yyyy"
-                      showYearDropdown
-                      showMonthDropdown
-                      dropdownMode="select"
+                      {...(monthly ? { showMonthYearPicker: true, dateFormat: "MM/yyyy" } : { dateFormat: "dd/MM/yyyy", showYearDropdown: true, showMonthDropdown: true, dropdownMode: "select" })}
+                      placeholderText={monthly ? "mm/yyyy" : "dd/mm/yyyy"}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 w-32"
                     />
                   </div>
@@ -207,30 +243,33 @@ const formatCurrency = (val) =>
                     <label className="block text-xs text-slate-400 font-medium mb-1">End Date</label>
                     <DatePicker
                       selected={endDate}
-                      onChange={handleEndDateChange}
+                      onChange={(date) => {
+                        if (monthly && date) {
+                          const today = new Date();
+                          const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+                          handleEndDateChange(lastDay > today ? today : lastDay);
+                        } else {
+                          handleEndDateChange(date);
+                        }
+                      }}
                       selectsEnd
                       startDate={startDate}
                       endDate={endDate}
                       minDate={startDate}
                       maxDate={new Date()}
-                      dateFormat="dd/MM/yyyy"
-                      placeholderText="dd/mm/yyyy"
-                      showYearDropdown
-                      showMonthDropdown
-                      dropdownMode="select"
+                      {...(monthly ? { showMonthYearPicker: true, dateFormat: "MM/yyyy" } : { dateFormat: "dd/MM/yyyy", showYearDropdown: true, showMonthDropdown: true, dropdownMode: "select" })}
+                      placeholderText={monthly ? "mm/yyyy" : "dd/mm/yyyy"}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-400 w-32"
                     />
                   </div>
-                  {!shareAllTime && (
-                    <div className="self-end">
-                      <button
-                        onClick={handleClearDates}
-                        className="px-3 py-2 text-xs text-slate-500 hover:text-red-500 border border-slate-200 rounded-xl bg-slate-50 transition-colors"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  )}
+                  <div className="self-end">
+                    <button
+                      onClick={handleClearDates}
+                      className="px-3 py-2 text-xs text-slate-500 hover:text-red-500 border border-slate-200 rounded-xl bg-slate-50 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </div>
               <KPICards
@@ -254,6 +293,8 @@ const formatCurrency = (val) =>
               endDate={endStr}
               tableData={tableData}
               formatCurrency={formatCurrency}
+              monthly={monthly}
+              setMonthly={handleSetMonthly}
             />
             <div className="relative">
               {shareLoading && (
