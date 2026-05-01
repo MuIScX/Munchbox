@@ -9,7 +9,6 @@ import {
   FileChartColumn,
   UserCircle,
   LineChart,
-  Bell,
   Settings,
   HelpCircle,
   ClipboardClock,
@@ -110,7 +109,6 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, loading, error } = useCurrentUser();
-
   const staffRole = StaffSession.get()?.role ?? null;
   const isManager = MANAGER_ROLES.includes(staffRole);
 
@@ -276,6 +274,7 @@ export default function Sidebar() {
           </button>
         </div>
       </aside>
+
     </>
   );
 }

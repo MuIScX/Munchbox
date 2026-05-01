@@ -154,7 +154,11 @@ export default function PredictPage() {
 
       const sets = setsRes?.Data || [];
       setPredictSets(sets);
-      if (sets.length > 0) setSelectedSetId(sets[0].predict_set_id);
+      if (sets.length > 0) {
+        setSelectedSetId(sets[0].predict_set_id);
+        const explicit = await PredictAPI.dailyForecast(ingredient_id, sets[0].predict_set_id);
+        setDailyForecast(explicit?.Data || forecastRes?.Data || []);
+      }
 
       const merged = {};
       trendRaw.forEach((d) => {
@@ -253,6 +257,9 @@ export default function PredictPage() {
       const errors = res?.Data?.errors          ?? [];
       if (total > 0) {
         showToast("success", `Generated forecasts for ${total} ingredient(s).`);
+        const notif = JSON.stringify({ message: `Prediction complete — ${total} ingredient(s) updated.`, ts: Date.now() });
+        localStorage.setItem("pred_done_notif", notif);
+        window.dispatchEvent(new StorageEvent("storage", { key: "pred_done_notif", newValue: notif }));
         setSliceStart(requestForm.start_date);
         setSliceEnd(requestForm.end_date);
       } else if (errors.length) showToast("error", `Model failed: ${errors[0]?.error || "unknown error"}`);
@@ -803,7 +810,7 @@ const filteredReport = useMemo(() => {
                       <Clock size={14} className="text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">Avg / Day</p>
+                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">Average usage / day</p>
                       <p className="text-xl font-bold text-blue-900 leading-tight">{selectedIngredient.daily_target_average ?? "—"}</p>
                       <p className="text-xs text-blue-500 font-medium">{selectedIngredient.unit}/day · predicted</p>
                     </div>
@@ -875,7 +882,7 @@ const filteredReport = useMemo(() => {
                       >
                         {predictSets.map((s, idx) => {
                           const fmt = (d) => { if (!d) return "?"; const [y,m,day] = d.split("-"); return `${day}/${m}/${y}`; };
-                          const fmtTs = (ts) => { if (!ts) return ""; try { const d = new Date(ts); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; } catch { return ""; } };
+                          const fmtTs = (ts) => { if (!ts) return ""; try { const d = new Date(ts); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; } catch { return ""; } };
                           const modelName = { 1: "Conservative", 2: "Balanced", 3: "Aggressive" }[s.model] ?? "";
                           const runNum = predictSets.length - idx;
                           return (
@@ -912,16 +919,6 @@ const filteredReport = useMemo(() => {
                           dateFormat="dd/MM/yyyy"
                           customInput={<DateInput />}
                         />
-                      </div>
-                    );
-                  })()}
-                  {selectedSet && (() => {
-                    const modelName = { 1: "Conservative", 2: "Balanced", 3: "Aggressive" }[selectedSet.model] ?? "—";
-                    return (
-                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 shrink-0">
-                        <span className="text-[10px] text-slate-400 font-medium">Model</span>
-                        <span className="text-slate-200 text-xs">|</span>
-                        <span className="text-xs font-semibold text-slate-600">{modelName}</span>
                       </div>
                     );
                   })()}
@@ -1077,7 +1074,7 @@ const filteredReport = useMemo(() => {
                             <ReferenceLine x={stockoutDate} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3"
                               label={{ value: "Stockout", fill: "#ef4444", fontSize: 10, fontWeight: 700, position: "insideTopRight" }} />
                           )}
-                          <Area type="monotone" dataKey="stock_left" stroke="#3b82f6" strokeWidth={2.5} fill="url(#stockGrad)" dot={false} activeDot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }} connectNulls legendType="none" />
+                          <Area type="monotone" dataKey="stock_left" stroke="#3b82f6" strokeWidth={2.5} fill="url(#stockGrad)" dot={{ r: 3, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }} connectNulls legendType="none" />
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
@@ -1430,7 +1427,12 @@ const filteredReport = useMemo(() => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Strategy</label>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Strategy</label>
+                  {requestForm.strategy !== "2" && (
+                    <span className="text-xs font-medium text-red-400">Model not supported yet</span>
+                  )}
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {[["1","Conservative"],["2","Balanced"],["3","Aggressive"]].map(([val, label]) => (
                     <button
@@ -1451,7 +1453,7 @@ const filteredReport = useMemo(() => {
 
             <button
               onClick={handleRequest}
-              disabled={!requestForm.start_date || !requestForm.end_date || new Date(requestForm.end_date) <= new Date(requestForm.start_date)}
+              disabled={requestForm.strategy !== "2" || !requestForm.start_date || !requestForm.end_date || new Date(requestForm.end_date) <= new Date(requestForm.start_date)}
               className="mt-6 w-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white py-3 rounded-xl font-bold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Run Prediction
