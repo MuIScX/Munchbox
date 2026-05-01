@@ -1,5 +1,5 @@
 "use client";
-
+import ImportCSVModal from "../components/ImportCSVModal";
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import AddIngredientModal from "../components/AddIngredientModal";
@@ -11,10 +11,11 @@ import { IngredientAPI, StaffSession } from "../../lib/api";
 import Toast from "../components/Toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar } from 'lucide-react';
+import { Search, Plus, Loader2, Trash2, PackageOpen, ArrowUpDown, Check, RefreshCw, Calendar, Upload,Download  } from 'lucide-react';
 import { CATEGORY_MAP } from "../../lib/schema";
 
 export default function UpdateInventoryPage() {
+  const [showImportCSV, setShowImportCSV] = useState(false);
   const [ingredients, setIngredients]       = useState([]);
   const [loading, setLoading]               = useState(true);
   const [tab, setTab]                       = useState("update"); // "update" | "manage"
@@ -48,7 +49,33 @@ export default function UpdateInventoryPage() {
   const [toast, setToast] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
+  const handleCSVImport = (values) => {
+  setStockValues((prev) => ({ ...prev, ...values }));
+};
+const handleExportCSV = () => {
+  if (ingredients.length === 0) {
+    showToast("error", "No ingredients to export.");
+    return;
+  }
 
+  const header = "ingredient_name,stock,unit,category";
+  const rows = ingredients.map((ing) => {
+    const name = (ing.ingredient_name || ing.name || "").replace(/,/g, " ");
+    const stock = ing.stock_left ?? ing.stock ?? 0;
+    const unit = (ing.unit || "").replace(/,/g, " ");
+    const category = (CATEGORY_MAP[String(ing.category)] || String(ing.category || "")).replace(/,/g, " ");
+    return `${name},${stock},${unit},${category}`;
+  });
+
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
   const fetchIngredients = async () => {
     try {
       setLoading(true);
@@ -154,6 +181,12 @@ export default function UpdateInventoryPage() {
         ingredient={ingredientToEdit}
         onSave={handleEditDetail}
       />
+      <ImportCSVModal
+  isOpen={showImportCSV}
+  onClose={() => setShowImportCSV(false)}
+  onImport={handleCSVImport}
+  ingredients={ingredients}
+/>
       <DeleteIngredientModal
         isOpen={!!ingredientToDelete}
         onClose={() => setIngredientToDelete(null)}
@@ -234,6 +267,19 @@ export default function UpdateInventoryPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-auto">
+                  <button
+            onClick={() => setShowImportCSV(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition"
+          >
+            <Upload size={13} /> Import CSV
+          </button>
+            <button
+    onClick={handleExportCSV}
+    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition"
+  >
+    <Download size={13} /> Export CSV
+  </button>
+
                   <button
                     onClick={() => { setStockValues({}); fetchIngredients(); }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition"
