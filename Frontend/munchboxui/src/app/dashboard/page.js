@@ -481,7 +481,7 @@ export default function DashboardPage() {
             {/* Sales Trend */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <div className="flex items-start justify-between mb-3 gap-4 flex-wrap">
-                <div className="flex items-center gap-2.5">
+                <Link href="/reports" className="flex items-center gap-2.5 hover:opacity-75 transition-opacity">
                   <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
                     <TrendingUp size={15} className="text-blue-500" />
                   </div>
@@ -489,7 +489,7 @@ export default function DashboardPage() {
                     <h2 className="text-sm font-bold text-slate-800">Sales Trend</h2>
                     <p className="text-[11px] text-slate-400">Daily order volume over selected period</p>
                   </div>
-                </div>
+                </Link>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-1">
                     {[{ label: "7D", days: 6 }, { label: "30D", days: 29 }, { label: "90D", days: 89 }].map(({ label, days }) => {
@@ -561,13 +561,15 @@ export default function DashboardPage() {
             {/* Model Accuracy Chart */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                  <Target size={15} className="text-emerald-600" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-800">Forecast Accuracy — All Ingredients</h2>
-                  <p className="text-[11px] text-slate-400">Predicted vs. actual usage across all tracked ingredients</p>
-                </div>
+                <Link href="/accuracy" className="flex items-center gap-2.5 hover:opacity-75 transition-opacity">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                    <Target size={15} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">Forecast Accuracy — All Ingredients</h2>
+                    <p className="text-[11px] text-slate-400">Predicted vs. actual usage across all tracked ingredients</p>
+                  </div>
+                </Link>
               </div>
 
               {accuracyLoading ? (
@@ -617,15 +619,17 @@ export default function DashboardPage() {
             {/* ── Low Stock Items (Prep Summary) ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                  <Package size={14} className="text-red-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-bold text-slate-800">Low Stock Items</h2>
-                  <p className="text-[11px] text-slate-400">
-                    Ingredients insufficient for the next {daysAhead} days of predicted demand
-                  </p>
-                </div>
+                <Link href="/predict" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <Package size={14} className="text-red-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-800">Low Stock Items</h2>
+                    <p className="text-[11px] text-slate-400">
+                      Ingredients insufficient for the next {daysAhead} days of predicted demand
+                    </p>
+                  </div>
+                </Link>
 
                 {/* Days-ahead selector */}
                 <DaysSelector
@@ -688,13 +692,15 @@ export default function DashboardPage() {
             {/* ── Unable to Serve ── */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
               <div className="px-5 pt-5 pb-3 flex items-center gap-3 shrink-0">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <UtensilsCrossed size={14} className="text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-bold text-slate-800">Unable to Serve</h2>
-                  <p className="text-[11px] text-slate-400">Recipes unavailable for today's service</p>
-                </div>
+                <Link href="/managemenu" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                    <UtensilsCrossed size={14} className="text-amber-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-800">Unable to Serve</h2>
+                    <p className="text-[11px] text-slate-400">Recipes unavailable for today's service</p>
+                  </div>
+                </Link>
                 {!menuLoading && !menuError && unreadyMenus.length > 0 && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">
                     {unreadyMenus.length}

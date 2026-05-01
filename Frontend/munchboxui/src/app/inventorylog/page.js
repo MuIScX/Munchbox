@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { IngredientAPI, StaffAPI } from "../../lib/api";
-import { Search, Calendar, User, Loader2, ClipboardList, X, BookOpen } from 'lucide-react';
+import { Search, Calendar, User, Loader2, ClipboardList, X, BookOpen, Download } from 'lucide-react';
 
 export default function InventoryLog() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
   const [detailBatch, setDetailBatch] = useState(null);
+  const [selectedKeys, setSelectedKeys] = useState(new Set());
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +54,6 @@ export default function InventoryLog() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(log);
     }
-    // Convert to array sorted by timestamp desc (already ordered from API)
     return Array.from(map.entries()).map(([timestamp, rows]) => ({
       timestamp,
       staff_id: rows[0].staff_id,
@@ -71,6 +71,50 @@ export default function InventoryLog() {
     const matchesDate = !selectedDate || batch.timestamp?.includes(selectedDate);
     return matchesSearch && matchesStaff && matchesDate;
   });
+
+  const toggleSelect = (key) => {
+    setSelectedKeys(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedKeys.size === filteredBatches.length) {
+      setSelectedKeys(new Set());
+    } else {
+      setSelectedKeys(new Set(filteredBatches.map(b => b.timestamp)));
+    }
+  };
+
+  const exportSelected = () => {
+    const actionLabel = (type) => type === 2 ? "RECHECK" : "RESTOCK";
+    for (const key of selectedKeys) {
+      const batch = filteredBatches.find(b => b.timestamp === key);
+      if (!batch) continue;
+      const header = "ingredient,before,after,unit";
+      const rows = batch.rows.map(r => {
+        const before = r.previous_stock != null ? r.previous_stock : "";
+        const after = r.new_current ?? "";
+        const unit = (r.unit || "").replace(/,/g, " ");
+        const name = (r.ingredient_name || "").replace(/,/g, " ");
+        return `${name},${before},${after},${unit}`;
+      });
+      const meta = `# Staff: ${batch.staff_name}\n# Date: ${batch.timestamp}\n# Action: ${actionLabel(batch.action_type)}\n`;
+      const csv = meta + [header, ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeTs = batch.timestamp.replace(/[: ]/g, "-");
+      a.download = `inventory_log_${safeTs}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const allSelected = filteredBatches.length > 0 && selectedKeys.size === filteredBatches.length;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -174,6 +218,18 @@ export default function InventoryLog() {
                     {staffList.map((staff) => (<option key={staff.staff_id} value={staff.staff_id}>{staff.name}</option>))}
                   </select>
                 </div>
+
+                {selectedKeys.size > 0 && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-medium">{selectedKeys.size} selected</span>
+                    <button
+                      onClick={exportSelected}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+                    >
+                      <Download size={13} /> Export CSV
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -181,19 +237,27 @@ export default function InventoryLog() {
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
                   <tr className="text-xs text-slate-500 uppercase tracking-wider">
+                    <th className="px-4 py-3.5">
+                      <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
+                        className="accent-orange-500 w-4 h-4 cursor-pointer" />
+                    </th>
                     <th className="px-6 py-3.5 font-semibold">Date/Time</th>
                     <th className="px-6 py-3.5 font-semibold">Staff</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Action</th>
                     <th className="px-6 py-3.5 font-semibold">Description</th>
-                    <th className="px-6 py-3.5 font-semibold">Action</th>
+                    <th className="px-6 py-3.5 font-semibold">Detail</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr><td colSpan={5} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
+                    <tr><td colSpan={6} className="py-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" size={28} /></td></tr>
                   ) : filteredBatches.length > 0 ? (
                     filteredBatches.map((batch, index) => (
-                      <tr key={index} className="hover:bg-orange-50/40 transition-colors">
+                      <tr key={index} className={`transition-colors ${selectedKeys.has(batch.timestamp) ? "bg-orange-50" : "hover:bg-orange-50/40"}`}>
+                        <td className="px-4 py-3">
+                          <input type="checkbox" checked={selectedKeys.has(batch.timestamp)} onChange={() => toggleSelect(batch.timestamp)}
+                            className="accent-orange-500 w-4 h-4 cursor-pointer" />
+                        </td>
                         <td className="px-6 py-3 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
                         <td className="px-6 py-3 text-slate-800 font-semibold">{batch.staff_name}</td>
                         <td className="px-6 py-3 text-center">
@@ -220,7 +284,7 @@ export default function InventoryLog() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-20 text-center">
+                      <td colSpan={6} className="py-20 text-center">
                         <ClipboardList className="mx-auto mb-3 text-slate-200" size={40} />
                         <p className="text-slate-400 font-medium">No records found</p>
                       </td>

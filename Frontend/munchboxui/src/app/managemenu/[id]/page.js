@@ -112,6 +112,11 @@ export default function RecipeDetailPage() {
                     {ingredients.length} Total Items
                   </span>
                 </div>
+                {ingredients.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                    <p className="text-sm italic">No ingredient added yet.</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {ingredients.map((ing, i) => {
                     return (

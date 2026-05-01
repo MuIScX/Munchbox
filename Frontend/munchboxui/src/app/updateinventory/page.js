@@ -262,12 +262,6 @@ const handleExportCSV = () => {
           >
             <Upload size={13} /> Import CSV
           </button>
-            <button
-    onClick={handleExportCSV}
-    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition"
-  >
-    <Download size={13} /> Export CSV
-  </button>
 
                   <button
                     onClick={() => { setStockValues({}); fetchIngredients(); }}
