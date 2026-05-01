@@ -239,7 +239,7 @@ export default function InventoryLog() {
                   <tr className="text-xs text-slate-500 uppercase tracking-wider">
                     <th className="px-4 py-3.5">
                       <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}
-                        className="accent-orange-500 w-4 h-4 cursor-pointer" />
+                        className="w-3.5 h-3.5 cursor-pointer" />
                     </th>
                     <th className="px-6 py-3.5 font-semibold">Date/Time</th>
                     <th className="px-6 py-3.5 font-semibold">Staff</th>
@@ -256,7 +256,7 @@ export default function InventoryLog() {
                       <tr key={index} className={`transition-colors ${selectedKeys.has(batch.timestamp) ? "bg-orange-50" : "hover:bg-orange-50/40"}`}>
                         <td className="px-4 py-3">
                           <input type="checkbox" checked={selectedKeys.has(batch.timestamp)} onChange={() => toggleSelect(batch.timestamp)}
-                            className="accent-orange-500 w-4 h-4 cursor-pointer" />
+                            className="w-3.5 h-3.5 cursor-pointer" />
                         </td>
                         <td className="px-6 py-3 text-slate-500 text-sm whitespace-nowrap">{batch.timestamp}</td>
                         <td className="px-6 py-3 text-slate-800 font-semibold">{batch.staff_name}</td>
