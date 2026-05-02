@@ -1052,10 +1052,10 @@ const filteredReport = useMemo(() => {
                               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
                             </linearGradient>
                           </defs>
-                          {graphFilters.zoneColors && reorderPoint > 0 && (
+                          {reorderPoint > 0 && (
                             <>
-                              <ReferenceArea y1={reorderPoint} y2={yMaxDepletion} fill="#f0fdf4" fillOpacity={0.7} ifOverflow="visible" />
-                              <ReferenceArea y1={0} y2={reorderPoint} fill="#fff1f2" fillOpacity={0.85} ifOverflow="visible" />
+                              <ReferenceArea y1={reorderPoint} y2={yMaxDepletion} fill="#f0fdf4" fillOpacity={graphFilters.zoneColors ? 0.7 : 0} ifOverflow="visible" />
+                              <ReferenceArea y1={0} y2={reorderPoint} fill="#fff1f2" fillOpacity={graphFilters.zoneColors ? 0.85 : 0} ifOverflow="visible" />
                             </>
                           )}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
