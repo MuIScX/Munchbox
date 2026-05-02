@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { ReportAPI, PredictAPI, MenuAPI, StaffAPI, IngredientAPI, StaffSession } from "../../lib/api";
 
-const MANAGER_ROLES = [2, 3];
+const MANAGER_ROLES = [1, 2, 3];
 
 const TYPE_MAP = { 1: "Main Dish", 2: "Side", 3: "Dessert", 4: "Drink" };
 
@@ -51,11 +51,13 @@ function accuracyColor(acc) {
 
 /* ── Sub-components ── */
 function LiveClock() {
-  const [time, setTime] = useState(() => new Date());
+  const [time, setTime] = useState(null);
   useEffect(() => {
+    setTime(new Date());
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  if (!time) return null;
   const h = String(time.getHours()).padStart(2, "0");
   const m = String(time.getMinutes()).padStart(2, "0");
   const s = String(time.getSeconds()).padStart(2, "0");
