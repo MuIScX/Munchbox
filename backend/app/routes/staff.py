@@ -57,6 +57,16 @@ def edit_staff(body: StaffUpdate, identity: dict = Depends(decode_token), db: Se
     ).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
+    caller_role = identity.get("role", 1)
+    if caller_role == 1:
+        pass  # Admin — can edit anyone
+    elif caller_role == 2:
+        if staff.role == 1:
+            raise HTTPException(status_code=403, detail="Managers cannot edit Admin staff")
+        if body.role == 1:
+            raise HTTPException(status_code=403, detail="Managers cannot promote staff to Admin")
+    else:
+        raise HTTPException(status_code=403, detail="You do not have permission to edit staff")
     if body.name is not None:
         staff.name = body.name
     staff.role = body.role

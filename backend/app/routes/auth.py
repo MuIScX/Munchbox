@@ -21,6 +21,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         "username":     user.username,
         "restaurantId": user.restaurant_id,
         "permission":   user.permission,
+        "role":         1,  # Treated as Admin
     })
     return {"message": "success", "token": token}
 

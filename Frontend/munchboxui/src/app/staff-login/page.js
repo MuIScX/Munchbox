@@ -32,7 +32,7 @@ export default function StaffLogin() {
       setLoading(true);
       const res = await StaffAPI.login(username.trim(), password);
       const data = res.Data;
-      const isManager = data.role === 2 || data.role === 3;
+      const isManager = data.role === 1 || data.role === 2;
       router.push(isManager ? "/dashboard" : "/updateinventory");
     } catch (err) {
       const msg = err.message || "";

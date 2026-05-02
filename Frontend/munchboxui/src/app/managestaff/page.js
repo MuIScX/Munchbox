@@ -11,10 +11,11 @@ import Toast from "../components/Toast";
 import { StaffAPI, StaffSession } from "../../lib/api";
 import { Search, Plus, Loader2, Trash2, Users, UserCheck } from "lucide-react";
 
-const MANAGER_ROLES = [2, 3];
+const MANAGER_ROLES = [1, 2];
 
 export default function ManageStaffPage() {
   const router = useRouter();
+  const [callerRole, setCallerRole] = useState(null);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +46,7 @@ export default function ManageStaffPage() {
       router.replace("/updateinventory");
       return;
     }
+    setCallerRole(session?.role ?? 1); // 1 = admin level for restaurant owner (no staff session)
     fetchStaff();
   }, []);
 
@@ -81,6 +83,7 @@ export default function ManageStaffPage() {
       <EditStaffModal
         isOpen={!!staffToEdit}
         onClose={() => setStaffToEdit(null)}
+        callerRole={callerRole}
         onSuccess={() => { fetchStaff(); }}
         staffMember={staffToEdit}
       />
@@ -238,6 +241,7 @@ export default function ManageStaffPage() {
                       <StaffRow
                         key={member.staff_id || member.id}
                         member={member}
+                        callerRole={callerRole}
                         onEditClick={setStaffToEdit}
                         showDelete={showDelete}
                         onDeleteClick={setStaffToDelete}

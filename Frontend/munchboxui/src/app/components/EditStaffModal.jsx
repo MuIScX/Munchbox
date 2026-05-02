@@ -4,14 +4,14 @@ import { X, Loader2 } from "lucide-react";
 import { StaffAPI } from "../../lib/api";
 
 const ROLE_MAP = {
-  1: "Staff",
+  1: "Admin",
   2: "Manager",
-  3: "Admin",
+  3: "Staff",
   4: "Chef",
-  5: "Cashier"
+  5: "Cashier",
 };
 
-export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember }) {
+export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember, callerRole }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
@@ -26,6 +26,8 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
   }, [staffMember]);
 
   if (!isOpen) return null;
+
+  const isRestricted = callerRole === 2 && staffMember?.role === 1;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,8 +64,9 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
             <input
               type="text"
               value={name}
-              onChange={(e) => { setName(e.target.value); setError(""); }}
-              className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+              onChange={(e) => { if (!isRestricted) { setName(e.target.value); setError(""); } }}
+              readOnly={isRestricted}
+              className={`w-full px-4 py-2 border rounded-lg outline-none ${isRestricted ? "text-slate-400 bg-slate-100 cursor-not-allowed" : "text-slate-600 bg-slate-50 focus:ring-2 focus:ring-orange-500 border-slate-200"}`}
             />
           </div>
 
@@ -72,22 +75,30 @@ export default function EditStaffModal({ isOpen, onClose, onSuccess, staffMember
             <label className="block text-sm font-semibold text-slate-600 mb-1">Role</label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700"
+              onChange={(e) => { if (!isRestricted) setRole(e.target.value); }}
+              disabled={isRestricted}
+              className={`w-full px-4 py-2 border rounded-lg outline-none ${isRestricted ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200" : "bg-slate-50 border-slate-200 focus:ring-2 focus:ring-orange-500 text-slate-700"}`}
             >
-              {Object.entries(ROLE_MAP).map(([id, roleName]) => (
-                <option key={id} value={id}>{roleName}</option>
-              ))}
+              {Object.entries(ROLE_MAP)
+                .filter(([id]) => !(callerRole === 2 && Number(id) === 1))
+                .map(([id, roleName]) => (
+                  <option key={id} value={id}>{roleName}</option>
+                ))}
             </select>
           </div>
 
+          {isRestricted && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+              Managers cannot edit Admin staff.
+            </p>
+          )}
           {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={loading || isRestricted} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Changes"}
             </button>
           </div>

@@ -4,11 +4,11 @@ import { X, Loader2, Eye, EyeOff } from "lucide-react";
 import { StaffAPI } from "../../lib/api";
 
 const ROLE_MAP = {
-  1: "Staff",
+  1: "Admin",
   2: "Manager",
-  3: "Admin",
+  3: "Staff",
   4: "Chef",
-  5: "Cashier"
+  5: "Cashier",
 };
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {

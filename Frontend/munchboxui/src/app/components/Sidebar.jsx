@@ -101,7 +101,7 @@ function UserAvatar({ user, loading }) {
   );
 }
 
-const MANAGER_ROLES = [2, 3]; // Manager, Admin
+const MANAGER_ROLES = [1, 2]; // Admin, Manager
 
 export default function Sidebar() {
   const pathname = usePathname() || '/reports';

@@ -92,7 +92,7 @@ export const AuthAPI = {
   me: () => request("/user/me", "GET"),
 }
 
-const STAFF_ROLE_MAP = { 1: "Staff", 2: "Manager", 3: "Admin", 4: "Chef", 5: "Cashier" };
+const STAFF_ROLE_MAP = { 1: "Admin", 2: "Manager", 3: "Staff", 4: "Chef", 5: "Cashier" };
 
 function decodeJwt(token) {
   try { return JSON.parse(atob(token.split('.')[1])); } catch { return null; }
@@ -143,7 +143,7 @@ export const MenuAPI = {
   create: (payload) => request("/menu/create", "POST", payload),
   update: (payload) => request("/menu/update", "PUT", payload),
   delete: (menu_id) => request("/menu/delete", "DELETE", { menu_id }),
-  getById: (restaurant_id, menu_id) => request("/menu/detail", "POST", { menu_id }),
+  getById: (menu_id) => request("/menu/detail", "POST", { menu_id }),
   addIngredientToRecipe: (payload) => request("/recipe/add", "POST", payload),
 }
 

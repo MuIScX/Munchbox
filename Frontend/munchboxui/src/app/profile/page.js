@@ -5,11 +5,11 @@ import { StaffSession, StaffAPI, AuthAPI } from "../../lib/api";
 import { UserCircle, Shield, AtSign, Edit3, Save, X, Lock, Eye, EyeOff, LogOut, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const ROLE_LABEL = { 1: "Staff", 2: "Manager", 3: "Admin", 4: "Chef", 5: "Cashier" };
+const ROLE_LABEL = { 1: "Admin", 2: "Manager", 3: "Staff", 4: "Chef", 5: "Cashier" };
 const ROLE_COLOR = {
-  1: "bg-slate-100 text-slate-600",
+  1: "bg-red-100 text-red-600",
   2: "bg-orange-100 text-orange-600",
-  3: "bg-red-100 text-red-600",
+  3: "bg-slate-100 text-slate-600",
   4: "bg-blue-100 text-blue-600",
   5: "bg-emerald-100 text-emerald-600",
 };
