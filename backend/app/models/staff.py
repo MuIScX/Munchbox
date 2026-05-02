@@ -7,6 +7,8 @@ class Staff(Base):
 
     id            = Column(BigInteger, primary_key=True, autoincrement=True)
     name          = Column(Text, nullable=False)
+    username      = Column(Text, nullable=False)
+    password      = Column(Text, nullable=False)
     role          = Column(Integer, nullable=False)
     restaurant_id = Column(BigInteger, nullable=False)
     is_active     = Column(SmallInteger, nullable=False, default=1)

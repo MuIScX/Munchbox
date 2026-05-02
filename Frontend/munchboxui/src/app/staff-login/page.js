@@ -3,159 +3,118 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getCookie } from "cookies-next";
-import { StaffAPI, StaffSession } from "../../lib/api";
-import { Loader2 } from "lucide-react";
-
-const ROLE_MAP = {
-  1: "Staff",
-  2: "Manager",
-  3: "Admin",
-  4: "Chef",
-  5: "Cashier",
-};
-
-const ROLE_COLOR = {
-  1: "bg-slate-100 text-slate-600",
-  2: "bg-orange-100 text-orange-700",
-  3: "bg-orange-100 text-orange-700",
-  4: "bg-blue-100 text-blue-700",
-  5: "bg-emerald-100 text-emerald-700",
-};
+import { StaffAPI } from "../../lib/api";
+import { Loader2, User, Lock } from "lucide-react";
 
 export default function StaffLogin() {
-  const [staffList, setStaffList]   = useState([]);
-  const [selected, setSelected]     = useState(null);
-  const [pinValue, setPinValue]     = useState("");
-  const [pinError, setPinError]     = useState("");
-  const [loading, setLoading]       = useState(false);
-  const [fetching, setFetching]     = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!getCookie("token")) { router.replace("/login"); return; }
-    StaffAPI.list()
-      .then((res) => setStaffList(Array.isArray(res?.Data) ? res.Data : []))
-      .catch(() => setStaffList([]))
-      .finally(() => setFetching(false));
+    if (!getCookie("token")) { router.replace("/login"); }
   }, [router]);
-
-  const isManager = selected && (selected.role === 2 || selected.role === 3);
-
-  const handleSelect = (staff) => {
-    setSelected(staff);
-    setPinValue("");
-    setPinError("");
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selected) return;
-    setPinError("");
+    setUsernameError("");
+    setPasswordError("");
+    setServerError("");
 
-    if (isManager) {
-      if (!pinValue) { setPinError("Please enter the manager PIN."); return; }
-      try {
-        setLoading(true);
-        await StaffAPI.verifyManagerPin(pinValue);
-      } catch (err) {
-        setPinError(err.message || "Incorrect PIN.");
-        setLoading(false);
-        return;
+    if (!username.trim()) { setUsernameError("Please enter your username."); return; }
+    if (!password) { setPasswordError("Please enter your password."); return; }
+
+    try {
+      setLoading(true);
+      const res = await StaffAPI.login(username.trim(), password);
+      const data = res.Data;
+      const isManager = data.role === 2 || data.role === 3;
+      router.push(isManager ? "/dashboard" : "/updateinventory");
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.includes("Staff not found")) {
+        setUsernameError("No staff found with this username.");
+      } else if (msg.includes("Wrong password")) {
+        setPasswordError("Incorrect password.");
+      } else {
+        setServerError("Something went wrong. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-    StaffSession.set({
-      id:        selected.staff_id,
-      name:      selected.name,
-      role:      selected.role,
-      roleLabel: ROLE_MAP[selected.role] ?? "Staff",
-    });
-    const isManagerRole = selected.role === 2 || selected.role === 3;
-    router.push(isManagerRole ? "/dashboard" : "/updateinventory");
   };
 
   return (
-    <div className="min-h-screen bg-[#fafaf8] flex items-center justify-center px-6 py-10 relative">
-      {/* Logo at bottom-left */}
-      <div className="hidden md:block fixed bottom-6 left-6 opacity-90">
-        <Image src="/logo2.png" alt="logo" width={120} height={120} />
+    <div className="grid grid-cols-8 grid-rows-5 gap-4">
+      <div className="col-span-2 row-span-5 flex items-end justify-center">
+        <Image src="/logo2.png" alt="logo" width={200} height={200} />
       </div>
 
-      <div className="w-full max-w-xl">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-slate-800 mb-1">Who are you?</h1>
-          <p className="text-sm text-slate-500">Select your profile to continue</p>
-        </div>
+      <div className="col-span-4 row-span-5">
+        <div className="flex flex-col items-center justify-center min-h-screen px-4">
+          <div className="w-[330px] max-w-sm text-center">
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Staff Login</h1>
+            <p className="text-sm text-slate-500 mb-8">Enter your credentials to continue</p>
 
-          {fetching ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="animate-spin text-orange-400" size={24} />
-            </div>
-          ) : staffList.length === 0 ? (
-            <div className="text-sm text-slate-400 text-center py-10">
-              No staff found. Ask your manager to add staff members first.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-              {staffList.map((s) => {
-                const isSelected = selected?.staff_id === s.staff_id;
-                return (
-                  <button
-                    key={s.staff_id}
-                    onClick={() => handleSelect(s)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-left ${
-                      isSelected
-                        ? "border-orange-400 bg-orange-50 shadow-md"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${
-                      isSelected ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500"
-                    }`}>
-                      {(s.name || "?")[0].toUpperCase()}
-                    </div>
-                    <p className={`text-sm font-semibold truncate w-full text-center ${isSelected ? "text-orange-700" : "text-slate-700"}`}>
-                      {s.name}
-                    </p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLOR[s.role] ?? "bg-slate-100 text-slate-500"}`}>
-                      {ROLE_MAP[s.role] ?? "Staff"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* PIN input — only visible for managers */}
-          <form onSubmit={handleSubmit}>
-            <div className={`overflow-hidden transition-all duration-300 ${isManager ? "max-h-32 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
-              <div className="px-1 pt-1 pb-1">
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
-                  Manager PIN
+            <form className="space-y-1" onSubmit={handleSubmit}>
+              <div className="text-left">
+                <label htmlFor="username" className="block text-xs font-semibold text-slate-400 mb-1">
+                  USERNAME
                 </label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={pinValue}
-                  onChange={(e) => { setPinValue(e.target.value); if (pinError) setPinError(""); }}
-                  placeholder="Enter manager PIN"
-                  className={`w-full rounded-xl border px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                    pinError ? "border-red-400" : "border-slate-300"
-                  }`}
-                />
-                {pinError && <p className="mt-1 text-xs text-red-500">{pinError}</p>}
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={2} />
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => { setUsername(e.target.value); if (usernameError) setUsernameError(""); }}
+                    placeholder="Enter your username"
+                    className={`w-full pl-10 pr-4 rounded-xl border py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      usernameError ? "border-red-500" : "border-slate-300"
+                    }`}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">{usernameError}</p>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={!selected || loading}
-              className="w-full bg-orange-500 text-white rounded-xl font-semibold py-3 hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Entering…</> : "Enter"}
-            </button>
-          </form>
+              <div className="text-left">
+                <label htmlFor="password" className="block text-xs font-semibold text-slate-400 mb-1">
+                  PASSWORD
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={2} />
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); }}
+                    placeholder="Enter your password"
+                    className={`w-full pl-10 pr-4 rounded-xl border py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      passwordError ? "border-red-500" : "border-slate-300"
+                    }`}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-red-600 text-left min-h-[1rem]">{passwordError}</p>
+              </div>
+
+              {serverError && (
+                <p className="text-xs text-red-600 text-center py-1">{serverError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 text-white rounded-xl font-semibold py-3 hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? <><Loader2 size={16} className="animate-spin" /> Logging in…</> : "Login"}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

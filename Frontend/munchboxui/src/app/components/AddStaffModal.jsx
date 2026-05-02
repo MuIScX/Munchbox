@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Eye, EyeOff } from "lucide-react";
 import { StaffAPI } from "../../lib/api";
 
 const ROLE_MAP = {
@@ -15,7 +15,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shakeKey, setShakeKey] = useState(0);
-  const [formData, setFormData] = useState({ name: "", role: "1" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [formData, setFormData] = useState({ name: "", username: "", password: "", confirmPassword: "", role: "1" });
 
   if (!isOpen) return null;
 
@@ -24,15 +26,25 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     setShakeKey(k => k + 1);
   };
 
+  const set = (field) => (e) => {
+    setFormData(f => ({ ...f, [field]: e.target.value }));
+    setError("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!formData.name.trim()) { triggerError("Staff name is required."); return; }
+    if (!formData.username.trim()) { triggerError("Username is required."); return; }
+    if (!formData.password) { triggerError("Password is required."); return; }
+    if (!formData.confirmPassword) { triggerError("Please confirm the password."); return; }
+    if (formData.password !== formData.confirmPassword) { triggerError("Passwords do not match."); return; }
     setLoading(true);
     try {
-      await StaffAPI.create(formData.name, Number(formData.role));
+      await StaffAPI.create(formData.name.trim(), formData.username.trim(), formData.password, Number(formData.role));
       onSuccess();
       onClose();
-      setFormData({ name: "", role: "1" });
+      setFormData({ name: "", username: "", password: "", confirmPassword: "", role: "1" });
     } catch (err) {
       triggerError(err.message || "Failed to add staff member");
     } finally {
@@ -62,30 +74,81 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Name */}
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Staff Name</label>
             <input
               key={shakeKey}
-              required
               type="text"
               placeholder="e.g., John Doe"
               value={formData.name}
-              onChange={(e) => { setFormData({...formData, name: e.target.value}); setError(""); }}
+              onChange={set("name")}
               className={`w-full px-4 py-2 text-slate-600 bg-slate-50 border rounded-lg outline-none transition-all ${
-                error
-                  ? "border-red-400 ring-2 ring-red-200 input-shake"
-                  : "border-slate-200 focus:ring-2 focus:ring-orange-500"
+                error ? "border-red-400 ring-2 ring-red-200 input-shake" : "border-slate-200 focus:ring-2 focus:ring-orange-500"
               }`}
             />
-            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
           </div>
 
+          {/* Username */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Username</label>
+            <input
+              type="text"
+              placeholder="e.g., johndoe"
+              value={formData.username}
+              onChange={set("username")}
+              className="w-full px-4 py-2 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Set a password"
+                value={formData.password}
+                onChange={set("password")}
+                className="w-full px-4 py-2 pr-10 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-600 mb-1">Confirm Password</label>
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                placeholder="Re-enter password"
+                value={formData.confirmPassword}
+                onChange={set("confirmPassword")}
+                className="w-full px-4 py-2 pr-10 text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Role */}
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">Role</label>
             <select
-              required
               value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
+              onChange={set("role")}
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700"
             >
               {Object.entries(ROLE_MAP).map(([id, roleName]) => (
@@ -94,11 +157,13 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
             </select>
           </div>
 
-          <div className="pt-4 flex gap-3">
+          {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+          <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading || !formData.name.trim()} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading} className="flex-1 flex justify-center items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Save"}
             </button>
           </div>

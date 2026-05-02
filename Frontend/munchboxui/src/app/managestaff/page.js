@@ -81,14 +81,7 @@ export default function ManageStaffPage() {
       <EditStaffModal
         isOpen={!!staffToEdit}
         onClose={() => setStaffToEdit(null)}
-        onSuccess={(updated) => {
-          fetchStaff();
-          const session = StaffSession.get();
-          if (session && staffToEdit && (staffToEdit.staff_id || staffToEdit.id) === session.id) {
-            const ROLE_MAP_LOCAL = { 1: "Staff", 2: "Manager", 3: "Admin", 4: "Chef", 5: "Cashier" };
-            StaffSession.set({ ...session, name: updated.name, role: updated.role, roleLabel: ROLE_MAP_LOCAL[updated.role] ?? "Staff" });
-          }
-        }}
+        onSuccess={() => { fetchStaff(); }}
         staffMember={staffToEdit}
       />
 

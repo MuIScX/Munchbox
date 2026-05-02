@@ -3,7 +3,7 @@ import { getCookie, setCookie, deleteCookie } from "cookies-next";
 const BASE_URL =  process.env.NEXT_PUBLIC_API_URL;
 
 async function request(endpoint, method = "POST", body = null, retries = 3) {
-  const token = getCookie("token");
+  const token = getCookie("staff_token") || getCookie("token");
 
   const headers = {
     "Content-Type": "application/json",
@@ -86,33 +86,46 @@ export const AuthAPI = {
 
   logout: () => {
     deleteCookie("token");
-    deleteCookie("staff");
+    deleteCookie("staff_token");
   },
 
   me: () => request("/user/me", "GET"),
 }
 
+const STAFF_ROLE_MAP = { 1: "Staff", 2: "Manager", 3: "Admin", 4: "Chef", 5: "Cashier" };
+
+function decodeJwt(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return null; }
+}
+
 export const StaffSession = {
-  set: (staff) =>
-    setCookie("staff", JSON.stringify(staff), {
-      maxAge: 60 * 60 * 24,
-      path: "/",
-      sameSite: "lax",
-    }),
+  set: (token) => setCookie("staff_token", token, { maxAge: 60 * 60 * 24, path: "/", sameSite: "lax" }),
   get: () => {
-    const raw = getCookie("staff");
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
+    const token = getCookie("staff_token");
+    if (!token) return null;
+    const p = decodeJwt(token);
+    if (!p || !p.staffId) return null;
+    return { id: p.staffId, name: p.name, username: p.username, role: p.role, roleLabel: STAFF_ROLE_MAP[p.role] ?? "Staff" };
   },
-  clear: () => deleteCookie("staff"),
+  clear: () => deleteCookie("staff_token"),
 }
 
 export const StaffAPI = {
   list: () => request("/staff/list"),
-  create: (name, role) => request("/staff/create", "POST", { name, role }),
+  login: async (username, password) => {
+    const data = await request("/staff/login", "POST", { username, password });
+    StaffSession.set(data.token);
+    return data;
+  },
+  create: (name, username, password, role) => request("/staff/create", "POST", { name, username, password, role }),
   update: (staff_id, name, role) => request("/staff/update", "PUT", { staff_id, name, role }),
   delete: (staff_id) => request("/staff/delete", "DELETE", { staff_id }),
   verifyManagerPin: (pin) => request("/staff/verify-manager-pin", "POST", { pin: parseInt(pin) }),
+  selfUpdate: async (payload) => {
+    const data = await request("/staff/self-update", "PUT", payload);
+    if (data.token) StaffSession.set(data.token);
+    return data;
+  },
 }
 
 export const IngredientAPI = {

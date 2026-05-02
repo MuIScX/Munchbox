@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.core.security import decode_token
-from app.schemas.staff import StaffCreate, StaffUpdate, StaffDelete, ManagerPinVerify
+from app.core.security import decode_token, create_access_token
+from app.schemas.staff import StaffCreate, StaffUpdate, StaffDelete, ManagerPinVerify, StaffLoginRequest, StaffSelfUpdate
 from app.models.staff import Staff
 from app.models.restaurant import RestaurantInfo
 
@@ -23,14 +23,27 @@ def get_all_staff(identity: dict = Depends(decode_token), db: Session = Depends(
 
 @router.post("/create", status_code=201)
 def add_staff(body: StaffCreate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    existing = db.query(Staff).filter(
+    existing_name = db.query(Staff).filter(
         Staff.restaurant_id == identity["restaurantId"],
         Staff.name == body.name,
         Staff.is_active == 1,
     ).first()
-    if existing:
+    if existing_name:
         raise HTTPException(status_code=409, detail=f'"{body.name}" already exists.')
-    staff = Staff(name=body.name, role=body.role, restaurant_id=identity["restaurantId"])
+    existing_username = db.query(Staff).filter(
+        Staff.restaurant_id == identity["restaurantId"],
+        Staff.username == body.username,
+        Staff.is_active == 1,
+    ).first()
+    if existing_username:
+        raise HTTPException(status_code=409, detail=f'Username "{body.username}" is already taken.')
+    staff = Staff(
+        name=body.name,
+        username=body.username,
+        password=body.password,
+        role=body.role,
+        restaurant_id=identity["restaurantId"],
+    )
     db.add(staff)
     db.commit()
     return {"message": "success", "Data": []}
@@ -38,13 +51,15 @@ def add_staff(body: StaffCreate, identity: dict = Depends(decode_token), db: Ses
 
 @router.put("/update")
 def edit_staff(body: StaffUpdate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    staff = db.query(Staff).filter(Staff.id == body.staff_id).first()
+    staff = db.query(Staff).filter(
+        Staff.id == body.staff_id,
+        Staff.restaurant_id == identity["restaurantId"],
+    ).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
     if body.name is not None:
         staff.name = body.name
-    if body.role is not None:
-        staff.role = body.role
+    staff.role = body.role
     db.commit()
     return {"message": "success", "Data": []}
 
@@ -67,3 +82,78 @@ def verify_manager_pin(body: ManagerPinVerify, identity: dict = Depends(decode_t
     if restaurant.manager_pin is None or restaurant.manager_pin != body.pin:
         raise HTTPException(status_code=401, detail="Incorrect PIN")
     return {"message": "success"}
+
+
+@router.post("/login")
+def staff_login(body: StaffLoginRequest, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    staff = db.query(Staff).filter(
+        Staff.username == body.username,
+        Staff.restaurant_id == identity["restaurantId"],
+        Staff.is_active == 1,
+    ).first()
+    if not staff:
+        raise HTTPException(status_code=401, detail="Staff not found")
+    if staff.password != body.password:
+        raise HTTPException(status_code=401, detail="Wrong password")
+    token = create_access_token({
+        "staffId":      staff.id,
+        "restaurantId": staff.restaurant_id,
+        "name":         staff.name,
+        "username":     staff.username,
+        "role":         staff.role,
+    })
+    return {
+        "message": "success",
+        "token": token,
+        "Data": {
+            "staff_id": staff.id,
+            "name": staff.name,
+            "username": staff.username,
+            "role": staff.role,
+        },
+    }
+
+
+@router.put("/self-update")
+def staff_self_update(body: StaffSelfUpdate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    staff = db.query(Staff).filter(
+        Staff.id == body.staff_id,
+        Staff.restaurant_id == identity["restaurantId"],
+        Staff.is_active == 1,
+    ).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    if body.name is not None:
+        staff.name = body.name
+
+    if body.username is not None or body.new_password is not None:
+        if not body.current_password:
+            raise HTTPException(status_code=400, detail="Current password is required")
+        if staff.password != body.current_password:
+            raise HTTPException(status_code=401, detail="Incorrect current password")
+        if body.username is not None:
+            taken = db.query(Staff).filter(
+                Staff.restaurant_id == identity["restaurantId"],
+                Staff.username == body.username,
+                Staff.is_active == 1,
+                Staff.id != body.staff_id,
+            ).first()
+            if taken:
+                raise HTTPException(status_code=409, detail="Username already taken")
+            staff.username = body.username
+        if body.new_password is not None:
+            if body.new_password == body.current_password:
+                raise HTTPException(status_code=400, detail="New password cannot be the same as current password")
+            staff.password = body.new_password
+
+    db.commit()
+    db.refresh(staff)
+    new_token = create_access_token({
+        "staffId":      staff.id,
+        "restaurantId": staff.restaurant_id,
+        "name":         staff.name,
+        "username":     staff.username,
+        "role":         staff.role,
+    })
+    return {"message": "success", "token": new_token}
