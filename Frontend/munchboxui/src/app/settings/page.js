@@ -186,6 +186,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [originalForm, setOriginalForm] = useState(EMPTY_FORM);
 
   // PIN popup state
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -236,6 +237,7 @@ export default function SettingsPage() {
       setPinInput("");
       setPinError("");
     } else {
+      setOriginalForm({ name: restaurant.name ?? "", start_date: restaurant.start_date ?? "", end_date: restaurant.end_date ?? "", package: restaurant.package ?? 1, manager_pin: restaurant.manager_pin ?? "" });
       setMode("edit");
     }
   };
@@ -243,6 +245,7 @@ export default function SettingsPage() {
   const handlePinConfirm = () => {
     if (String(pinInput) === String(restaurant.manager_pin)) {
       setIsPinModalOpen(false);
+      setOriginalForm({ name: restaurant.name ?? "", start_date: restaurant.start_date ?? "", end_date: restaurant.end_date ?? "", package: restaurant.package ?? 1, manager_pin: restaurant.manager_pin ?? "" });
       setMode("edit");
     } else {
       setPinError("Incorrect PIN. Please try again.");
@@ -304,6 +307,8 @@ export default function SettingsPage() {
     });
     setMode("view");
   };
+
+  const isDirty = form.name !== originalForm.name || String(form.manager_pin) !== String(originalForm.manager_pin);
 
   const daysUntilExpiry = restaurant?.end_date
     ? Math.ceil((new Date(restaurant.end_date) - new Date()) / (1000 * 60 * 60 * 24))
@@ -481,8 +486,8 @@ export default function SettingsPage() {
                         </button>
                         <button
                           onClick={handleUpdate}
-                          disabled={saving}
-                          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+                          disabled={saving || !isDirty}
+                          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                         >
                           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                           {saving ? "Saving..." : "Save Changes"}
