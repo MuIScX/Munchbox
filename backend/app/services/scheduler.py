@@ -68,13 +68,11 @@ def _job_id(restaurant_id: int) -> str:
     return f"predict_restaurant_{restaurant_id}"
 
 
-def _next_run_start(run_time: dt_time) -> datetime:
-    """Return the next datetime (BKK) that matches run_time. If today's time hasn't passed yet, use today; otherwise tomorrow."""
+def _next_run_start(run_time: dt_time, frequency_days: int) -> datetime:
+    """Return the first run datetime: today + frequency_days at run_time (BKK)."""
     now = datetime.now(bkk)
-    candidate = bkk.localize(datetime(now.year, now.month, now.day, run_time.hour, run_time.minute, 0))
-    if candidate <= now:
-        candidate += timedelta(days=1)
-    return candidate
+    target_date = now.date() + timedelta(days=frequency_days)
+    return bkk.localize(datetime(target_date.year, target_date.month, target_date.day, run_time.hour, run_time.minute, 0))
 
 
 def schedule_restaurant(restaurant_id: int, frequency_days: int | None, days_ahead: int = 7, run_time: dt_time = dt_time(0, 0)):
@@ -88,7 +86,7 @@ def schedule_restaurant(restaurant_id: int, frequency_days: int | None, days_ahe
         logger.info(f"[scheduler] Restaurant {restaurant_id}: auto-prediction disabled")
         return
 
-    start = _next_run_start(run_time)
+    start = _next_run_start(run_time, frequency_days)
     scheduler.add_job(
         _run_predictions_for_restaurant,
         trigger=IntervalTrigger(days=frequency_days, start_date=start, timezone=bkk),

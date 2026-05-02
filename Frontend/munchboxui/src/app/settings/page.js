@@ -245,16 +245,9 @@ export default function SettingsPage() {
         prediction_days_ahead: form.prediction_days_ahead ? Number(form.prediction_days_ahead) : undefined,
         prediction_run_time: form.prediction_run_time || "00:00",
       });
-      setRestaurant({
-        ...restaurant,
-        name: form.name,
-        manager_pin: form.manager_pin ? Number(form.manager_pin) : null,
-        prediction_frequency: form.prediction_frequency ? Number(form.prediction_frequency) : null,
-        prediction_days_ahead: form.prediction_days_ahead ? Number(form.prediction_days_ahead) : 7,
-        prediction_run_time: form.prediction_run_time || "00:00",
-      });
       setMode("view");
       showToast("success", "Settings saved successfully.");
+      fetchRestaurant();
     } catch {
       showToast("error", "Failed to save changes. Please try again.");
     } finally {
