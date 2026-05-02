@@ -247,22 +247,20 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
     )
     summary_map = {r.ingredient_id: {"daily_target_average": r.daily_target_average, "urgency_score": r.urgency_score} for r in summary_rows}
 
-    # Step 5: Join with ingredient info
-    if not aggregated:
-        return {"message": "success", "Data": []}
-
-    ingredients = (
+    # Step 5: Get ALL active ingredients for this restaurant
+    all_ingredients = (
         db.query(Ingredient)
         .filter(
             Ingredient.restaurant_id == restaurant_id,
             Ingredient.is_active     == 1,
-            Ingredient.id.in_(list(aggregated.keys()))
         )
         .all()
     )
-    ing_map = {i.id: i for i in ingredients}
+    ing_map = {i.id: i for i in all_ingredients}
 
     result = []
+
+    # Ingredients with prediction data
     for ing_id, agg in aggregated.items():
         ing = ing_map.get(ing_id)
         if not ing:
@@ -273,7 +271,6 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
         daily_avg     = summary.get("daily_target_average")
         urgency_score = summary.get("urgency_score")
 
-        # Recalculate daily_target_average for the sliced window if days filter applied
         if body.days is not None and agg["day_count"] > 0:
             daily_avg = round(total_usage / agg["day_count"], 2)
 
@@ -292,7 +289,30 @@ def predicted_report(body: PredictReportRequest, identity: dict = Depends(decode
             "status":               1 if float(ing.stock_left) >= total_usage else 0,
             "forecast_start":       agg["forecast_start"],
             "forecast_end":         agg["forecast_end"],
+            "has_prediction":       True,
         })
+
+    # Ingredients with no prediction data
+    predicted_ids = set(aggregated.keys())
+    for ing in all_ingredients:
+        if ing.id not in predicted_ids:
+            result.append({
+                "ingredient_id":        ing.id,
+                "ingredient_name":      ing.name,
+                "current_stock":        float(ing.stock_left),
+                "expected_usage":       None,
+                "upper_bound":          None,
+                "lower_bound":          None,
+                "forecast_days":        None,
+                "daily_target_average": None,
+                "urgency_score":        None,
+                "unit":                 ing.unit,
+                "category":             ing.category,
+                "status":               None,
+                "forecast_start":       None,
+                "forecast_end":         None,
+                "has_prediction":       False,
+            })
 
     return {"message": "success", "Data": result}
 
@@ -586,9 +606,11 @@ def get_accuracy(body: PredictAccuracyRequest, identity: dict = Depends(decode_t
             PredictSet.timestamp.label("run_ts"),
         )
         .join(PredictSet, Predict.prediction_set == PredictSet.id)
+        .join(Ingredient, Predict.ingredient_id == Ingredient.id)
         .filter(
             Predict.prediction_type == 1,
             Predict.restaurant_id   == restaurant_id,
+            Ingredient.is_active    == 1,
             PredictSet.timestamp    <  Predict.timestamp,   # run before forecasted date
             func.date(Predict.timestamp) <= end_date,
         )

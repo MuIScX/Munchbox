@@ -580,7 +580,7 @@ def run_forecast_job(
         reorder_period  = (end_dt - effective_start).days + 1
 
         if reorder_period <= 0:
-            return {"error": "End date must be exactly on or after the start date."}
+            return {"error": f"Can't predict in the past. The earliest forecast date is {effective_start.date()}."}
         if reorder_period > MAX_FORECAST_DAYS:
             return {"error": f"Forecast window too large ({reorder_period} days). Maximum is {MAX_FORECAST_DAYS} days."}
 

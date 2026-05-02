@@ -116,6 +116,7 @@ export default function AccuracyPage() {
   const [accAll, setAccAll]                 = useState(false);
   const [allChartData, setAllChartData]     = useState([]);
   const [allChartLoading, setAllChartLoading] = useState(false);
+  const [accuracyLoaded, setAccuracyLoaded] = useState(false);
 
   const showToast = (type, msg) => setToast({ type, message: msg });
 
@@ -128,14 +129,17 @@ export default function AccuracyPage() {
         const list = Array.isArray(reportRes?.Data) ? reportRes.Data : [];
 
         const skeleton = list.map((ing) => ({
-          ...ing, accuracy: null, mae: null, bias: null, days: 0, chartData: [], _loaded: false,
+          ...ing, accuracy: null, mae: null, bias: null, days: 0, chartData: [],
+          _loaded: !ing.has_prediction,  // no-prediction ingredients need no loading
         }));
         setIngredients(skeleton);
-        if (skeleton.length > 0) setSelected(skeleton[0]);
         setLoading(false);
 
-        // Load accuracy per ingredient progressively
-        for (const ing of list) {
+        // Default to All Ingredients view only if there's prediction data
+        if (list.some((i) => i.has_prediction)) setAccAll(true);
+
+        // Load accuracy per ingredient progressively (only those with predictions)
+        for (const ing of list.filter((i) => i.has_prediction)) {
           try {
             const res   = await PredictAPI.accuracy(ing.ingredient_id);
             const stats = computeStatsFromData(res?.Data);
@@ -147,6 +151,7 @@ export default function AccuracyPage() {
             );
           } catch { /* skip */ }
         }
+        setAccuracyLoaded(true);
       } catch {
         showToast("error", "Failed to load accuracy data.");
         setLoading(false);
@@ -173,15 +178,17 @@ export default function AccuracyPage() {
   }, [accAll]);
 
   const summary = useMemo(() => {
-    const loaded = ingredients.filter((i) => i._loaded && i.accuracy !== null);
+    const loaded = ingredients.filter((i) => i.has_prediction && i._loaded && i.accuracy !== null);
     if (!loaded.length) return null;
-    const avgAcc = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
-    const avgMae = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
+    const avgAcc  = loaded.reduce((s, i) => s + i.accuracy, 0) / loaded.length;
+    const avgMae  = loaded.reduce((s, i) => s + i.mae, 0) / loaded.length;
+    const avgBias = loaded.reduce((s, i) => s + i.bias, 0) / loaded.length;
     const totalDays = loaded.reduce((s, i) => s + i.days, 0);
     const best   = [...loaded].sort((a, b) => b.accuracy - a.accuracy)[0];
     return {
       avgAcc,
       avgMae:      parseFloat(avgMae.toFixed(2)),
+      avgBias:     parseFloat(avgBias.toFixed(2)),
       totalDays,
       best,
       totalLoaded: loaded.length,
@@ -190,11 +197,19 @@ export default function AccuracyPage() {
 
   // Sync search box with selected ingredient
   useEffect(() => {
-    if (!accAll && selected?.ingredient_name) setAccSearchQuery(selected.ingredient_name);
+    if (accAll) setAccSearchQuery("");
+    else if (selected?.ingredient_name) setAccSearchQuery(selected.ingredient_name);
   }, [selected?.ingredient_id, accAll]);
 
   const filtered = useMemo(() =>
     ingredients.filter((i) =>
+      i.has_prediction &&
+      (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    ), [ingredients, searchQuery]);
+
+  const filteredNoData = useMemo(() =>
+    ingredients.filter((i) =>
+      !i.has_prediction &&
       (i.ingredient_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     ), [ingredients, searchQuery]);
 
@@ -236,7 +251,7 @@ export default function AccuracyPage() {
                         <p className={`text-3xl font-bold mt-0.5 ${accuracyColor(summary.avgAcc).text}`}>{summary.avgAcc.toFixed(1)}%</p>
                         <p className="text-xs text-emerald-500 font-medium mt-0.5">avg across {summary.totalLoaded} ingredients</p>
                       </>
-                    ) : <Spinner color="emerald" />}
+                    ) : accuracyLoaded ? <span className="text-sm text-slate-300 mt-0.5">—</span> : <Spinner color="emerald" />}
                   </div>
                 </div>
 
@@ -251,7 +266,7 @@ export default function AccuracyPage() {
                         <p className="text-3xl font-bold text-blue-900 mt-0.5">{summary.avgMae}</p>
                         <p className="text-xs text-blue-500 font-medium mt-0.5">units/day avg deviation</p>
                       </>
-                    ) : <Spinner color="blue" />}
+                    ) : accuracyLoaded ? <span className="text-sm text-slate-300 mt-0.5">—</span> : <Spinner color="blue" />}
                   </div>
                 </div>
 
@@ -266,7 +281,7 @@ export default function AccuracyPage() {
                         <p className="text-3xl font-bold text-slate-700 mt-0.5">{summary.totalDays}</p>
                         <p className="text-xs text-slate-400 font-medium mt-0.5">total data points compared</p>
                       </>
-                    ) : <Spinner color="slate" />}
+                    ) : accuracyLoaded ? <span className="text-sm text-slate-300 mt-0.5">—</span> : <Spinner color="slate" />}
                   </div>
                 </div>
 
@@ -281,7 +296,7 @@ export default function AccuracyPage() {
                         <p className="text-base font-bold text-orange-900 mt-0.5 truncate">{summary.best.ingredient_name}</p>
                         <p className="text-xs text-emerald-500 font-semibold mt-0.5">{summary.best.accuracy.toFixed(1)}% accuracy</p>
                       </>
-                    ) : <Spinner color="orange" />}
+                    ) : accuracyLoaded ? <span className="text-sm text-slate-300 mt-0.5">—</span> : <Spinner color="orange" />}
                   </div>
                 </div>
               </div>
@@ -358,15 +373,6 @@ export default function AccuracyPage() {
                       );
                     })()}
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={accAll}
-                      onChange={(e) => setAccAll(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-300 cursor-pointer"
-                    />
-                    <span className="text-xs font-semibold text-slate-600">All Ingredient</span>
-                  </label>
                 </div>
               )}
             </div>
@@ -426,6 +432,21 @@ export default function AccuracyPage() {
                   </p>
                 </div>
               )
+            ) : !selected ? (
+              <div className="flex flex-col items-center justify-center h-72 gap-2">
+                <BarChart3 className="text-slate-200" size={36} />
+                {accuracyLoaded && !ingredients.some((i) => i.has_prediction) ? (
+                  <>
+                    <p className="text-sm font-medium text-slate-500">No prediction available</p>
+                    <p className="text-xs text-slate-400 text-center max-w-xs">Run a prediction first to see accuracy data.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-slate-500">No ingredient selected</p>
+                    <p className="text-xs text-slate-400 text-center max-w-xs">Please select an ingredient from the table below.</p>
+                  </>
+                )}
+              </div>
             ) : chartData.length > 0 ? (
               <>
                 <div className="h-80 px-2 pt-4 pb-2">
@@ -522,74 +543,139 @@ export default function AccuracyPage() {
                 <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
                   <th className="px-6 py-3 font-semibold">Ingredient</th>
                   <th className="px-6 py-3 font-semibold text-center">Accuracy</th>
-                  <th className="px-6 py-3 font-semibold text-right">MAE (avg error/day)</th>
-                  <th className="px-6 py-3 font-semibold text-right">Deviation</th>
-                  <th className="px-6 py-3 font-semibold text-right">Days compared</th>
+                  <th className="px-6 py-3 font-semibold text-center">MAE (avg error/day)</th>
+                  <th className="px-6 py-3 font-semibold text-center">Deviation</th>
+                  <th className="px-6 py-3 font-semibold text-center">Days compared</th>
                   <th className="px-6 py-3 font-semibold text-center">Unit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr><td colSpan={6} className="py-14 text-center"><Loader2 className="animate-spin text-orange-400 mx-auto" size={24} /></td></tr>
-                ) : filtered.length > 0 ? (
-                  filtered.map((row) => {
-                    const isSelected = selected?.ingredient_id === row.ingredient_id;
-                    return (
-                      <tr
-                        key={row.ingredient_id}
-                        onClick={() => { setSelected(row); setAccAll(false); }}
-                        className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
-                      >
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-3">
-                            {isSelected && <div className="w-1 h-6 bg-orange-400 rounded-full" />}
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                                <Package size={13} className="text-slate-400" />
-                              </div>
-                              <span className={`font-semibold text-sm ${isSelected ? "text-orange-600" : "text-slate-700"}`}>
-                                {row.ingredient_name}
-                              </span>
+                ) : (
+                  <>
+                    {/* ── All Ingredients row ── */}
+                    <tr
+                      onClick={() => { if (accAll) { setAccAll(false); } else { setAccAll(true); setAccSearchQuery(""); setSelected(null); } }}
+                      className={`cursor-pointer transition-colors ${accAll ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
+                    >
+                      <td className="px-6 py-3">
+                        <div className="flex items-center gap-3">
+                          {accAll && <div className="w-1 h-6 bg-orange-400 rounded-full" />}
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                              <BarChart3 size={13} className="text-orange-400" />
                             </div>
+                            <span className={`font-semibold text-sm ${accAll ? "text-orange-600" : "text-slate-700"}`}>
+                              All Ingredients
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        {summary ? <AccuracyBadge acc={summary.avgAcc} /> : accuracyLoaded ? <span className="text-slate-400 text-sm">—</span> : <span className="flex items-center justify-center gap-1 text-xs text-slate-400"><Loader2 size={11} className="animate-spin" /> computing</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center text-sm font-medium text-slate-700">
+                        {summary ? summary.avgMae : accuracyLoaded ? <span className="text-slate-400 text-sm">—</span> : <span className="text-slate-300 text-xs italic">loading…</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center text-sm">
+                        {summary ? (
+                          <span className={summary.avgBias > 0.5 ? "text-emerald-600 font-semibold" : summary.avgBias < -0.5 ? "text-red-500 font-semibold" : "text-slate-400"}>
+                            {summary.avgBias > 0 ? "+" : ""}{summary.avgBias}
+                            {summary.avgBias > 0.5 ? " ↑" : summary.avgBias < -0.5 ? " ↓" : ""}
+                          </span>
+                        ) : accuracyLoaded ? <span className="text-slate-400 text-sm">—</span> : <span className="text-slate-300 text-xs italic">loading…</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center text-sm text-slate-500">
+                        {summary ? summary.totalDays : accuracyLoaded ? <span className="text-slate-400 text-sm">—</span> : <span className="text-slate-300 text-xs italic">loading…</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center text-sm text-slate-400">unit</td>
+                    </tr>
+
+                    {/* ── Per-ingredient rows ── */}
+                    {filtered.length > 0 ? (
+                      filtered.map((row) => {
+                        const isSelected = !accAll && selected?.ingredient_id === row.ingredient_id;
+                        return (
+                          <tr
+                            key={row.ingredient_id}
+                            onClick={() => { if (isSelected) { setSelected(null); setAccAll(false); } else { setSelected(row); setAccAll(false); } }}
+                            className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-50" : "hover:bg-slate-50/60"}`}
+                          >
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-3">
+                                {isSelected && <div className="w-1 h-6 bg-orange-400 rounded-full" />}
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                                    <Package size={13} className="text-slate-400" />
+                                  </div>
+                                  <span className={`font-semibold text-sm ${isSelected ? "text-orange-600" : "text-slate-700"}`}>
+                                    {row.ingredient_name}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-6 py-3 text-center">
+                              {!row._loaded
+                                ? <span className="flex items-center justify-center gap-1 text-xs text-slate-400"><Loader2 size={11} className="animate-spin" /> computing</span>
+                                : <AccuracyBadge acc={row.accuracy} />}
+                            </td>
+
+                            <td className="px-6 py-3 text-center text-sm font-medium text-slate-700">
+                              {!row._loaded
+                                ? <span className="text-slate-300 text-xs italic">loading…</span>
+                                : row.mae != null ? `${row.mae} ${row.unit}` : <span className="text-slate-400 text-sm">—</span>}
+                            </td>
+
+                            <td className="px-6 py-3 text-center text-sm">
+                              {!row._loaded
+                                ? <span className="text-slate-300 text-xs italic">loading…</span>
+                                : row.bias != null ? (
+                                  <span className={row.bias > 0.5 ? "text-emerald-600 font-semibold" : row.bias < -0.5 ? "text-red-500 font-semibold" : "text-slate-400"}>
+                                    {row.bias > 0 ? "+" : ""}{row.bias}
+                                    {row.bias > 0.5 ? " ↑" : row.bias < -0.5 ? " ↓" : ""}
+                                  </span>
+                                ) : <span className="text-slate-400 text-sm">—</span>}
+                            </td>
+
+                            <td className="px-6 py-3 text-center text-sm text-slate-500">
+                              {!row._loaded
+                                ? <span className="text-slate-300 text-xs italic">loading…</span>
+                                : row.days > 0 ? row.days : <span className="text-slate-400 text-sm">—</span>}
+                            </td>
+
+                            <td className="px-6 py-3 text-center text-sm text-slate-400">{row.unit}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center">
+                          <p className="text-slate-400 text-sm italic">No ingredients found</p>
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* ── No-prediction ingredients (grayed) ── */}
+                    {filteredNoData.map((ing) => (
+                      <tr key={ing.ingredient_id} className="opacity-40 cursor-default">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                              <Package size={13} className="text-slate-400" />
+                            </div>
+                            <span className="font-semibold text-sm text-slate-500">{ing.ingredient_name || ing.name}</span>
                           </div>
                         </td>
-
-                        <td className="px-6 py-3 text-center">
-                          {!row._loaded
-                            ? <span className="flex items-center justify-center gap-1 text-xs text-slate-300"><Loader2 size={11} className="animate-spin" /> computing</span>
-                            : <AccuracyBadge acc={row.accuracy} />}
-                        </td>
-
-                        <td className="px-6 py-3 text-right text-sm font-medium text-slate-700">
-                          {!row._loaded ? <span className="text-slate-200">—</span>
-                            : row.mae != null ? `${row.mae} ${row.unit}` : <span className="text-slate-300">—</span>}
-                        </td>
-
-                        <td className="px-6 py-3 text-right text-sm">
-                          {!row._loaded ? <span className="text-slate-200">—</span>
-                            : row.bias != null ? (
-                              <span className={row.bias > 0.5 ? "text-emerald-600 font-semibold" : row.bias < -0.5 ? "text-red-500 font-semibold" : "text-slate-400"}>
-                                {row.bias > 0 ? "+" : ""}{row.bias}
-                                {row.bias > 0.5 ? " ↑" : row.bias < -0.5 ? " ↓" : ""}
-                              </span>
-                            ) : <span className="text-slate-300">—</span>}
-                        </td>
-
-                        <td className="px-6 py-3 text-right text-sm text-slate-500">
-                          {row._loaded ? row.days : <span className="text-slate-200">—</span>}
-                        </td>
-
-                        <td className="px-6 py-3 text-center text-sm text-slate-400">{row.unit}</td>
+                        <td className="px-6 py-3 text-center text-slate-300 text-sm">—</td>
+                        <td className="px-6 py-3 text-right text-slate-300 text-sm">—</td>
+                        <td className="px-6 py-3 text-right text-slate-300 text-sm">—</td>
+                        <td className="px-6 py-3 text-right text-slate-300 text-sm">—</td>
+                        <td className="px-6 py-3 text-center text-sm text-slate-400">{ing.unit}</td>
                       </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-14 text-center">
-                      <Target className="mx-auto mb-2 text-slate-200" size={32} />
-                      <p className="text-slate-400 text-sm italic">No ingredients found</p>
-                    </td>
-                  </tr>
+                    ))}
+                  </>
                 )}
               </tbody>
             </table>
