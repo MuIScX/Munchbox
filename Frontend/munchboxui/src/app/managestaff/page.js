@@ -16,6 +16,7 @@ const MANAGER_ROLES = [1, 2];
 export default function ManageStaffPage() {
   const router = useRouter();
   const [callerRole, setCallerRole] = useState(null);
+  const [currentStaffId, setCurrentStaffId] = useState(null);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +48,7 @@ export default function ManageStaffPage() {
       return;
     }
     setCallerRole(session?.role ?? 1); // 1 = admin level for restaurant owner (no staff session)
+    setCurrentStaffId(session?.id ?? null);
     fetchStaff();
   }, []);
 
@@ -242,6 +244,7 @@ export default function ManageStaffPage() {
                         key={member.staff_id || member.id}
                         member={member}
                         callerRole={callerRole}
+                        currentStaffId={currentStaffId}
                         onEditClick={setStaffToEdit}
                         showDelete={showDelete}
                         onDeleteClick={setStaffToDelete}

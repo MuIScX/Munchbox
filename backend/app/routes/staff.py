@@ -76,7 +76,12 @@ def edit_staff(body: StaffUpdate, identity: dict = Depends(decode_token), db: Se
 
 @router.delete("/delete")
 def delete_staff(body: StaffDelete, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
-    staff = db.query(Staff).filter(Staff.id == body.staff_id).first()
+    if body.staff_id == identity.get("staffId"):
+        raise HTTPException(status_code=403, detail="You cannot delete yourself")
+    staff = db.query(Staff).filter(
+        Staff.id == body.staff_id,
+        Staff.restaurant_id == identity["restaurantId"],
+    ).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
     staff.is_active = 0
