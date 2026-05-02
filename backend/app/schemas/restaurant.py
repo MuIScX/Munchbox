@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, time
 
 
 class RestaurantGet(BaseModel):
@@ -13,6 +13,9 @@ class RestaurantCreate(BaseModel):
     end_date: date
     package: int
     manager_pin: Optional[int] = None
+    prediction_frequency:  Optional[int] = None
+    prediction_days_ahead: Optional[int] = 7
+    prediction_run_time:   Optional[time] = None
 
 
 class RestaurantUpdate(BaseModel):
@@ -21,3 +24,6 @@ class RestaurantUpdate(BaseModel):
     end_date: Optional[date] = None
     package: Optional[int] = None
     manager_pin: Optional[int] = None
+    prediction_frequency:  Optional[int] = None
+    prediction_days_ahead: Optional[int] = None
+    prediction_run_time:   Optional[time] = None

@@ -15,4 +15,4 @@ pytensor
 pandas
 numpy
 matplotlib
-python-dotenv
+python-dotenvapscheduler

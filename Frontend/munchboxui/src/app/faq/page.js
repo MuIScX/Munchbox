@@ -1,96 +1,166 @@
 "use client";
 import { useState } from "react";
 import Sidebar from "../components/Sidebar";
-import { ChevronDown, Search, HelpCircle, Package, BarChart2, Users, CookingPot, Bell } from "lucide-react";
+import { ChevronDown, Search, HelpCircle, Package, BarChart2, Users, CookingPot, Target, LayoutDashboard, Settings } from "lucide-react";
 
 const faqs = [
   {
-    category: "Inventory",
-    icon: Package,
-    color: "text-blue-500",
+    category: "Dashboard",
+    icon: LayoutDashboard,
+    color: "text-orange-500",
     questions: [
       {
-        q: "How do I add new inventory items?",
-        a: "Go to Manage Inventory from the sidebar, then click the '+ Add Item' button in the top right. Fill in the ingredient name, unit, current stock, and minimum threshold. Click Save to add it to your inventory.",
+        q: "What does the dashboard show?",
+        a: "The dashboard gives you a quick overview of your restaurant's status. It shows today's orders and revenue, forecast accuracy, ingredients predicted to run low, and menu items that may be unable to serve due to low stock.",
       },
       {
-        q: "How do I update stock levels?",
-        a: "In the Manage Inventory page, find the ingredient you want to update and click the edit icon. You can adjust the current stock quantity directly. Changes are saved immediately.",
+        q: "Can I navigate to other pages from the dashboard?",
+        a: "Yes. Clicking the icon or title of any dashboard card — Sales Trend, Forecast Accuracy, Low Stock Items, or Unable to Serve — will take you directly to the relevant page.",
       },
       {
-        q: "What happens when stock is low?",
-        a: "When an ingredient falls below its minimum threshold, it will be flagged with a warning indicator and you will receive a notification. The ingredient will also appear in the low-stock section of your dashboard.",
+        q: "What does 'Low Stock Items' mean on the dashboard?",
+        a: "It shows ingredients predicted to run out within the selected number of days (3 or 7), based on the latest forecast. You can toggle between 3-day and 7-day views. If an ingredient appears at 3 days but not 7, it means the prediction for 7 days ahead has not been run yet.",
       },
     ],
   },
   {
-    category: "Predictions",
+    category: "Update Inventory",
+    icon: Package,
+    color: "text-blue-500",
+    questions: [
+      {
+        q: "How do I update stock levels?",
+        a: "Go to Update Inventory from the sidebar. Select your staff name, choose the action type — RESTOCK (adding new stock) or RECHECK (correcting the current count) — then enter the new quantities for each ingredient and press Save.",
+      },
+      {
+        q: "What is the difference between RESTOCK and RECHECK?",
+        a: "RESTOCK means you are adding new stock (e.g. a delivery arrived). RECHECK means you are correcting the stock level to match what is physically on hand. Both are logged separately so you can track the reason for each change.",
+      },
+      {
+        q: "Where can I see the history of stock changes?",
+        a: "Open the Inventory Log page from the sidebar. Each entry shows the staff member, date, action type (RESTOCK or RECHECK), and the before/after quantities for every ingredient updated in that batch.",
+      },
+      {
+        q: "Can I export inventory log data?",
+        a: "Yes. On the Inventory Log page, use the checkboxes to select one or more log batches, then click Export CSV. Each selected batch is exported as its own CSV file.",
+      },
+    ],
+  },
+  {
+    category: "Predict Ingredient",
     icon: BarChart2,
     color: "text-emerald-500",
     questions: [
       {
         q: "How does stock prediction work?",
-        a: "MunchBox analyzes your historical sales data and usage patterns to forecast how much of each ingredient you will need. The prediction model updates weekly based on recent trends and seasonal factors.",
+        a: "MunchBox uses a Bayesian time-series model that analyzes your historical sales data to forecast how much of each ingredient you will need over a chosen period. You run predictions manually from the Predict Ingredient page. A setting to schedule automatic prediction runs at a chosen frequency is planned for a future update.",
+      },
+      {
+        q: "What strategy options are available?",
+        a: "Currently only the Balanced strategy is supported. Conservative and Aggressive strategies are shown but disabled — they are planned for a future update.",
       },
       {
         q: "How accurate are the predictions?",
-        a: "Accuracy improves over time as the system collects more data. Typically, predictions reach 85–90% accuracy after 4 weeks of consistent data. You can view confidence scores on the Predict Ingredients page.",
+        a: "Accuracy improves as the system collects more historical sales data. You can review how well past predictions matched actual usage on the Prediction Accuracy page, which shows accuracy percentage, MAE (mean absolute error), and deviation per ingredient.",
+      },
+      {
+        q: "What is the minimum data required to run a prediction?",
+        a: "At least 3 days of historical sales data are required for any ingredient. If there is insufficient data, the model will return an error for that ingredient.",
+      },
+      {
+        q: "Can I predict a past date range?",
+        a: "No. The model only forecasts future dates. If the end date of your chosen range falls before today (or before the last available data point), you will see a 'Can't predict in the past' error.",
       },
     ],
   },
   {
-    category: "Reports",
+    category: "Prediction Accuracy",
+    icon: Target,
+    color: "text-purple-500",
+    questions: [
+      {
+        q: "What does the Prediction Accuracy page show?",
+        a: "It compares past predictions against actual ingredient usage recorded through sales. For each ingredient it shows accuracy %, MAE (average error per day), deviation (whether the model tends to over- or under-predict), and the number of days compared.",
+      },
+      {
+        q: "What is MAE?",
+        a: "MAE stands for Mean Absolute Error — the average difference between predicted and actual usage per day, in the ingredient's unit. A lower MAE means the model is closer to reality.",
+      },
+      {
+        q: "What does Deviation mean?",
+        a: "Deviation (bias) shows the direction of error. A positive deviation means the model tends to over-predict (surplus stock, safe). A negative deviation means it tends to under-predict (risk of running out). Values near 0 mean the model is well-calibrated.",
+      },
+      {
+        q: "Why does an ingredient show no accuracy data?",
+        a: "Accuracy requires a prediction that was run before the date being evaluated, with actual sales recorded on the same day. If no such overlap exists yet, the ingredient will show no data.",
+      },
+    ],
+  },
+  {
+    category: "Sales Report",
     icon: BarChart2,
     color: "text-orange-500",
     questions: [
       {
-        q: "Can I export reports to CSV?",
-        a: "Yes! On the View Reports page, use the Export button in the top right corner. You can choose to export revenue, orders, or inventory data as a CSV file for use in Excel or other tools.",
+        q: "What can I see on the Sales Report page?",
+        a: "The Sales Report page shows total orders and revenue for a selected date range, a sales trend chart (daily or monthly), a revenue breakdown by category (pie chart), and a per-menu-item table with orders, revenue, and revenue share.",
       },
       {
-        q: "What date ranges can I view in reports?",
-        a: "Reports support daily, weekly, monthly, and custom date range views. Use the date picker on the Reports page to select your desired range.",
+        q: "Can I export sales reports?",
+        a: "Not yet. Export functionality for sales reports (CSV, Excel, Word, PDF) is planned for a future update.",
+      },
+      {
+        q: "How do I switch to a monthly view in the sales trend chart?",
+        a: "Check the Monthly checkbox next to the menu selector in the Sales Trend chart. The date pickers will switch to month-selection mode, and the chart will aggregate data by month.",
+      },
+      {
+        q: "What does the Clear button do on the Reports page?",
+        a: "Clear resets the date range to the full available period — from the date of your very first recorded sale up to today.",
       },
     ],
   },
   {
-    category: "Staff",
-    icon: Users,
-    color: "text-purple-500",
-    questions: [
-      {
-        q: "How do I add a new staff member?",
-        a: "Navigate to Manage Staff in the sidebar and click '+ Add Staff'. Enter their name and assign a role. Staff members will receive an invitation to set up their account.",
-      },
-      {
-        q: "Can I set different permission levels?",
-        a: "Yes, there are two permission levels: Admin (full access) and Staff (view and update inventory only). You can change a staff member's role at any time from the Manage Staff page.",
-      },
-    ],
-  },
-  {
-    category: "Recipe",
+    category: "Manage Recipe",
     icon: CookingPot,
     color: "text-pink-500",
     questions: [
       {
-        q: "How do I link ingredients to a recipe?",
-        a: "Open a recipe from Manage Recipe and click 'Edit Recipe'. From there you can add ingredients and specify the quantity used per serving. This allows MunchBox to automatically track ingredient consumption.",
+        q: "How do I link ingredients to a menu item?",
+        a: "Open a menu item from the Manage Recipe page and click Edit. From there you can add ingredients and specify the quantity used per serving. MunchBox uses this to calculate ingredient consumption from sales automatically.",
       },
       {
-        q: "Can I temporarily hide a recipe?",
-        a: "Yes, you can toggle the visibility of any recipe from the Manage Recipe page without deleting it. Hidden recipes won't appear in reports or affect predictions.",
+        q: "Why does a menu item appear in 'Unable to Serve'?",
+        a: "A menu item appears as unable to serve when one or more of its recipe ingredients are predicted to run out before the forecast end date. Check the Predict Ingredient page to see which ingredient is the bottleneck.",
       },
     ],
   },
   {
-    category: "Notifications",
-    icon: Bell,
-    color: "text-yellow-500",
+    category: "Manage Staff",
+    icon: Users,
+    color: "text-indigo-500",
     questions: [
       {
-        q: "How do I manage my notification preferences?",
-        a: "Go to Settings then Notifications to customize which alerts you receive. You can toggle low-stock alerts, daily summaries, and prediction updates individually.",
+        q: "How does staff login work?",
+        a: "On the login screen ('Who Are You'), staff members select their name from the list. No password is required for regular staff. A Manager PIN can be set in Settings to protect sensitive actions like editing restaurant details.",
+      },
+      {
+        q: "How do I add a new staff member?",
+        a: "Navigate to Manage Staff in the sidebar and add a new staff entry. The staff member will appear on the login screen immediately.",
+      },
+    ],
+  },
+  {
+    category: "Settings",
+    icon: Settings,
+    color: "text-slate-500",
+    questions: [
+      {
+        q: "What can I change in Settings?",
+        a: "You can update your restaurant name and Manager PIN. Package, start date, and end date are view-only and managed by your subscription.",
+      },
+      {
+        q: "What does the Manager PIN protect?",
+        a: "The Manager PIN is required before editing restaurant settings. It is also used to authorize other sensitive actions within the app. If no PIN is set, those actions are accessible without a prompt.",
       },
     ],
   },
@@ -146,8 +216,17 @@ export default function FAQPage() {
         <div className="p-8 overflow-y-auto h-full">
 
           {/* Page Title Card */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
-            <h1 className="text-2xl font-bold italic text-slate-800">FAQ</h1>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
+            <div className="px-6 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                <HelpCircle size={20} className="text-orange-500" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">FAQ</h1>
+                <p className="text-sm text-slate-400 mt-0.5">Frequently asked questions about MunchBox</p>
+              </div>
+            </div>
           </div>
 
           {/* Filters Card */}

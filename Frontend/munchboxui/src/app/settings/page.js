@@ -16,6 +16,9 @@ import {
   Lock,
   PlusCircle,
   KeyRound,
+  RefreshCw,
+  CalendarClock,
+  Settings,
 } from "lucide-react";
 
 const PACKAGE_LABELS = { 1: "Basic", 2: "Pro", 3: "Enterprise" };
@@ -25,7 +28,11 @@ const PACKAGE_OPTIONS = [
   { value: 3, label: "Enterprise" },
 ];
 
-const EMPTY_FORM = { name: "", start_date: "", end_date: "", package: 1, manager_pin: "" };
+const EMPTY_FORM = {
+  name: "", start_date: "", end_date: "", package: 1,
+  manager_pin: "", prediction_frequency: "",
+  prediction_days_ahead: "7", prediction_run_time: "00:00",
+};
 
 function InfoRow({ icon: Icon, label, value, color = "text-slate-400" }) {
   return (
@@ -43,7 +50,7 @@ function InfoRow({ icon: Icon, label, value, color = "text-slate-400" }) {
   );
 }
 
-function InputField({ icon: Icon, label, name, value, onChange, placeholder, type = "text", color = "text-slate-400", required }) {
+function InputField({ icon: Icon, label, name, value, onChange, placeholder, type = "text", color = "text-slate-400", required, hint }) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
@@ -60,6 +67,20 @@ function InputField({ icon: Icon, label, name, value, onChange, placeholder, typ
           required={required}
           className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-orange-400 outline-none transition-all placeholder-slate-300"
         />
+      </div>
+      {hint && <p className="text-xs text-slate-400 italic mt-1.5">{hint}</p>}
+    </div>
+  );
+}
+
+function ViewOnlyField({ icon: Icon, label, value, color = "text-slate-400" }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
+      <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
+        <Icon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${color}`} />
+        {value || <span className="italic text-slate-400">Not set</span>}
+        <span className="ml-auto text-xs italic text-slate-400">View only</span>
       </div>
     </div>
   );
@@ -88,93 +109,16 @@ function SelectField({ icon: Icon, label, name, value, onChange, options, color 
   );
 }
 
-// Edit form — only name and manager_pin are editable; package/dates are view-only
-function RestaurantEditForm({ form, onChange, restaurant }) {
-  return (
-    <div className="space-y-5">
-      <InputField
-        icon={Store} label="Restaurant Name" name="name"
-        value={form.name} onChange={onChange}
-        placeholder="e.g. MunchBox HQ" color="text-orange-400" required
-      />
-      {/* Package — view only */}
-      <div>
-        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Package</label>
-        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
-          <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          {PACKAGE_LABELS[restaurant?.package] ?? "Unknown"}
-          <span className="ml-auto text-xs italic text-slate-400">View only</span>
-        </div>
-      </div>
-      {/* Start Date — view only */}
-      <div>
-        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Start Date</label>
-        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300" />
-          {restaurant?.start_date || <span className="italic text-slate-400">Not set</span>}
-          <span className="ml-auto text-xs italic text-slate-400">View only</span>
-        </div>
-      </div>
-      {/* End Date — view only */}
-      <div>
-        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">End Date</label>
-        <div className="flex items-center gap-3 pl-10 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 relative cursor-not-allowed">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-300" />
-          {restaurant?.end_date || <span className="italic text-slate-400">Not set</span>}
-          <span className="ml-auto text-xs italic text-slate-400">View only</span>
-        </div>
-      </div>
-      <div>
-        <InputField
-          icon={Lock} label="Manager PIN" name="manager_pin"
-          value={form.manager_pin} onChange={onChange}
-          placeholder="Optional PIN (numbers only)" type="number"
-          color="text-slate-400"
-        />
-        <p className="text-xs text-slate-400 italic mt-1.5">
-          Used to authorize sensitive actions within the app.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function RestaurantCreateForm({ form, onChange }) {
   return (
     <div className="space-y-5">
-      <InputField
-        icon={Store} label="Restaurant Name" name="name"
-        value={form.name} onChange={onChange}
-        placeholder="e.g. MunchBox HQ" color="text-orange-400" required
-      />
-      <SelectField
-        icon={Package} label="Package" name="package"
-        value={form.package} onChange={onChange}
-        options={PACKAGE_OPTIONS} color="text-slate-400" required
-      />
+      <InputField icon={Store} label="Restaurant Name" name="name" value={form.name} onChange={onChange} placeholder="e.g. MunchBox HQ" color="text-orange-400" required />
+      <SelectField icon={Package} label="Package" name="package" value={form.package} onChange={onChange} options={PACKAGE_OPTIONS} color="text-slate-400" required />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <InputField
-          icon={Calendar} label="Start Date" name="start_date"
-          value={form.start_date} onChange={onChange}
-          type="date" color="text-emerald-400" required
-        />
-        <InputField
-          icon={Calendar} label="End Date" name="end_date"
-          value={form.end_date} onChange={onChange}
-          type="date" color="text-red-400" required
-        />
+        <InputField icon={Calendar} label="Start Date" name="start_date" value={form.start_date} onChange={onChange} type="date" color="text-emerald-400" required />
+        <InputField icon={Calendar} label="End Date" name="end_date" value={form.end_date} onChange={onChange} type="date" color="text-red-400" required />
       </div>
-      <div>
-        <InputField
-          icon={Lock} label="Manager PIN" name="manager_pin"
-          value={form.manager_pin} onChange={onChange}
-          placeholder="Optional PIN (numbers only)" type="number"
-          color="text-slate-400"
-        />
-        <p className="text-xs text-slate-400 italic mt-1.5">
-          Used to authorize sensitive actions within the app.
-        </p>
-      </div>
+      <InputField icon={Lock} label="Manager PIN" name="manager_pin" value={form.manager_pin} onChange={onChange} placeholder="Optional PIN (numbers only)" type="number" color="text-slate-400" hint="Used to authorize sensitive actions within the app." />
     </div>
   );
 }
@@ -183,12 +127,12 @@ export default function SettingsPage() {
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("view"); // "view" | "edit" | "create"
+  const [tab, setTab] = useState("restaurant"); // "restaurant" | "prediction"
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [originalForm, setOriginalForm] = useState(EMPTY_FORM);
 
-  // PIN popup state
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
@@ -206,6 +150,9 @@ export default function SettingsPage() {
           end_date: data.end_date ?? "",
           package: data.package ?? 1,
           manager_pin: data.manager_pin ?? "",
+          prediction_frequency: data.prediction_frequency ?? "",
+          prediction_days_ahead: data.prediction_days_ahead ?? "7",
+          prediction_run_time: data.prediction_run_time ?? "00:00",
         });
         setMode("view");
       } else {
@@ -231,13 +178,24 @@ export default function SettingsPage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const snapshotOriginalForm = (data) => ({
+    name: data.name ?? "",
+    start_date: data.start_date ?? "",
+    end_date: data.end_date ?? "",
+    package: data.package ?? 1,
+    manager_pin: data.manager_pin ?? "",
+    prediction_frequency: data.prediction_frequency ?? "",
+    prediction_days_ahead: data.prediction_days_ahead ?? "7",
+    prediction_run_time: data.prediction_run_time ?? "00:00",
+  });
+
   const handleEditClick = () => {
     if (restaurant?.manager_pin) {
       setIsPinModalOpen(true);
       setPinInput("");
       setPinError("");
     } else {
-      setOriginalForm({ name: restaurant.name ?? "", start_date: restaurant.start_date ?? "", end_date: restaurant.end_date ?? "", package: restaurant.package ?? 1, manager_pin: restaurant.manager_pin ?? "" });
+      setOriginalForm(snapshotOriginalForm(restaurant));
       setMode("edit");
     }
   };
@@ -245,7 +203,7 @@ export default function SettingsPage() {
   const handlePinConfirm = () => {
     if (String(pinInput) === String(restaurant.manager_pin)) {
       setIsPinModalOpen(false);
-      setOriginalForm({ name: restaurant.name ?? "", start_date: restaurant.start_date ?? "", end_date: restaurant.end_date ?? "", package: restaurant.package ?? 1, manager_pin: restaurant.manager_pin ?? "" });
+      setOriginalForm(snapshotOriginalForm(restaurant));
       setMode("edit");
     } else {
       setPinError("Incorrect PIN. Please try again.");
@@ -282,14 +240,21 @@ export default function SettingsPage() {
       setSaving(true);
       await RestaurantAPI.update({
         name: form.name,
-        start_date: form.start_date,
-        end_date: form.end_date,
-        package: Number(form.package),
         manager_pin: form.manager_pin ? Number(form.manager_pin) : undefined,
+        prediction_frequency: form.prediction_frequency ? Number(form.prediction_frequency) : 0,
+        prediction_days_ahead: form.prediction_days_ahead ? Number(form.prediction_days_ahead) : undefined,
+        prediction_run_time: form.prediction_run_time || "00:00",
       });
-      setRestaurant({ ...restaurant, ...form });
+      setRestaurant({
+        ...restaurant,
+        name: form.name,
+        manager_pin: form.manager_pin ? Number(form.manager_pin) : null,
+        prediction_frequency: form.prediction_frequency ? Number(form.prediction_frequency) : null,
+        prediction_days_ahead: form.prediction_days_ahead ? Number(form.prediction_days_ahead) : 7,
+        prediction_run_time: form.prediction_run_time || "00:00",
+      });
       setMode("view");
-      showToast("success", "Restaurant details updated successfully.");
+      showToast("success", "Settings saved successfully.");
     } catch {
       showToast("error", "Failed to save changes. Please try again.");
     } finally {
@@ -304,11 +269,18 @@ export default function SettingsPage() {
       end_date: restaurant.end_date ?? "",
       package: restaurant.package ?? 1,
       manager_pin: restaurant.manager_pin ?? "",
+      prediction_frequency: restaurant.prediction_frequency ?? "",
+      prediction_days_ahead: restaurant.prediction_days_ahead ?? "7",
+      prediction_run_time: restaurant.prediction_run_time ?? "00:00",
     });
     setMode("view");
   };
 
-  const isDirty = form.name !== originalForm.name || String(form.manager_pin) !== String(originalForm.manager_pin);
+  const isDirty = form.name !== originalForm.name
+    || String(form.manager_pin) !== String(originalForm.manager_pin)
+    || String(form.prediction_frequency) !== String(originalForm.prediction_frequency)
+    || String(form.prediction_days_ahead) !== String(originalForm.prediction_days_ahead)
+    || String(form.prediction_run_time) !== String(originalForm.prediction_run_time);
 
   const daysUntilExpiry = restaurant?.end_date
     ? Math.ceil((new Date(restaurant.end_date) - new Date()) / (1000 * 60 * 60 * 24))
@@ -360,26 +332,44 @@ export default function SettingsPage() {
                 />
                 {pinError && <p className="text-xs text-red-500 mb-3">{pinError}</p>}
                 <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    onClick={() => setIsPinModalOpen(false)}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePinConfirm}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition"
-                  >
-                    Confirm
-                  </button>
+                  <button onClick={() => setIsPinModalOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">Cancel</button>
+                  <button onClick={handlePinConfirm} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition">Confirm</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Page Title */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
-            <h1 className="text-2xl font-bold italic text-slate-800">Settings</h1>
+          {/* Header */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div className="h-1.5 bg-gradient-to-r from-orange-500 to-orange-300" />
+            <div className="px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                  <Settings size={20} className="text-orange-500" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Settings</h1>
+                  <p className="text-sm text-slate-400 mt-0.5">Manage your restaurant configuration</p>
+                </div>
+              </div>
+
+              {/* Tabs — only show when restaurant exists */}
+              {!loading && mode !== "create" && (
+                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                  {[["restaurant", "Restaurant Details"], ["prediction", "Prediction Details"]].map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setTab(key)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                        tab === key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -420,10 +410,10 @@ export default function SettingsPage() {
 
           ) : (
             /* ── VIEW / EDIT MODE ── */
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className={`grid grid-cols-1 gap-6 ${tab === "restaurant" ? "lg:grid-cols-3" : "lg:grid-cols-1"}`}>
 
-              {/* Left: Summary */}
-              <div className="lg:col-span-1 space-y-6">
+              {/* Left: Summary — only on restaurant tab */}
+              {tab === "restaurant" && <div className="lg:col-span-1 space-y-6">
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="h-12 bg-gradient-to-br relative">
                     <div className="absolute inset-0 opacity-10"
@@ -460,13 +450,16 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </div>}
 
-              {/* Right: Detail / Edit */}
-              <div className="lg:col-span-2">
+              {/* Right: Tab Content */}
+              <div className={tab === "restaurant" ? "lg:col-span-2" : "lg:col-span-1"}>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  {/* Card header */}
                   <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="font-bold italic text-slate-800 text-lg">Restaurant Details</h2>
+                    <h2 className="font-bold italic text-slate-800 text-lg">
+                      {tab === "restaurant" ? "Restaurant Details" : "Prediction Details"}
+                    </h2>
                     {mode === "view" ? (
                       <button
                         onClick={handleEditClick}
@@ -497,16 +490,66 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="p-6">
-                    {mode === "view" ? (
-                      <div>
-                        <InfoRow icon={Store} label="Restaurant Name" value={restaurant?.name} color="text-orange-400" />
-                        <InfoRow icon={Package} label="Package" value={PACKAGE_LABELS[restaurant?.package] ?? restaurant?.package} color="text-slate-400" />
-                        <InfoRow icon={Calendar} label="Start Date" value={restaurant?.start_date} color="text-emerald-400" />
-                        <InfoRow icon={Calendar} label="End Date" value={restaurant?.end_date} color="text-red-400" />
-                        <InfoRow icon={Lock} label="Manager PIN" value={restaurant?.manager_pin ? "••••••" : null} color="text-slate-400" />
-                      </div>
+                    {tab === "restaurant" ? (
+                      mode === "view" ? (
+                        <div>
+                          <InfoRow icon={Store} label="Restaurant Name" value={restaurant?.name} color="text-orange-400" />
+                          <InfoRow icon={Package} label="Package" value={PACKAGE_LABELS[restaurant?.package] ?? restaurant?.package} color="text-slate-400" />
+                          <InfoRow icon={Calendar} label="Start Date" value={restaurant?.start_date} color="text-emerald-400" />
+                          <InfoRow icon={Calendar} label="End Date" value={restaurant?.end_date} color="text-red-400" />
+                          <InfoRow icon={Lock} label="Manager PIN" value={restaurant?.manager_pin ? "••••••" : null} color="text-slate-400" />
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          <InputField icon={Store} label="Restaurant Name" name="name" value={form.name} onChange={handleChange} placeholder="e.g. MunchBox HQ" color="text-orange-400" required />
+                          <ViewOnlyField icon={Package} label="Package" value={PACKAGE_LABELS[restaurant?.package] ?? "Unknown"} color="text-slate-400" />
+                          <ViewOnlyField icon={Calendar} label="Start Date" value={restaurant?.start_date} color="text-emerald-300" />
+                          <ViewOnlyField icon={Calendar} label="End Date" value={restaurant?.end_date} color="text-red-300" />
+                          <InputField icon={Lock} label="Manager PIN" name="manager_pin" value={form.manager_pin} onChange={handleChange} placeholder="Optional PIN (numbers only)" type="number" color="text-slate-400" hint="Used to authorize sensitive actions within the app." />
+                        </div>
+                      )
                     ) : (
-                      <RestaurantEditForm form={form} onChange={handleChange} restaurant={restaurant} />
+                      mode === "view" ? (
+                        <div>
+                          <InfoRow icon={RefreshCw} label="Auto-Prediction Frequency" value={restaurant?.prediction_frequency ? `Every ${restaurant.prediction_frequency} day${restaurant.prediction_frequency === 1 ? "" : "s"}` : "Manual only"} color="text-emerald-500" />
+                          <InfoRow icon={RefreshCw} label="Predict Days Ahead" value={restaurant?.prediction_days_ahead ? `${restaurant.prediction_days_ahead} day${restaurant.prediction_days_ahead === 1 ? "" : "s"}` : "7 days (default)"} color="text-blue-400" />
+                          <InfoRow icon={CalendarClock} label="Run Time (Bangkok)" value={restaurant?.prediction_run_time ?? "00:00"} color="text-slate-400" />
+                          <InfoRow icon={CalendarClock} label="Next Auto-Prediction" value={restaurant?.next_prediction_run ? new Date(restaurant.next_prediction_run).toLocaleString() : "Not scheduled"} color="text-slate-400" />
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          <div className="grid grid-cols-2 gap-4">
+                            <InputField
+                              icon={RefreshCw} label="Auto-Run Every (days)" name="prediction_frequency"
+                              value={form.prediction_frequency} onChange={handleChange}
+                              placeholder="e.g. 7" type="number" color="text-emerald-500"
+                              hint="Leave empty to disable auto-run."
+                            />
+                            <InputField
+                              icon={RefreshCw} label="Predict Days Ahead" name="prediction_days_ahead"
+                              value={form.prediction_days_ahead} onChange={handleChange}
+                              placeholder="e.g. 7" type="number" color="text-blue-400"
+                              hint="How many days ahead to forecast."
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                              Run Time (Bangkok time)
+                            </label>
+                            <div className="relative">
+                              <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={2} />
+                              <input
+                                type="time"
+                                name="prediction_run_time"
+                                value={form.prediction_run_time}
+                                onChange={handleChange}
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-orange-400 outline-none transition-all"
+                              />
+                            </div>
+                            <p className="text-xs text-slate-400 italic mt-1.5">Default is 00:00 (midnight).</p>
+                          </div>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>

@@ -108,8 +108,12 @@ export default function Sidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, loading, error } = useCurrentUser();
-  const staffRole = StaffSession.get()?.role ?? null;
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const staffRole = mounted ? (StaffSession.get()?.role ?? null) : null;
   const isManager = MANAGER_ROLES.includes(staffRole);
 
   const handleLogout = () => {
