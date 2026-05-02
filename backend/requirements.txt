@@ -15,4 +15,5 @@ pytensor
 pandas
 numpy
 matplotlib
-python-dotenvapscheduler
+python-dotenv
+apscheduler
