@@ -23,6 +23,9 @@ def get_all_staff(identity: dict = Depends(decode_token), db: Session = Depends(
 
 @router.post("/create", status_code=201)
 def add_staff(body: StaffCreate, identity: dict = Depends(decode_token), db: Session = Depends(get_db)):
+    caller_role = identity.get("role", 1)
+    if caller_role == 2 and body.role == 1:
+        raise HTTPException(status_code=403, detail="Managers cannot create Admin staff")
     existing_name = db.query(Staff).filter(
         Staff.restaurant_id == identity["restaurantId"],
         Staff.name == body.name,
@@ -84,6 +87,8 @@ def delete_staff(body: StaffDelete, identity: dict = Depends(decode_token), db: 
     ).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
+    if identity.get("role") == 2 and staff.role == 1:
+        raise HTTPException(status_code=403, detail="Managers cannot delete Admin staff")
     staff.is_active = 0
     db.commit()
     return {"message": "success", "Data": []}

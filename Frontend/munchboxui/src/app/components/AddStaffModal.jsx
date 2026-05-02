@@ -11,13 +11,14 @@ const ROLE_MAP = {
   5: "Cashier",
 };
 
-export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
+export default function AddStaffModal({ isOpen, onClose, onSuccess, callerRole }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shakeKey, setShakeKey] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [formData, setFormData] = useState({ name: "", username: "", password: "", confirmPassword: "", role: "1" });
+  const defaultRole = callerRole === 2 ? "2" : "1";
+  const [formData, setFormData] = useState({ name: "", username: "", password: "", confirmPassword: "", role: defaultRole });
 
   if (!isOpen) return null;
 
@@ -44,7 +45,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
       await StaffAPI.create(formData.name.trim(), formData.username.trim(), formData.password, Number(formData.role));
       onSuccess();
       onClose();
-      setFormData({ name: "", username: "", password: "", confirmPassword: "", role: "1" });
+      setFormData({ name: "", username: "", password: "", confirmPassword: "", role: defaultRole });
     } catch (err) {
       triggerError(err.message || "Failed to add staff member");
     } finally {
@@ -151,7 +152,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               onChange={set("role")}
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-700"
             >
-              {Object.entries(ROLE_MAP).map(([id, roleName]) => (
+              {Object.entries(ROLE_MAP).filter(([id]) => !(callerRole === 2 && Number(id) === 1)).map(([id, roleName]) => (
                 <option key={id} value={id}>{roleName}</option>
               ))}
             </select>

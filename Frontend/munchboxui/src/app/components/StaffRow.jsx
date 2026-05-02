@@ -18,11 +18,10 @@ const ROLE_STYLE = {
 };
 
 
-export default function StaffRow({ member, callerRole, currentStaffId, onEditClick, showDelete, onDeleteClick }) {
+export default function StaffRow({ member, callerRole, onEditClick, showDelete, onDeleteClick }) {
   const name = member.name || "Unknown";
   const roleText = ROLE_MAP[member.role] || "Unknown";
   const badgeStyle = ROLE_STYLE[member.role] || "bg-slate-100 text-slate-700";
-  const isSelf = currentStaffId !== null && (member.staff_id || member.id) === currentStaffId;
 
   return (
     <tr className="hover:bg-orange-50/40 transition-colors group">
@@ -45,7 +44,7 @@ export default function StaffRow({ member, callerRole, currentStaffId, onEditCli
               Edit
             </button>
           )}
-          {showDelete && !isSelf && (
+          {showDelete && (
             <button
               onClick={() => onDeleteClick(member)}
               className="text-slate-300 hover:text-red-500 transition-colors"
