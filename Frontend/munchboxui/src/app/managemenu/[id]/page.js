@@ -29,7 +29,7 @@ export default function RecipeDetailPage() {
     try {
       setLoading(true);
       const [menuRes, recipeRes, stockRes] = await Promise.allSettled([
-        MenuAPI.getById(1, id),
+        MenuAPI.getById(id),
         RecipeAPI.getDetail(id),
         IngredientAPI.list({ menu_id: id })
       ]);
