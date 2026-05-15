@@ -21,7 +21,7 @@ AI-powered restaurant inventory management with Bayesian demand forecasting and 
 
 ```
                           +-------------------------+
-                          |   Browser / Mobile      |
+                          |   Browser               |
                           |   munchbox.live         |
                           +----------+--------------+
                                      |
